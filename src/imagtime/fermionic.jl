@@ -4,7 +4,7 @@ fermionic_Cτ(f::SpectrumFunction; β::Real, N::Int, μ::Real=0, δτ::Real=β/N
 
 
 """
-    Cτ(f, β::Real, N::Int)
+    fermionic_Cτ(f, β::Real, N::Int)
 
 f is the spectrum function
 """
@@ -17,8 +17,8 @@ function fermionic_Cτ(f0::SpectrumFunction, β::Real, N::Int, μ::Real, δτ::R
     ub -= μ
     # δτ = β / N
     
-    g₁(ϵ) = _g₁(β, 0., ϵ)
-    g₂(ϵ) = _g₂(β, 0., ϵ)
+    g₁(ϵ) = _f₁(β, 0., ϵ)
+    g₂(ϵ) = _f₂(β, 0., ϵ)
     fⱼₖ(Δk::Int, ε::Float64) = _fⱼₖ_i(f, Δk, ε, δτ)
     fₖⱼ(Δk::Int, ε::Float64) = _fₖⱼ_i(f, Δk, ε, δτ)
     fⱼⱼ(ε::Float64) = _fⱼⱼ_i(f, ε, δτ)

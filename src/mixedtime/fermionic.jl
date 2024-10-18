@@ -2,7 +2,7 @@ Cm(bath::AbstractFermionicBath; Nτ::Int, t::Real, Nt::Int, δτ::Real=bath.β/N
 function fermionic_Cm(f0::SpectrumFunction; β::Real, Nτ::Int, t::Real, Nt::Int, μ::Real=0, δτ::Real=β/Nτ)
 	f, lb, ub = f0.f, lowerbound(f0), upperbound(f0)
     δt = t / Nt
-    g₁(ε) = _g₁(β, μ, ε); g₂(ε) = _g₂(β, μ, ε)
+    g₁(ε) = _f₁(β, μ, ε); g₂(ε) = _f₂(β, μ, ε)
     # real time
     fⱼₖ(Δk, ε) = _fⱼₖ_r(f, Δk, ε, δt)
     fⱼⱼ(ε) = _fⱼⱼ_r(f, ε, δt)

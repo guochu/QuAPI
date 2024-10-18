@@ -5,7 +5,7 @@ function fermionic_Ct(f0::SpectrumFunction, β::Real, N::Int, δt::Real, μ::Rea
     f, lb, ub = f0.f, lowerbound(f0), upperbound(f0)
     β = convert(Float64, β)
     μ = convert(Float64, μ)
-    g₁(ε) = _g₁(β, μ, ε); g₂(ε) = _g₂(β, μ, ε)
+    g₁(ε) = _f₁(β, μ, ε); g₂(ε) = _f₂(β, μ, ε)
     fⱼₖ(Δk, ε) = _fⱼₖ_r(f, Δk, ε, δt)
     fⱼⱼ(ε) = _fⱼⱼ_r(f, ε, δt)
 
