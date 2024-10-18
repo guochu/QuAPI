@@ -25,7 +25,7 @@ function bosonic_Cτ(f0::SpectrumFunction, β::Real, N::Int, μ::Real, δτ::Rea
     # j >= k
     L = N
     ηⱼₖ = zeros(Float64, L)
-    ηⱼₖ[1] = quadgk(ε -> -g₁(ε)*fⱼⱼ(ε), lb, ub)[1]
+    ηⱼₖ[1] = quadgk(ε -> g₁(ε)*fⱼⱼ(ε), lb, ub)[1]
     for k = 1:L-1
         ηⱼₖ[k+1] = quadgk(ε -> g₁(ε)*fⱼₖ(k,ε), lb, ub)[1]
     end
