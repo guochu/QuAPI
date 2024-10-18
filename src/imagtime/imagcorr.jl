@@ -1,0 +1,16 @@
+struct ImagCorrelationFunction{M<:AbstractMatrix{Float64}} <: AbstractCorrelationFunction
+    data::M
+end
+
+Base.size(x::ImagCorrelationFunction, i::Int...) = size(x.data, i...)
+
+function Base.show(io::IO, ::MIME"text/plain", A::ImagCorrelationFunction)
+    print(io, "Imaginary Correlation Function [$(size(A.data, 1))]")
+end
+
+Base.:+(A::ImagCorrelationFunction, B::ImagCorrelationFunction) = ImagCorrelationFunction(A.data + B.data)
+index(x::ImagCorrelationFunction, i::Int, j::Int) = x.data[i, j]
+function branch(x::ImagCorrelationFunction; b1::Symbol=τ, b2::Symbol=:τ)
+    ((b1 == :τ) && (b2 == :τ)) || throw(ArgumentError("branch must be :τ"))
+    return x.data
+end 
