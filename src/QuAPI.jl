@@ -11,7 +11,6 @@ export RealCorrelationFunction, Ct, fermionic_Ct, bosonic_Ct
 export AbstractMixedCorrelationFunction, MixedCorrelationFunction, Cm, fermionic_Cm, bosonic_Cm
 
 using Base: @boundscheck
-using QuadGK
 using ImpurityModelBase
 
 

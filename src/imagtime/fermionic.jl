@@ -27,15 +27,15 @@ function fermionic_Cτ(f0::SpectrumFunction, β::Real, N::Int, μ::Real, δτ::R
     # j >= k
     L = N
     ηⱼₖ = zeros(Float64, L)
-    ηⱼₖ[1] = quadgk(ε -> g₁(ε)*fⱼⱼ(ε), lb, ub)[1]
+    ηⱼₖ[1] = quadgkwrapper(bounded(ε -> g₁(ε)*fⱼⱼ(ε), lb, ub))
     for k = 1:L-1
-        ηⱼₖ[k+1] = quadgk(ε -> g₁(ε)*fⱼₖ(k,ε), lb, ub)[1]
+        ηⱼₖ[k+1] = quadgkwrapper(bounded(ε -> g₁(ε)*fⱼₖ(k,ε), lb, ub))
     end
 
     ηₖⱼ = zeros(Float64, L)
-    ηₖⱼ[1] = quadgk(ε -> -g₂(ε)*fₖₖ(ε), lb, ub)[1]
+    ηₖⱼ[1] = quadgkwrapper(bounded(ε -> -g₂(ε)*fₖₖ(ε), lb, ub))
     for k = 1:L-1
-        ηₖⱼ[k+1] = quadgk(ε -> -g₂(ε)*fₖⱼ(k,ε), lb, ub)[1]
+        ηₖⱼ[k+1] = quadgkwrapper(bounded(ε -> -g₂(ε)*fₖⱼ(k,ε), lb, ub))
     end
     ImagCorrelationFunction(CorrelationMatrix{Float64}(ηⱼₖ, ηₖⱼ))
 end

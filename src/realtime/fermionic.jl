@@ -13,13 +13,13 @@ function fermionic_Ct(f0::SpectrumFunction, β::Real, N::Int, δt::Real, μ::Rea
     ηⱼₖ = zeros(ComplexF64, N+1)
     ηₖⱼ = zeros(ComplexF64, N+1)
 
-    ηⱼₖ[1] = quadgk(ε -> -g₁(ε)*fⱼⱼ(ε), lb, ub)[1] 
+    ηⱼₖ[1] = quadgkwrapper(bounded(ε -> -g₁(ε)*fⱼⱼ(ε), lb, ub))
     for i = 1:N
-        ηⱼₖ[i+1] = quadgk(ε -> -g₁(ε)*fⱼₖ(i,ε), lb, ub)[1]
+        ηⱼₖ[i+1] = quadgkwrapper(bounded(ε -> -g₁(ε)*fⱼₖ(i,ε), lb, ub))
     end
-    ηₖⱼ[1] = quadgk(ε -> g₂(ε)*fⱼⱼ(ε)', lb, ub)[1]
+    ηₖⱼ[1] = quadgkwrapper(bounded(ε -> g₂(ε)*fⱼⱼ(ε)', lb, ub))
     for i = 1:N
-        ηₖⱼ[i+1] = quadgk(ε -> g₂(ε)*fⱼₖ(i,ε)', lb, ub)[1]
+        ηₖⱼ[i+1] = quadgkwrapper(bounded(ε -> g₂(ε)*fⱼₖ(i,ε)', lb, ub))
     end
     G₊₊ = CorrelationMatrix(ηⱼₖ, ηₖⱼ)   
 
@@ -27,11 +27,11 @@ function fermionic_Ct(f0::SpectrumFunction, β::Real, N::Int, δt::Real, μ::Rea
     ηⱼₖ = zeros(ComplexF64, N+1)
     ηₖⱼ = zeros(ComplexF64, N+1)
 
-    ηⱼₖ[1] = quadgk(ε -> g₂(ε)*fⱼⱼ(ε), lb, ub)[1] 
+    ηⱼₖ[1] = quadgkwrapper(bounded(ε -> g₂(ε)*fⱼⱼ(ε), lb, ub))
     for i = 1:N
-        ηⱼₖ[i+1] = quadgk(ε -> g₂(ε)*fⱼₖ(i,ε), lb, ub)[1]
+        ηⱼₖ[i+1] = quadgkwrapper(bounded(ε -> g₂(ε)*fⱼₖ(i,ε), lb, ub))
     end
-    ηₖⱼ[1] = quadgk(ε -> g₂(ε)*fⱼⱼ(ε)', lb, ub)[1]
+    ηₖⱼ[1] = quadgkwrapper(bounded(ε -> g₂(ε)*fⱼⱼ(ε)', lb, ub))
     for i = 1:N
         ηₖⱼ[i+1] = ηⱼₖ[i+1]'
     end
@@ -41,11 +41,11 @@ function fermionic_Ct(f0::SpectrumFunction, β::Real, N::Int, δt::Real, μ::Rea
     ηⱼₖ = zeros(ComplexF64, N+1)
     ηₖⱼ = zeros(ComplexF64, N+1)
 
-    ηⱼₖ[1] = quadgk(ε -> -g₁(ε)*fⱼⱼ(ε), lb, ub)[1] 
+    ηⱼₖ[1] = quadgkwrapper(bounded(ε -> -g₁(ε)*fⱼⱼ(ε), lb, ub))
     for i = 1:N
-        ηⱼₖ[i+1] = quadgk(ε -> -g₁(ε)*fⱼₖ(i,ε), lb, ub)[1]
+        ηⱼₖ[i+1] = quadgkwrapper(bounded(ε -> -g₁(ε)*fⱼₖ(i,ε), lb, ub))
     end
-    ηₖⱼ[1] = quadgk(ε -> -g₁(ε)*fⱼⱼ(ε)', lb, ub)[1]
+    ηₖⱼ[1] = quadgkwrapper(bounded(ε -> -g₁(ε)*fⱼⱼ(ε)', lb, ub))
     for i = 1:N
         ηₖⱼ[i+1] = ηⱼₖ[i+1]'
     end
@@ -55,13 +55,13 @@ function fermionic_Ct(f0::SpectrumFunction, β::Real, N::Int, δt::Real, μ::Rea
     ηⱼₖ = zeros(ComplexF64, N+1)
     ηₖⱼ = zeros(ComplexF64, N+1)
 
-    ηⱼₖ[1] = quadgk(ε -> g₂(ε)*fⱼⱼ(ε), lb, ub)[1] 
+    ηⱼₖ[1] = quadgkwrapper(bounded(ε -> g₂(ε)*fⱼⱼ(ε), lb, ub))
     for i = 1:N
-        ηⱼₖ[i+1] = quadgk(ε -> g₂(ε)*fⱼₖ(i,ε), lb, ub)[1]
+        ηⱼₖ[i+1] = quadgkwrapper(bounded(ε -> g₂(ε)*fⱼₖ(i,ε), lb, ub))
     end
-    ηₖⱼ[1] = quadgk(ε -> -g₁(ε)*fⱼⱼ(ε)', lb, ub)[1]
+    ηₖⱼ[1] = quadgkwrapper(bounded(ε -> -g₁(ε)*fⱼⱼ(ε)', lb, ub))
     for i = 1:N
-        ηₖⱼ[i+1] = quadgk(ε -> -g₁(ε)*fⱼₖ(i,ε)', lb, ub)[1]
+        ηₖⱼ[i+1] = quadgkwrapper(bounded(ε -> -g₁(ε)*fⱼₖ(i,ε)', lb, ub))
     end
     G₋₋ = CorrelationMatrix(ηⱼₖ, ηₖⱼ)
     return RealCorrelationFunction(G₊₊, G₊₋, G₋₊, G₋₋)

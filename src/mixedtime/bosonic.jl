@@ -20,27 +20,27 @@ function bosonic_Cm(f0::SpectrumFunction; β::Real, Nτ::Int, t::Real, Nt::Int, 
     ηⱼₖ = zeros(ComplexF64, Nt+1)
     ηₖⱼ = zeros(ComplexF64, Nt+1)
 
-    ηⱼₖ[1] = quadgk(ε -> g₁(ε)*fⱼⱼ(ε), lb, ub)[1]
+    ηⱼₖ[1] = quadgkwrapper(bounded(ε -> g₁(ε)*fⱼⱼ(ε), lb, ub))
     for i = 1:Nt
-        ηⱼₖ[i+1] = quadgk(ε -> g₁(ε)*fⱼₖ(i,ε), lb, ub)[1]
+        ηⱼₖ[i+1] = quadgkwrapper(bounded(ε -> g₁(ε)*fⱼₖ(i,ε), lb, ub))
     end
-    ηₖⱼ[1] = quadgk(ε -> g₂(ε)*fₖₖ(ε), lb, ub)[1]
+    ηₖⱼ[1] = quadgkwrapper(bounded(ε -> g₂(ε)*fₖₖ(ε), lb, ub))
     for i = 1:Nt
-        ηₖⱼ[i+1] = quadgk(ε -> g₂(ε)*fⱼₖ(-i,ε), lb, ub)[1]
+        ηₖⱼ[i+1] = quadgkwrapper(bounded(ε -> g₂(ε)*fⱼₖ(-i,ε), lb, ub))
     end
 
     # imag time
     ξⱼₖ = zeros(ComplexF64, M) # j >= k
     ξₖⱼ = zeros(Float64, M)
 
-    ξⱼₖ[1] = quadgk(ε -> g₁(ε)*hⱼⱼ(ε), lb, ub)[1]
+    ξⱼₖ[1] = quadgkwrapper(bounded(ε -> g₁(ε)*hⱼⱼ(ε), lb, ub))
     for k = 2:M
-        ξⱼₖ[k] = quadgk(ε -> g₁(ε)*hⱼₖ(k-1,ε), lb, ub)[1]
+        ξⱼₖ[k] = quadgkwrapper(bounded(ε -> g₁(ε)*hⱼₖ(k-1,ε), lb, ub))
     end
     
-    ξₖⱼ[1] = quadgk(ε -> g₂(ε)*hₖₖ(ε), lb, ub)[1]
+    ξₖⱼ[1] = quadgkwrapper(bounded(ε -> g₂(ε)*hₖₖ(ε), lb, ub))
     for k = 2:M
-        ξₖⱼ[k] = quadgk(ε -> g₂(ε)*hⱼₖ(1-k,ε), lb, ub)[1]
+        ξₖⱼ[k] = quadgkwrapper(bounded(ε -> g₂(ε)*hⱼₖ(1-k,ε), lb, ub))
     end
 
     # mix time
@@ -48,8 +48,8 @@ function bosonic_Cm(f0::SpectrumFunction; β::Real, Nτ::Int, t::Real, Nt::Int, 
     ζₖⱼ = zeros(ComplexF64, N+1, M)
 
     for j = 1:M, k = 1:N+1
-        ζⱼₖ[j,k] = quadgk(ε -> g₁(ε)*lⱼₖ(j-1,k-1,ε), lb, ub)[1]
-        ζₖⱼ[k,j] = quadgk(ε -> g₂(ε)*lₖⱼ(k-1,j-1,ε), lb, ub)[1]
+        ζⱼₖ[j,k] = quadgkwrapper(bounded(ε -> g₁(ε)*lⱼₖ(j-1,k-1,ε), lb, ub))
+        ζₖⱼ[k,j] = quadgkwrapper(bounded(ε -> g₂(ε)*lₖⱼ(k-1,j-1,ε), lb, ub))
     end
     MixedCorrelationFunction(ηⱼₖ,ηₖⱼ,ξⱼₖ,ξₖⱼ,ζⱼₖ,ζₖⱼ)
 end
