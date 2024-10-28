@@ -12,65 +12,85 @@ function fermionic_Cτ(f0::SpectrumFunction, β::Real, N::Int, μ::Real, δτ::R
     f′, lb, ub = f0.f, lowerbound(f0), upperbound(f0)
     β = convert(Float64, β)
     μ = convert(Float64, μ)
-    f(ϵ) = f′(ϵ + μ)
     lb -= μ
     ub -= μ
+    f = bounded(ϵ->f′(ϵ + μ), lb, ub) 
     # δτ = β / N
     
     g₁(ϵ) = _f₁(β, 0., ϵ)
     g₂(ϵ) = _f₂(β, 0., ϵ)
-    fⱼₖ(Δk::Int, ε::Float64) = _fⱼₖ_i(f, Δk, ε, δτ)
-    fₖⱼ(Δk::Int, ε::Float64) = _fₖⱼ_i(f, Δk, ε, δτ)
-    fⱼⱼ(ε::Float64) = _fⱼⱼ_i(f, ε, δτ)
-    fₖₖ(ε::Float64) = _fₖₖ_i(f, ε, δτ)
+    fⱼₖ(Δk::Int) = _fⱼₖ_i(f, Δk, δτ)
+    fₖⱼ(Δk::Int) = _fₖⱼ_i(f, Δk, δτ)
+    fⱼⱼ = _fⱼⱼ_i(f, δτ)
+    fₖₖ = _fₖₖ_i(f, δτ)
 
     # j >= k
     L = N
     ηⱼₖ = zeros(Float64, L)
-    ηⱼₖ[1] = quadgkwrapper(bounded(ε -> g₁(ε)*fⱼⱼ(ε), lb, ub))
+    ηⱼₖ[1] = quadgkwrapper(fⱼⱼ * g₁)
     for k = 1:L-1
-        ηⱼₖ[k+1] = quadgkwrapper(bounded(ε -> g₁(ε)*fⱼₖ(k,ε), lb, ub))
+        ηⱼₖ[k+1] = quadgkwrapper(fⱼₖ(k) * g₁)
     end
 
     ηₖⱼ = zeros(Float64, L)
-    ηₖⱼ[1] = quadgkwrapper(bounded(ε -> -g₂(ε)*fₖₖ(ε), lb, ub))
+    ηₖⱼ[1] = quadgkwrapper(fₖₖ * (ε->-g₂(ε)))
     for k = 1:L-1
-        ηₖⱼ[k+1] = quadgkwrapper(bounded(ε -> -g₂(ε)*fₖⱼ(k,ε), lb, ub))
+        ηₖⱼ[k+1] = quadgkwrapper(fₖⱼ(k) * (ε -> -g₂(ε)))
     end
     ImagCorrelationFunction(CorrelationMatrix{Float64}(ηⱼₖ, ηₖⱼ))
 end
 
-# from now on j > k
-function _fⱼₖ_i(f, Δk::Int, ε::Float64, δτ)
-    if (abs(ε) > tol)
-        -2f(ε)/ε^2*exp(-Δk*δτ*ε)*(1-cosh(δτ*ε))
-    else
-        f(ε)*exp(-Δk*δτ*ε)*δτ^2
-    end
+# # from now on j > k
+# function _fⱼₖ_i(f, Δk::Int, ε::Float64, δτ)
+#     if (abs(ε) > tol)
+#         -2f(ε)/ε^2*exp(-Δk*δτ*ε)*(1-cosh(δτ*ε))
+#     else
+#         f(ε)*exp(-Δk*δτ*ε)*δτ^2
+#     end
+# end
+
+# function _fₖⱼ_i(f, Δk::Int, ε::Float64, δτ)
+#     if (abs(ε) > tol)
+#         -2f(ε)/ε^2*exp(Δk*δτ*ε)*(1-cosh(δτ*ε))
+#     else
+#         f(ε)*exp(Δk*δτ*ε)*δτ^2
+#     end
+# end
+
+# function _fⱼⱼ_i(f, ε::Float64, δτ)
+#     if (abs(ε) > tol)
+#         f(ε)/ε^2*(exp(-δτ*ε)-(1-δτ*ε))
+#     else
+#         0.5f(ε)*δτ^2
+#     end
+# end
+
+# function _fₖₖ_i(f, ε::Float64, δτ)
+#     if (abs(ε) > tol)
+#         f(ε)/ε^2*(exp(δτ*ε)-(1+δτ*ε))
+#     else
+#         0.5*f(ε)*δτ^2/2
+#     end
+# end
+
+function _fⱼₖ_i(f::AbstractBoundedFunction, Δk::Int, δτ)
+    g(ε) = ifelse(abs(ε) > tol, -2exp(-Δk*δτ*ε)*(1-cosh(δτ*ε))/ε^2, exp(-Δk*δτ*ε)*δτ^2)
+    return f * g
 end
 
-function _fₖⱼ_i(f, Δk::Int, ε::Float64, δτ)
-    if (abs(ε) > tol)
-        -2f(ε)/ε^2*exp(Δk*δτ*ε)*(1-cosh(δτ*ε))
-    else
-        f(ε)*exp(Δk*δτ*ε)*δτ^2
-    end
+function _fₖⱼ_i(f::AbstractBoundedFunction, Δk::Int, δτ)
+    g(ε) = ifelse(abs(ε) > tol, -2exp(Δk*δτ*ε)*(1-cosh(δτ*ε))/ε^2, exp(Δk*δτ*ε)*δτ^2)
+    return f * g
 end
 
-function _fⱼⱼ_i(f, ε::Float64, δτ)
-    if (abs(ε) > tol)
-        f(ε)/ε^2*(exp(-δτ*ε)-(1-δτ*ε))
-    else
-        0.5f(ε)*δτ^2
-    end
+function _fⱼⱼ_i(f::AbstractBoundedFunction, δτ)
+    g(ε) = ifelse(abs(ε) > tol, (exp(-δτ*ε)-(1-δτ*ε))/ε^2, 0.5*δτ^2)
+    return f * g
 end
 
-function _fₖₖ_i(f, ε::Float64, δτ)
-    if (abs(ε) > tol)
-        f(ε)/ε^2*(exp(δτ*ε)-(1+δτ*ε))
-    else
-        0.5*f(ε)*δτ^2/2
-    end
+function _fₖₖ_i(f::AbstractBoundedFunction, δτ)
+    g(ε) = ifelse(abs(ε) > tol, (exp(δτ*ε)-(1+δτ*ε))/ε^2, 0.5*δτ^2/2)
+    return f * g
 end
 
 function Δiw_to_Cτ(Δiw::AbstractVector{<:Number}; β::Real, N::Int)

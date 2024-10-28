@@ -1,46 +1,45 @@
 Cm(bath::AbstractFermionicBath; Nτ::Int, t::Real, Nt::Int, δτ::Real=bath.β/Nτ) = fermionic_Cm(bath.spectrum, β=bath.β, μ=bath.μ, Nτ=Nτ, t=t, Nt=Nt, δτ=δτ)
-function fermionic_Cm(f0::SpectrumFunction; β::Real, Nτ::Int, t::Real, Nt::Int, μ::Real=0, δτ::Real=β/Nτ)
-	f, lb, ub = f0.f, lowerbound(f0), upperbound(f0)
+function fermionic_Cm(f::SpectrumFunction; β::Real, Nτ::Int, t::Real, Nt::Int, μ::Real=0, δτ::Real=β/Nτ)
     δt = t / Nt
     g₁(ε) = _f₁(β, μ, ε); g₂(ε) = _f₂(β, μ, ε)
     # real time
-    fⱼₖ(Δk, ε) = _fⱼₖ_r(f, Δk, ε, δt)
-    fⱼⱼ(ε) = _fⱼⱼ_r(f, ε, δt)
-    fₖₖ(ε) = _fₖₖ_r(f, ε, δt)
+    fⱼₖ(Δk) = _fⱼₖ_r(f, Δk, δt)
+    fⱼⱼ = _fⱼⱼ_r(f, δt)
+    fₖₖ = _fₖₖ_r(f, δt)
     # imaginary time
-    hⱼₖ(Δk::Int, ε::Float64) = _fⱼₖ_i(f, Δk, ε, δτ)
-    hⱼⱼ(ε::Float64) = _fⱼⱼ_i(f, ε, δτ)
-    hₖₖ(ε::Float64) = _fₖₖ_i(f, ε, δτ)
+    hⱼₖ(Δk::Int) = _fⱼₖ_i(f, Δk, δτ)
+    hⱼⱼ = _fⱼⱼ_i(f, δτ)
+    hₖₖ = _fₖₖ_i(f, δτ)
     # mixed time
-    lⱼₖ(j::Int, k::Int, ε::Float64) = _lⱼₖ(f, j, k, ε, δt, δτ)
-    lₖⱼ(k::Int, j::Int, ε::Float64) = _lₖⱼ(f, k, j, ε, δt, δτ)
+    lⱼₖ(j::Int, k::Int) = _lⱼₖ(f, j, k, δt, δτ)
+    lₖⱼ(k::Int, j::Int) = _lₖⱼ(f, k, j, δt, δτ)
     N, M = Nt, Nτ
 
     # real time
     ηⱼₖ = zeros(ComplexF64, Nt+1)
     ηₖⱼ = zeros(ComplexF64, Nt+1)
 
-    ηⱼₖ[1] = quadgkwrapper(bounded(ε -> -g₁(ε)*fⱼⱼ(ε), lb, ub))
+    ηⱼₖ[1] = quadgkwrapper(-fⱼⱼ * g₁)
     for i = 1:Nt
-        ηⱼₖ[i+1] = quadgkwrapper(bounded(ε -> -g₁(ε)*fⱼₖ(i,ε), lb, ub))
+        ηⱼₖ[i+1] = quadgkwrapper(-fⱼₖ(i) * g₁)
     end
-    ηₖⱼ[1] = quadgkwrapper(bounded(ε -> g₂(ε)*fₖₖ(ε), lb, ub))
+    ηₖⱼ[1] = quadgkwrapper(fₖₖ * g₂)
     for i = 1:Nt
-        ηₖⱼ[i+1] = quadgkwrapper(bounded(ε -> g₂(ε)*fⱼₖ(-i,ε), lb, ub))
+        ηₖⱼ[i+1] = quadgkwrapper(fⱼₖ(-i) * g₂)
     end
 
     # imag time
     ξⱼₖ = zeros(ComplexF64, M) # j >= k
     ξₖⱼ = zeros(Float64, M)
 
-    ξⱼₖ[1] = quadgkwrapper(bounded(ε -> -g₁(ε)*hⱼⱼ(ε), lb, ub))
+    ξⱼₖ[1] = quadgkwrapper(-hⱼⱼ * g₁)
     for k = 2:M
-        ξⱼₖ[k] = quadgkwrapper(bounded(ε -> -g₁(ε)*hⱼₖ(k-1,ε), lb, ub))
+        ξⱼₖ[k] = quadgkwrapper(-hⱼₖ(k-1) * g₁)
     end
     
-    ξₖⱼ[1] = quadgkwrapper(bounded(ε -> g₂(ε)*hₖₖ(ε), lb, ub))
+    ξₖⱼ[1] = quadgkwrapper(hₖₖ * g₂)
     for k = 2:M
-        ξₖⱼ[k] = quadgkwrapper(bounded(ε -> g₂(ε)*hⱼₖ(1-k,ε), lb, ub))
+        ξₖⱼ[k] = quadgkwrapper(hⱼₖ(1-k) * g₂)
     end
 
     # mix time
@@ -48,25 +47,35 @@ function fermionic_Cm(f0::SpectrumFunction; β::Real, Nτ::Int, t::Real, Nt::Int
     ζₖⱼ = zeros(ComplexF64, N+1, M)
 
     for j = 1:M, k = 1:N+1
-        ζⱼₖ[j,k] = quadgkwrapper(bounded(ε -> -g₁(ε)*lⱼₖ(j-1,k-1,ε), lb, ub))
-        ζₖⱼ[k,j] = quadgkwrapper(bounded(ε -> g₂(ε)*lₖⱼ(k-1,j-1,ε), lb, ub))
+        ζⱼₖ[j,k] = quadgkwrapper(-lⱼₖ(j-1,k-1) * g₁)
+        ζₖⱼ[k,j] = quadgkwrapper(lₖⱼ(k-1,j-1) * g₂)
     end
     MixedCorrelationFunction(ηⱼₖ,ηₖⱼ,ξⱼₖ,ξₖⱼ,ζⱼₖ,ζₖⱼ)
 end
 
-# mixed part lⱼₖ for G31 and lₖⱼ for G13
-function _lⱼₖ(f, j::Int, k::Int, ε::Float64, δt, δτ)
-    if (abs(ε) > tol)
-        im*f(ε)/ε^2*exp(-ε*j*δτ)*exp(im*ε*k*δt)*(exp(-ε*δτ)-1)*(exp(im*ε*δt)-1)
-    else
-        f(ε)*exp(-ε*j*δτ)*exp(im*ε*k*δt)*δτ*δt
-    end
+# # mixed part lⱼₖ for G31 and lₖⱼ for G13
+# function _lⱼₖ(f, j::Int, k::Int, ε::Float64, δt, δτ)
+#     if (abs(ε) > tol)
+#         im*f(ε)/ε^2*exp(-ε*j*δτ)*exp(im*ε*k*δt)*(exp(-ε*δτ)-1)*(exp(im*ε*δt)-1)
+#     else
+#         f(ε)*exp(-ε*j*δτ)*exp(im*ε*k*δt)*δτ*δt
+#     end
+# end
+
+# function _lₖⱼ(f, k::Int, j::Int, ε::Float64, δt, δτ)
+#     if (abs(ε) > tol)
+#         im*f(ε)/ε^2*exp(ε*j*δτ)*exp(-im*ε*k*δt)*(exp(ε*δτ)-1)*(exp(-im*ε*δt)-1)
+#     else
+#         f(ε)*exp(ε*j*δτ)*exp(-im*ε*k*δt)*δτ*δt
+#     end
+# end
+
+function _lⱼₖ(f::AbstractBoundedFunction, j::Int, k::Int, δt, δτ)
+    g(ε) = ifelse(abs(ε) > tol, im*exp(-ε*j*δτ)*exp(im*ε*k*δt)*(exp(-ε*δτ)-1)*(exp(im*ε*δt)-1)/ε^2, exp(-ε*j*δτ)*exp(im*ε*k*δt)*δτ*δt)
+    return f * g
 end
 
-function _lₖⱼ(f, k::Int, j::Int, ε::Float64, δt, δτ)
-    if (abs(ε) > tol)
-        im*f(ε)/ε^2*exp(ε*j*δτ)*exp(-im*ε*k*δt)*(exp(ε*δτ)-1)*(exp(-im*ε*δt)-1)
-    else
-        f(ε)*exp(ε*j*δτ)*exp(-im*ε*k*δt)*δτ*δt
-    end
+function _lₖⱼ(f::AbstractBoundedFunction, k::Int, j::Int, δt, δτ)
+    g(ε) = ifelse(abs(ε) > tol, im*exp(ε*j*δτ)*exp(-im*ε*k*δt)*(exp(ε*δτ)-1)*(exp(-im*ε*δt)-1)/ε^2, exp(ε*j*δτ)*exp(-im*ε*k*δt)*δτ*δt)
+    return f * g
 end
