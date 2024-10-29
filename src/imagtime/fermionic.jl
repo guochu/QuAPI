@@ -1,5 +1,5 @@
 Cτ(bath::AbstractFermionicBath; N::Int, δτ::Real=bath.β/N) = fermionic_Cτ(bath.spectrum, β=bath.β, N=N, μ=bath.μ, δτ=δτ)
-fermionic_Cτ(f::SpectrumFunction; β::Real, N::Int, μ::Real=0, δτ::Real=β/N) = fermionic_Cτ(f, β, N, μ, δτ)
+fermionic_Cτ(f::AbstractSpectrumFunction; β::Real, N::Int, μ::Real=0, δτ::Real=β/N) = fermionic_Cτ(f, β, N, μ, δτ)
 
 
 
@@ -8,7 +8,7 @@ fermionic_Cτ(f::SpectrumFunction; β::Real, N::Int, μ::Real=0, δτ::Real=β/N
 
 f is the spectrum function
 """
-function fermionic_Cτ(f0::SpectrumFunction, β::Real, N::Int, μ::Real, δτ::Real=β / N)
+function fermionic_Cτ(f0::AbstractSpectrumFunction, β::Real, N::Int, μ::Real, δτ::Real=β / N)
     f′, lb, ub = f0.f, lowerbound(f0), upperbound(f0)
     β = convert(Float64, β)
     μ = convert(Float64, μ)
