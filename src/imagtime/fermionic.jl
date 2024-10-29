@@ -9,12 +9,10 @@ fermionic_Cτ(f::AbstractSpectrumFunction; β::Real, N::Int, μ::Real=0, δτ::R
 f is the spectrum function
 """
 function fermionic_Cτ(f0::AbstractSpectrumFunction, β::Real, N::Int, μ::Real, δτ::Real=β / N)
-    f′, lb, ub = f0.f, lowerbound(f0), upperbound(f0)
+    # f′, lb, ub = f0.f, lowerbound(f0), upperbound(f0)
     β = convert(Float64, β)
     μ = convert(Float64, μ)
-    lb -= μ
-    ub -= μ
-    f = bounded(ϵ->f′(ϵ + μ), lb, ub) 
+    f = spectrumshift(f0, μ)
     # δτ = β / N
     
     g₁(ϵ) = _f₁(β, 0., ϵ)

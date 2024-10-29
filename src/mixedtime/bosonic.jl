@@ -1,5 +1,5 @@
 Cm(bath::AbstractBosonicBath; Nτ::Int, t::Real, Nt::Int, δτ::Real=bath.β/Nτ) = bosonic_Cm(bath.spectrum, β=bath.β, μ=bath.μ, Nτ=Nτ, t=t, Nt=Nt, δτ=δτ)
-function bosonic_Cm(f::SpectrumFunction; β::Real, Nτ::Int, t::Real, Nt::Int, μ::Real=0, δτ::Real=β/Nτ)
+function bosonic_Cm(f::AbstractSpectrumFunction; β::Real, Nτ::Int, t::Real, Nt::Int, μ::Real=0, δτ::Real=β/Nτ)
     δt = t / Nt
     g₁(ε) = _g₁(β, μ, ε); g₂(ε) = _g₂(β, μ, ε)
     # real time
