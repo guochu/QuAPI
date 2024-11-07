@@ -19,27 +19,27 @@ function bosonic_Cm(f::AbstractSpectrumFunction; β::Real, Nτ::Int, t::Real, Nt
     ηⱼₖ = zeros(ComplexF64, Nt+1)
     ηₖⱼ = zeros(ComplexF64, Nt+1)
 
-    ηⱼₖ[1] = quadgkwrapper(fⱼⱼ * g₁)
+    ηⱼₖ[1] = quadgkwrapper(-fⱼⱼ * g₁)
     for i = 1:Nt
-        ηⱼₖ[i+1] = quadgkwrapper(fⱼₖ(i) * g₁)
+        ηⱼₖ[i+1] = quadgkwrapper(-fⱼₖ(i) * g₁)
     end
-    ηₖⱼ[1] = quadgkwrapper(fₖₖ * g₂)
+    ηₖⱼ[1] = quadgkwrapper(-fₖₖ * g₂)
     for i = 1:Nt
-        ηₖⱼ[i+1] = quadgkwrapper(fⱼₖ(-i) * g₂)
+        ηₖⱼ[i+1] = quadgkwrapper(-fⱼₖ(-i) * g₂)
     end
 
     # imag time
     ξⱼₖ = zeros(ComplexF64, M) # j >= k
     ξₖⱼ = zeros(Float64, M)
 
-    ξⱼₖ[1] = quadgkwrapper(hⱼⱼ * g₁)
+    ξⱼₖ[1] = quadgkwrapper(-hⱼⱼ * g₁)
     for k = 2:M
-        ξⱼₖ[k] = quadgkwrapper(hⱼₖ(k-1) * g₁)
+        ξⱼₖ[k] = quadgkwrapper(-hⱼₖ(k-1) * g₁)
     end
     
-    ξₖⱼ[1] = quadgkwrapper(hₖₖ * g₂)
+    ξₖⱼ[1] = quadgkwrapper(-hₖₖ * g₂)
     for k = 2:M
-        ξₖⱼ[k] = quadgkwrapper(hⱼₖ(1-k) * g₂)
+        ξₖⱼ[k] = quadgkwrapper(-hⱼₖ(1-k) * g₂)
     end
 
     # mix time
@@ -47,8 +47,8 @@ function bosonic_Cm(f::AbstractSpectrumFunction; β::Real, Nτ::Int, t::Real, Nt
     ζₖⱼ = zeros(ComplexF64, N+1, M)
 
     for j = 1:M, k = 1:N+1
-        ζⱼₖ[j,k] = quadgkwrapper(lⱼₖ(j-1,k-1) * g₁)
-        ζₖⱼ[k,j] = quadgkwrapper(lₖⱼ(k-1,j-1) * g₂)
+        ζⱼₖ[j,k] = quadgkwrapper(-lⱼₖ(j-1,k-1) * g₁)
+        ζₖⱼ[k,j] = quadgkwrapper(-lₖⱼ(k-1,j-1) * g₂)
     end
     MixedCorrelationFunction(ηⱼₖ,ηₖⱼ,ξⱼₖ,ξₖⱼ,ζⱼₖ,ζₖⱼ)
 end
