@@ -12,13 +12,13 @@ function bosonic_Ct(f::AbstractSpectrumFunction, β::Real, N::Int, δt::Real, μ
     ηⱼₖ = zeros(ComplexF64, N+1)
     ηₖⱼ = zeros(ComplexF64, N+1)
 
-    ηⱼₖ[1] = quadgkwrapper(fⱼⱼ * g₁)
+    ηⱼₖ[1] = quadgkwrapper(-fⱼⱼ * g₁)
     for i = 1:N
-        ηⱼₖ[i+1] = quadgkwrapper(fⱼₖ(i) * g₁)
+        ηⱼₖ[i+1] = quadgkwrapper(-fⱼₖ(i) * g₁)
     end
-    ηₖⱼ[1] = quadgkwrapper(fⱼⱼ' * g₂)
+    ηₖⱼ[1] = quadgkwrapper(-fⱼⱼ' * g₂)
     for i = 1:N
-        ηₖⱼ[i+1] = quadgkwrapper(fⱼₖ(i)' * g₂)
+        ηₖⱼ[i+1] = quadgkwrapper(-fⱼₖ(i)' * g₂)
     end
     G₊₊ = CorrelationMatrix(ηⱼₖ, ηₖⱼ)   
 
@@ -26,11 +26,11 @@ function bosonic_Ct(f::AbstractSpectrumFunction, β::Real, N::Int, δt::Real, μ
     ηⱼₖ = zeros(ComplexF64, N+1)
     ηₖⱼ = zeros(ComplexF64, N+1)
 
-    ηⱼₖ[1] = quadgkwrapper(-fⱼⱼ * g₂)
+    ηⱼₖ[1] = quadgkwrapper(fⱼⱼ * g₂)
     for i = 1:N
-        ηⱼₖ[i+1] = quadgkwrapper(-fⱼₖ(i) * g₂)
+        ηⱼₖ[i+1] = quadgkwrapper(fⱼₖ(i) * g₂)
     end
-    ηₖⱼ[1] = quadgkwrapper(-fⱼⱼ' * g₂)
+    ηₖⱼ[1] = quadgkwrapper(fⱼⱼ' * g₂)
     for i = 1:N
         ηₖⱼ[i+1] = ηⱼₖ[i+1]'
     end
@@ -40,11 +40,11 @@ function bosonic_Ct(f::AbstractSpectrumFunction, β::Real, N::Int, δt::Real, μ
     ηⱼₖ = zeros(ComplexF64, N+1)
     ηₖⱼ = zeros(ComplexF64, N+1)
 
-    ηⱼₖ[1] = quadgkwrapper(-fⱼⱼ * g₁)
+    ηⱼₖ[1] = quadgkwrapper(fⱼⱼ * g₁)
     for i = 1:N
-        ηⱼₖ[i+1] = quadgkwrapper(-fⱼₖ(i) * g₁)
+        ηⱼₖ[i+1] = quadgkwrapper(fⱼₖ(i) * g₁)
     end
-    ηₖⱼ[1] = quadgkwrapper(-fⱼⱼ' * g₁)
+    ηₖⱼ[1] = quadgkwrapper(fⱼⱼ' * g₁)
     for i = 1:N
         ηₖⱼ[i+1] = ηⱼₖ[i+1]'
     end
@@ -54,13 +54,13 @@ function bosonic_Ct(f::AbstractSpectrumFunction, β::Real, N::Int, δt::Real, μ
     ηⱼₖ = zeros(ComplexF64, N+1)
     ηₖⱼ = zeros(ComplexF64, N+1)
 
-    ηⱼₖ[1] = quadgkwrapper(fⱼⱼ * g₂)
+    ηⱼₖ[1] = quadgkwrapper(-fⱼⱼ * g₂)
     for i = 1:N
-        ηⱼₖ[i+1] = quadgkwrapper(fⱼₖ(i) * g₂)
+        ηⱼₖ[i+1] = quadgkwrapper(-fⱼₖ(i) * g₂)
     end
-    ηₖⱼ[1] = quadgkwrapper(fⱼⱼ' * g₁)
+    ηₖⱼ[1] = quadgkwrapper(-fⱼⱼ' * g₁)
     for i = 1:N
-        ηₖⱼ[i+1] = quadgkwrapper(fⱼₖ(i)' * g₁)
+        ηₖⱼ[i+1] = quadgkwrapper(-fⱼₖ(i)' * g₁)
     end
     G₋₋ = CorrelationMatrix(ηⱼₖ, ηₖⱼ)
     return RealCorrelationFunction(G₊₊, G₊₋, G₋₊, G₋₋)
