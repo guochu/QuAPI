@@ -1,7 +1,7 @@
-Ct(bath::AbstractFermionicBath; N::Int, t::Real) = fermionic_Ct(bath.spectrum, β=bath.β, N=N, t=t, μ=bath.μ)
-fermionic_Ct(f::AbstractSpectrumFunction; β::Real, N::Int, t::Real, μ::Real=0) = fermionic_Ct(f, β, N, t/N, μ)
+Δt(bath::AbstractFermionicBath; N::Int, t::Real) = fermionic_Δt(bath.spectrum, β=bath.β, N=N, t=t, μ=bath.μ)
+fermionic_Δt(f::AbstractSpectrumFunction; β::Real, N::Int, t::Real, μ::Real=0) = fermionic_Δt(f, β, N, t/N, μ)
 
-function fermionic_Ct(f::AbstractSpectrumFunction, β::Real, N::Int, δt::Real, μ::Real)
+function fermionic_Δt(f::AbstractSpectrumFunction, β::Real, N::Int, δt::Real, μ::Real)
     β = convert(Float64, β)
     μ = convert(Float64, μ)
     g₁(ε) = _f₁(β, μ, ε); g₂(ε) = _f₂(β, μ, ε)

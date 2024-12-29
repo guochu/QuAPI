@@ -1,12 +1,12 @@
-Cτ(bath::AbstractBosonicBath; N::Int, δτ::Real=bath.β/N) = bosonic_Cτ(bath.spectrum, β=bath.β, N=N, μ=bath.μ, δτ=δτ)
-bosonic_Cτ(f::AbstractSpectrumFunction; β::Real, N::Int, μ::Real=0, δτ::Real=β/N) = bosonic_Cτ(f, β, N, μ, δτ)
+Δτ(bath::AbstractBosonicBath; N::Int, δτ::Real=bath.β/N) = bosonic_Δτ(bath.spectrum, β=bath.β, N=N, μ=bath.μ, δτ=δτ)
+bosonic_Δτ(f::AbstractSpectrumFunction; β::Real, N::Int, μ::Real=0, δτ::Real=β/N) = bosonic_Δτ(f, β, N, μ, δτ)
 
 """
-    bosonic_Cτ(f, β::Real, N::Int)
+    bosonic_Δτ(f, β::Real, N::Int)
 
 f is the spectrum function
 """
-function bosonic_Cτ(f0::AbstractSpectrumFunction, β::Real, N::Int, μ::Real, δτ::Real=β / N)
+function bosonic_Δτ(f0::AbstractSpectrumFunction, β::Real, N::Int, μ::Real, δτ::Real=β / N)
     # f′, lb, ub = f0.f, lowerbound(f0), upperbound(f0)
     β = convert(Float64, β)
     μ = convert(Float64, μ)

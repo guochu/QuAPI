@@ -1,7 +1,7 @@
-Ct(bath::AbstractBosonicBath; N::Int, t::Real) = bosonic_Ct(bath.spectrum, β=bath.β, N=N, t=t, μ=bath.μ)
-bosonic_Ct(f::AbstractSpectrumFunction; β::Real, N::Int, t::Real, μ::Real=0) = bosonic_Ct(f, β, N, t/N, μ)
+Δt(bath::AbstractBosonicBath; N::Int, t::Real) = bosonic_Δt(bath.spectrum, β=bath.β, N=N, t=t, μ=bath.μ)
+bosonic_Δt(f::AbstractSpectrumFunction; β::Real, N::Int, t::Real, μ::Real=0) = bosonic_Δt(f, β, N, t/N, μ)
 
-function bosonic_Ct(f::AbstractSpectrumFunction, β::Real, N::Int, δt::Real, μ::Real)
+function bosonic_Δt(f::AbstractSpectrumFunction, β::Real, N::Int, δt::Real, μ::Real)
     β = convert(Float64, β)
     μ = convert(Float64, μ)
     g₁(ε) = _g₁(β, μ, ε); g₂(ε) = _g₂(β, μ, ε)

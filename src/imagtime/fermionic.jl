@@ -1,14 +1,14 @@
-Cτ(bath::AbstractFermionicBath; N::Int, δτ::Real=bath.β/N) = fermionic_Cτ(bath.spectrum, β=bath.β, N=N, μ=bath.μ, δτ=δτ)
-fermionic_Cτ(f::AbstractSpectrumFunction; β::Real, N::Int, μ::Real=0, δτ::Real=β/N) = fermionic_Cτ(f, β, N, μ, δτ)
+Δτ(bath::AbstractFermionicBath; N::Int, δτ::Real=bath.β/N) = fermionic_Δτ(bath.spectrum, β=bath.β, N=N, μ=bath.μ, δτ=δτ)
+fermionic_Δτ(f::AbstractSpectrumFunction; β::Real, N::Int, μ::Real=0, δτ::Real=β/N) = fermionic_Δτ(f, β, N, μ, δτ)
 
 
 
 """
-    fermionic_Cτ(f, β::Real, N::Int)
+    fermionic_Δτ(f, β::Real, N::Int)
 
 f is the spectrum function
 """
-function fermionic_Cτ(f0::AbstractSpectrumFunction, β::Real, N::Int, μ::Real, δτ::Real=β / N)
+function fermionic_Δτ(f0::AbstractSpectrumFunction, β::Real, N::Int, μ::Real, δτ::Real=β / N)
     # f′, lb, ub = f0.f, lowerbound(f0), upperbound(f0)
     β = convert(Float64, β)
     μ = convert(Float64, μ)
@@ -91,7 +91,7 @@ function _fₖₖ_i(f::AbstractBoundedFunction, δτ)
     return f * g
 end
 
-function Δiw_to_Cτ(Δiw::AbstractVector{<:Number}; β::Real, N::Int)
+function Δiw_to_Δτ(Δiw::AbstractVector{<:Number}; β::Real, N::Int)
     iseven(length(Δiw)) || throw(ArgumentError("even number of frequencies expected"))
     δτ = β/N
     nmax = div(length(Δiw), 2) - 1
@@ -99,8 +99,7 @@ function Δiw_to_Cτ(Δiw::AbstractVector{<:Number}; β::Real, N::Int)
     ηⱼₖ = zeros(ComplexF64, N)
     ηₖⱼ = zeros(ComplexF64, N)
 
-    for (i, n) in enumerate(-nmax:nmax+1)
-        ωₙ = (2n-1)*π/β
+    for (i, ωₙ) in enumerate(ifrequencies(β, nmax)) 
         a = -(2/(β*ωₙ^2)) * Δiw[i] * (1 - cos(ωₙ * δτ))
         ηⱼₖ[1] += a / 2
         ηₖⱼ[1] += a / 2
