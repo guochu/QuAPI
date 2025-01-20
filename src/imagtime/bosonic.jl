@@ -4,7 +4,7 @@ bosonic_Δτ(f::AbstractSpectrumFunction; β::Real, N::Int, μ::Real=0, δτ::Re
 """
     bosonic_Δτ(f, β::Real, N::Int)
 
-f is the spectrum function
+f: the spectrum function
 """
 function bosonic_Δτ(f0::AbstractSpectrumFunction, β::Real, N::Int, μ::Real, δτ::Real=β / N)
     # f′, lb, ub = f0.f, lowerbound(f0), upperbound(f0)

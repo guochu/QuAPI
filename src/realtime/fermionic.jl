@@ -1,9 +1,29 @@
 Δt(bath::AbstractFermionicBath; N::Int, t::Real) = fermionic_Δt(bath.spectrum, β=bath.β, N=N, t=t, μ=bath.μ)
-fermionic_Δt(f::AbstractSpectrumFunction; β::Real, N::Int, t::Real, μ::Real=0) = fermionic_Δt(f, β, N, t/N, μ)
+fermionic_Δt(f::AbstractSpectrumFunction; β::Real, N::Int, t::Real, μ::Real=0) = fermionic_Δt(f, β, t, N, μ)
 
-function fermionic_Δt(f::AbstractSpectrumFunction, β::Real, N::Int, δt::Real, μ::Real)
+"""
+    fermionic_Δt(f, β::Real, N::Int, δt::Real, μ::Real)
+
+Fermionic hybiriization function Δᵢⱼᵘᵛ on the real-time axis
+
+The Feynman-Vernon influence functional has the form 
+        I[ā, a] = e^{ΣᵤᵥΣᵢⱼāᵢᵘΔᵢⱼᵘᵛaⱼᵛ},
+where we have absorbed the minus sign into the definition of Δ compared
+to the usually used convention
+Here i, j are discrete time step indices, u, v = ± denotes the branch
+labels (+ means forward branch, - means backward branch)
+
+f: the spectrum function
+β: the inverse temperature
+μ: the chemical potential
+t: the total evolution time
+N: number of discrete real time steps,
+such that we have δt = t/Nt
+"""
+function fermionic_Δt(f::AbstractSpectrumFunction, β::Real, t::Real, N::Int, μ::Real)
     β = convert(Float64, β)
     μ = convert(Float64, μ)
+    δt = t / N
     g₁(ε) = _f₁(β, μ, ε); g₂(ε) = _f₂(β, μ, ε)
     fⱼₖ(Δk) = _fⱼₖ_r(f, Δk, δt)
     fⱼⱼ = _fⱼⱼ_r(f, δt)

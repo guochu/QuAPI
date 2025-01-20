@@ -4,9 +4,20 @@ fermionic_Δτ(f::AbstractSpectrumFunction; β::Real, N::Int, μ::Real=0, δτ::
 
 
 """
-    fermionic_Δτ(f, β::Real, N::Int)
+    fermionic_Δτ(f, β::Real, N::Int, μ::Real)
 
-f is the spectrum function
+Fermionic hybiriization function Δᵢⱼ on the imaginary-time axis
+
+The Feynman-Vernon influence functional has the form 
+        I[ā, a] = e^{ΣᵢⱼāᵢΔᵢⱼaⱼ},
+where we have absorbed the minus sign into the definition of Δ compared
+to the usually used convention, i, j are discrete time step indices
+
+f: the spectrum function
+β: the inverse temperature
+μ: the chemical potential
+N: number of discrete imaginary time steps, 
+such that δτ = β/N
 """
 function fermionic_Δτ(f0::AbstractSpectrumFunction, β::Real, N::Int, μ::Real, δτ::Real=β / N)
     # f′, lb, ub = f0.f, lowerbound(f0), upperbound(f0)

@@ -1,4 +1,27 @@
 Δm(bath::AbstractFermionicBath; Nτ::Int, t::Real, Nt::Int, δτ::Real=bath.β/Nτ) = fermionic_Δm(bath.spectrum, β=bath.β, μ=bath.μ, Nτ=Nτ, t=t, Nt=Nt, δτ=δτ)
+
+
+"""
+    fermionic_Δm(f, β::Real, Nτ::Int, t::Real, Nt::Int, μ::Real=0)
+
+Fermionic hybiriization function Δᵢⱼᵘᵛ on the Kadanoff-Baym contour
+
+The Feynman-Vernon influence functional has the form 
+        I[ā, a] = e^{ΣᵤᵥΣᵢⱼāᵢᵘΔᵢⱼᵘᵛaⱼᵛ},
+where we have absorbed the minus sign into the definition of Δ compared
+to the usually used convention
+Here i, j are discrete time step indices, u, v = ±, τ denotes the branch
+labels (+ means forward branch, - means backward branch, τ means imaginary
+time branch)
+
+f: the spectrum function
+β: the inverse temperature
+Nτ: number of discrete real time steps
+μ: the chemical potential
+t: the total evolution time
+Nt: number of discrete real time steps,
+such that we have δt = t/Nt, δτ = β/Nτ
+"""
 function fermionic_Δm(f::AbstractSpectrumFunction; β::Real, Nτ::Int, t::Real, Nt::Int, μ::Real=0, δτ::Real=β/Nτ)
     δt = t / Nt
     g₁(ε) = _f₁(β, μ, ε); g₂(ε) = _f₂(β, μ, ε)
