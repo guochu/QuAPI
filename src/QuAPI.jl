@@ -10,6 +10,9 @@ export RealCorrelationFunction, Δt, fermionic_Δt, bosonic_Δt
 # mixed time (L-shaped Kadanoff-Byam contour)
 export AbstractMixedCorrelationFunction, MixedCorrelationFunction, Δm, fermionic_Δm, bosonic_Δm
 
+# infinite time hybridization function
+export infinite_Δτ, infinite_Δt
+
 using Base: @boundscheck
 using ImpurityModelBase
 
@@ -22,6 +25,10 @@ include("abstractcorr.jl")
 include("imagtime/imagtime.jl")
 include("realtime/realtime.jl")
 include("mixedtime/mixedtime.jl")
+
+# infinite time hybridization function
+include("infinitetime/imagtime.jl")
+include("infinitetime/realtime.jl")
 
 
 end
