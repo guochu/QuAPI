@@ -1,4 +1,4 @@
-struct InfiniteRealCorrelationCache{B <: Bath}
+struct InfiniteRealCorrelationCache{B <: AbstractBath}
 	ηⱼₖ::Vector{ComplexF64}
 	ηₖⱼ::Vector{ComplexF64}
 	bath::B
@@ -8,7 +8,7 @@ end
 current_size(x::InfiniteRealCorrelationCache) = length(x.ηⱼₖ)
 current_time(x::InfiniteRealCorrelationCache) = current_size(x) * x.δt
 
-InfiniteRealCorrelationCache(bath::Bath, δt::Real) = InfiniteRealCorrelationCache(ComplexF64[], ComplexF64[], bath, convert(Float64, δt))
+InfiniteRealCorrelationCache(bath::AbstractBath, δt::Real) = InfiniteRealCorrelationCache(ComplexF64[], ComplexF64[], bath, convert(Float64, δt))
 
 function branch(x::InfiniteRealCorrelationCache, b1::Symbol, b2::Symbol)
     (b1 in (:+, :-)) || throw(ArgumentError("branch must be :+ or :-"))
@@ -38,7 +38,12 @@ function branch(x::InfiniteRealCorrelationCache, b1::Symbol, b2::Symbol)
 	return CorrelationMatrix(ηⱼₖ, ηₖⱼ)
 end
 
-function infinite_Δt(bath::Bath; δt::Real, kwargs...)
+"""
+	infinite_Δt(bath::AbstractBath; δt::Real, atol::Real, t::Real)
+
+Translationally invariant real time hybridization function
+"""
+function infinite_Δt(bath::AbstractBath; δt::Real, kwargs...)
 	corr = InfiniteRealCorrelationCache(bath, δt)
 	compute!(corr; kwargs...)
 	return corr
@@ -57,7 +62,7 @@ function compute!(x::InfiniteRealCorrelationCache; atol::Real=1.0e-6, t::Real=20
 	return current_size(x)
 end
 
-function compute_next!(x::InfiniteRealCorrelationCache{<:FermionicBath})
+function compute_next!(x::InfiniteRealCorrelationCache{<:AbstractFermionicBath})
 	f = x.bath.f
 	# f, lb, ub = f0.f, lowerbound(f0), upperbound(f0)
 	β, μ, δt = x.bath.β, x.bath.μ, x.δt
@@ -82,7 +87,7 @@ function compute_next!(x::InfiniteRealCorrelationCache{<:FermionicBath})
     return x
 end
 
-function compute_next!(x::InfiniteRealCorrelationCache{<:BosonicBath})
+function compute_next!(x::InfiniteRealCorrelationCache{<:AbstractBosonicBath})
 	f = x.bath.f
 	# f, lb, ub = f0.f, lowerbound(f0), upperbound(f0)
 	β, μ, δt = x.bath.β, x.bath.μ, x.δt

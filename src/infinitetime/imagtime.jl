@@ -9,8 +9,18 @@ end
 current_size(x::InfiniteImagCorrelationCache) = length(x.ηⱼₖ)
 current_temperature(x::InfiniteImagCorrelationCache) = current_size(x) * x.δτ
 
-InfiniteImagCorrelation(bath::Vacuum, δτ::Real) = InfiniteImagCorrelationCache(Float64[], Float64[], bath, convert(Float64, δτ))
+InfiniteImagCorrelationCache(bath::Vacuum, δτ::Real) = InfiniteImagCorrelationCache(Float64[], Float64[], bath, convert(Float64, δτ))
 
+"""
+    infinite_Δτ(bath::Vacuum; δt::Real, atol::Real, β::Real)
+
+Translationally invariant zero-temperature imaginary time hybridization function
+"""
+function infinite_Δτ(bath::Vacuum; δτ::Real, kwargs...)
+    corr = InfiniteImagCorrelationCache(bath, δτ)
+    compute!(corr; kwargs...)
+    return corr
+end
 
 function compute!(x::InfiniteImagCorrelationCache; atol::Real=1.0e-6, β::Real=200)
 	maxiter = round(Int, β / x.δτ)
@@ -78,12 +88,4 @@ function compute_next!(x::InfiniteImagCorrelationCache{<:BosonicVacuum})
     push!(x.ηⱼₖ, ηⱼₖ_new)
     push!(x.ηₖⱼ, ηₖⱼ_new)
     return x
-end
-
-
-
-function infinite_Δτ(bath::Vacuum; δτ::Real, kwargs...)
-	corr = InfiniteImagCorrelation(bath, δτ)
-	compute!(corr; kwargs...)
-	return corr
 end
