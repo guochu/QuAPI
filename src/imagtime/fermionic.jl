@@ -102,6 +102,11 @@ function _fₖₖ_i(f::AbstractBoundedFunction, δτ)
     return f * g
 end
 
+"""
+    Δiw_to_Δτ(Δiw::AbstractVector{<:Number}; β::Real, N::Int)
+
+Convert Δiw to Δτ, see docs/quapi.pdf for detailed derivation by R.F.Chen
+"""
 function Δiw_to_Δτ(Δiw::AbstractVector{<:Number}; β::Real, N::Int)
     iseven(length(Δiw)) || throw(ArgumentError("even number of frequencies expected"))
     δτ = β/N
