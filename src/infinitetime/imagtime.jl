@@ -42,21 +42,27 @@ function compute_next!(x::InfiniteImagCorrelationCache{<:FermionicVacuum})
     f = spectrumshift(f0, μ)
     δτ = x.δτ
 
-    g₁(ϵ) = _f₁(β, 0., ϵ)
-    g₂(ϵ) = _f₂(β, 0., ϵ)
-    fⱼₖ(Δk::Int) = _fⱼₖ_i(f, Δk, δτ)
-    fₖⱼ(Δk::Int) = _fₖⱼ_i(f, Δk, δτ)
-    fⱼⱼ = _fⱼⱼ_i(f, δτ)
-    fₖₖ = _fₖₖ_i(f, δτ)
+    # g₁(ϵ) = _f₁(β, 0., ϵ)
+    # g₂(ϵ) = _f₂(β, 0., ϵ)
+    # fⱼₖ(Δk::Int) = _fⱼₖ_i(f, Δk, δτ)
+    # fₖⱼ(Δk::Int) = _fₖⱼ_i(f, Δk, δτ)
+    # fⱼⱼ = _fⱼⱼ_i(f, δτ)
+    # fₖₖ = _fₖₖ_i(f, δτ)
+
+    fⱼₖ(Δk::Int) = _fermionic_fⱼₖ_i(f, β, Δk, δτ)
+    fₖⱼ(Δk::Int) = _fermionic_fₖⱼ_i(f, β, Δk, δτ)
+    fⱼⱼ = _fermionic_fⱼⱼ_i(f, β, δτ)
+    fₖₖ = _fermionic_fₖₖ_i(f, β, δτ)
+
 
     # j >= k
     N = current_size(x)
     if N == 0
-    	ηⱼₖ_new = quadgkwrapper(fⱼⱼ * g₁)
-    	ηₖⱼ_new = quadgkwrapper(-fₖₖ * g₂)
+    	ηⱼₖ_new = quadgkwrapper(fⱼⱼ)
+    	ηₖⱼ_new = quadgkwrapper(fₖₖ)
     else
-    	ηⱼₖ_new = quadgkwrapper(fⱼₖ(N) * g₁)
-    	ηₖⱼ_new = quadgkwrapper(-fₖⱼ(N) * g₂)
+    	ηⱼₖ_new = quadgkwrapper(fⱼₖ(N))
+    	ηₖⱼ_new = quadgkwrapper(fₖⱼ(N))
     end
     push!(x.ηⱼₖ, ηⱼₖ_new)
     push!(x.ηₖⱼ, ηₖⱼ_new)
@@ -69,21 +75,27 @@ function compute_next!(x::InfiniteImagCorrelationCache{<:BosonicVacuum})
     f = spectrumshift(f0, μ)
     δτ = x.δτ
 
-    g₁(ϵ) = _f₁(β, 0., ϵ)
-    g₂(ϵ) = _f₂(β, 0., ϵ)
-    fⱼₖ(Δk::Int) = _fⱼₖ_i(f, Δk, δτ)
-    fₖⱼ(Δk::Int) = _fₖⱼ_i(f, Δk, δτ)
-    fⱼⱼ = _fⱼⱼ_i(f, δτ)
-    fₖₖ = _fₖₖ_i(f, δτ)
+    # g₁(ϵ) = _f₁(β, 0., ϵ)
+    # g₂(ϵ) = _f₂(β, 0., ϵ)
+    # fⱼₖ(Δk::Int) = _fⱼₖ_i(f, Δk, δτ)
+    # fₖⱼ(Δk::Int) = _fₖⱼ_i(f, Δk, δτ)
+    # fⱼⱼ = _fⱼⱼ_i(f, δτ)
+    # fₖₖ = _fₖₖ_i(f, δτ)
+
+    fⱼₖ(Δk::Int) = _bosonic_fⱼₖ_i(f, β, Δk, δτ)
+    fₖⱼ(Δk::Int) = _bosonic_fₖⱼ_i(f, β, Δk, δτ)
+    fⱼⱼ = _bosonic_fⱼⱼ_i(f, β, δτ)
+    fₖₖ = _bosonic_fₖₖ_i(f, β, δτ)
+
 
     # j >= k
     N = current_size(x)
     if N == 0
-    	ηⱼₖ_new = quadgkwrapper(fⱼⱼ * g₁)
-    	ηₖⱼ_new = quadgkwrapper(fₖₖ * g₂)
+    	ηⱼₖ_new = quadgkwrapper(fⱼⱼ)
+    	ηₖⱼ_new = quadgkwrapper(fₖₖ)
     else
-    	ηⱼₖ_new = quadgkwrapper(fⱼₖ(N) * g₁)
-    	ηₖⱼ_new = quadgkwrapper(fₖⱼ(N) * g₂)
+    	ηⱼₖ_new = quadgkwrapper(fⱼₖ(N))
+    	ηₖⱼ_new = quadgkwrapper(fₖⱼ(N))
     end
     push!(x.ηⱼₖ, ηⱼₖ_new)
     push!(x.ηₖⱼ, ηₖⱼ_new)

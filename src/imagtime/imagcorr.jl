@@ -9,6 +9,8 @@ function Base.show(io::IO, ::MIME"text/plain", A::ImagCorrelationFunction)
 end
 
 Base.:+(A::ImagCorrelationFunction, B::ImagCorrelationFunction) = ImagCorrelationFunction(A.data + B.data)
+Base.:(==)(x::ImagCorrelationFunction, y::ImagCorrelationFunction) = x.data == y.data
+Base.isapprox(x::ImagCorrelationFunction, y::ImagCorrelationFunction; kwargs...) = isapprox(x.data, y.data; kwargs...)
 index(x::ImagCorrelationFunction, i::Int, j::Int) = x.data[i, j]
 function branch(x::ImagCorrelationFunction; b1::Symbol=τ, b2::Symbol=:τ)
     ((b1 == :τ) && (b2 == :τ)) || throw(ArgumentError("branch must be :τ"))
