@@ -49,10 +49,10 @@ function compute_next!(x::InfiniteImagCorrelationCache{<:FermionicVacuum})
     # fⱼⱼ = _fⱼⱼ_i(f, δτ)
     # fₖₖ = _fₖₖ_i(f, δτ)
 
-    fⱼₖ(Δk::Int) = _fermionic_fⱼₖ_i(f, β, Δk, δτ)
-    fₖⱼ(Δk::Int) = _fermionic_fₖⱼ_i(f, β, Δk, δτ)
-    fⱼⱼ = _fermionic_fⱼⱼ_i(f, β, δτ)
-    fₖₖ = _fermionic_fₖₖ_i(f, β, δτ)
+    fⱼₖ(Δk::Int) = _fermionic_fⱼₖ_i(f, β, 0, Δk, δτ)
+    fₖⱼ(Δk::Int) = _fermionic_fₖⱼ_i(f, β, 0, Δk, δτ)
+    fⱼⱼ = _fermionic_fⱼⱼ_i(f, β, 0, δτ)
+    fₖₖ = _fermionic_fₖₖ_i(f, β, 0, δτ)
 
 
     # j >= k
@@ -82,10 +82,10 @@ function compute_next!(x::InfiniteImagCorrelationCache{<:BosonicVacuum})
     # fⱼⱼ = _fⱼⱼ_i(f, δτ)
     # fₖₖ = _fₖₖ_i(f, δτ)
 
-    fⱼₖ(Δk::Int) = _bosonic_fⱼₖ_i(f, β, Δk, δτ)
-    fₖⱼ(Δk::Int) = _bosonic_fₖⱼ_i(f, β, Δk, δτ)
-    fⱼⱼ = _bosonic_fⱼⱼ_i(f, β, δτ)
-    fₖₖ = _bosonic_fₖₖ_i(f, β, δτ)
+    fⱼₖ(Δk::Int) = _bosonic_fⱼₖ_i(f, β, 0, Δk, δτ)
+    fₖⱼ(Δk::Int) = _bosonic_fₖⱼ_i(f, β, 0, Δk, δτ)
+    fⱼⱼ = _bosonic_fⱼⱼ_i(f, β, 0, δτ)
+    fₖₖ = _bosonic_fₖₖ_i(f, β, 0, δτ)
 
 
     # j >= k

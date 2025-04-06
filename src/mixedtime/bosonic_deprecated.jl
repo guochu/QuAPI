@@ -7,14 +7,9 @@ function bosonic_Δm2(f::AbstractSpectrumFunction; β::Real, Nτ::Int, t::Real, 
     fⱼⱼ = _fⱼⱼ_r(f, δt)
     fₖₖ = _fₖₖ_r(f, δt)
     # imaginary time
-    # hⱼₖ(Δk::Int) = _fⱼₖ_i(f, Δk, δτ)
-    # hⱼⱼ = _fⱼⱼ_i(f, δτ)
-    # hₖₖ = _fₖₖ_i(f, δτ)
-    hⱼₖ(Δk::Int) = _bosonic_fⱼₖ_i(f, β, μ, Δk, δτ)
-    hₖⱼ(Δk::Int) = _bosonic_fₖⱼ_i(f, β, μ, Δk, δτ)
-    hⱼⱼ = _bosonic_fⱼⱼ_i(f, β, μ, δτ)
-    hₖₖ = _bosonic_fₖₖ_i(f, β, μ, δτ)
-
+    hⱼₖ(Δk::Int) = _fⱼₖ_i(f, Δk, δτ)
+    hⱼⱼ = _fⱼⱼ_i(f, δτ)
+    hₖₖ = _fₖₖ_i(f, δτ)
     # mixed time
     lⱼₖ(j::Int, k::Int) = _lⱼₖ(f, j, k, δt, δτ)
     lₖⱼ(k::Int, j::Int) = _lₖⱼ(f, k, j, δt, δτ)
@@ -37,14 +32,14 @@ function bosonic_Δm2(f::AbstractSpectrumFunction; β::Real, Nτ::Int, t::Real, 
     ξⱼₖ = zeros(ComplexF64, M) # j >= k
     ξₖⱼ = zeros(Float64, M)
 
-    ξⱼₖ[1] = quadgkwrapper(-hⱼⱼ)
-    for k in 2:M
-        ξⱼₖ[k] = quadgkwrapper(-hⱼₖ(k-1))
+    ξⱼₖ[1] = quadgkwrapper(-hⱼⱼ * g₁)
+    for k = 2:M
+        ξⱼₖ[k] = quadgkwrapper(-hⱼₖ(k-1) * g₁)
     end
     
-    ξₖⱼ[1] = quadgkwrapper(-hₖₖ)
-    for k in 2:M
-        ξₖⱼ[k] = quadgkwrapper(-hₖⱼ(k-1))
+    ξₖⱼ[1] = quadgkwrapper(-hₖₖ * g₂)
+    for k = 2:M
+        ξₖⱼ[k] = quadgkwrapper(-hⱼₖ(1-k) * g₂)
     end
 
     # mix time

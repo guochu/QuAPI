@@ -1,9 +1,9 @@
 include("util.jl")
 include("imagcorr.jl")
 include("fermionic.jl")
-include("fermionic2.jl")
+include("fermionic_deprecated.jl")
 include("bosonic.jl")
-include("bosonic2.jl")
+include("bosonic_deprecated.jl")
 
 
 """
