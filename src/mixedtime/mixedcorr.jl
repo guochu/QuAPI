@@ -140,3 +140,11 @@ function branch(x::MixedCorrelationFunction; b1::Symbol, b2::Symbol)
         end
     end
 end
+
+function Base.:(==)(x::MixedCorrelationFunction, y::MixedCorrelationFunction)
+    return (x.ηⱼₖ == y.ηⱼₖ) && (x.ηₖⱼ == y.ηₖⱼ) && (x.ξⱼₖ == y.ξⱼₖ) && (x.ξₖⱼ == y.ξₖⱼ) && (x.ζⱼₖ == y.ζⱼₖ) && (x.ζₖⱼ == y.ζₖⱼ)
+end
+function Base.isapprox(x::MixedCorrelationFunction, y::MixedCorrelationFunction; kwargs...)
+    return isapprox(x.ηⱼₖ, y.ηⱼₖ; kwargs...) && isapprox(x.ηₖⱼ, y.ηₖⱼ; kwargs...) && isapprox(x.ξⱼₖ, y.ξⱼₖ; kwargs...) && isapprox(
+                    x.ξₖⱼ, y.ξₖⱼ; kwargs...) && isapprox(x.ζⱼₖ, y.ζⱼₖ; kwargs...) && isapprox(x.ζₖⱼ, y.ζₖⱼ; kwargs...)
+end 

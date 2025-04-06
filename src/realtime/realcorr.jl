@@ -32,3 +32,8 @@ function branch(x::RealCorrelationFunction, b1::Symbol, b2::Symbol)
     end
 end
 branch(x::RealCorrelationFunction; b1::Symbol, b2::Symbol) = branch(x, b1, b2)
+
+Base.:(==)(x::RealCorrelationFunction, y::RealCorrelationFunction) = (x.G₊₊ == y.G₊₊) && (x.G₊₋ == y.G₊₋) && (x.G₋₊ == y.G₋₊) && (x.G₋₋ == y.G₋₋)
+function Base.isapprox(x::RealCorrelationFunction, y::RealCorrelationFunction; kwargs...)
+    return isapprox(x.G₊₊, y.G₊₊; kwargs...) && isapprox(x.G₊₋, y.G₊₋; kwargs...) && isapprox(x.G₋₊, y.G₋₊; kwargs...) && isapprox(x.G₋₋, y.G₋₋; kwargs...)
+end 

@@ -24,15 +24,21 @@ such that we have δt = t/Nt, δτ = β/Nτ
 """
 function fermionic_Δm2(f::AbstractSpectrumFunction; β::Real, Nτ::Int, t::Real, Nt::Int, μ::Real=0, δτ::Real=β/Nτ)
     δt = t / Nt
-    g₁(ε) = _f₁(β, μ, ε); g₂(ε) = _f₂(β, μ, ε)
+    g₁(ε) = _f₁(β, μ, ε)
+    g₂(ε) = _f₂(β, μ, ε)
     # real time
     fⱼₖ(Δk) = _fⱼₖ_r(f, Δk, δt)
     fⱼⱼ = _fⱼⱼ_r(f, δt)
     fₖₖ = _fₖₖ_r(f, δt)
     # imaginary time
-    hⱼₖ(Δk::Int) = _fⱼₖ_i(f, Δk, δτ)
-    hⱼⱼ = _fⱼⱼ_i(f, δτ)
-    hₖₖ = _fₖₖ_i(f, δτ)
+    # hⱼₖ(Δk::Int) = _fⱼₖ_i(f, Δk, δτ)
+    # hⱼⱼ = _fⱼⱼ_i(f, δτ)
+    # hₖₖ = _fₖₖ_i(f, δτ)
+    hⱼₖ(Δk::Int) = _fermionic_fⱼₖ_i(f, β, μ, Δk, δτ)
+    hₖⱼ(Δk::Int) = _fermionic_fₖⱼ_i(f, β, μ, Δk, δτ)
+    hⱼⱼ = _fermionic_fⱼⱼ_i(f, β, μ, δτ)
+    hₖₖ = _fermionic_fₖₖ_i(f, β, μ, δτ)
+
     # mixed time
     lⱼₖ(j::Int, k::Int) = _lⱼₖ(f, j, k, δt, δτ)
     lₖⱼ(k::Int, j::Int) = _lₖⱼ(f, k, j, δt, δτ)
@@ -55,14 +61,14 @@ function fermionic_Δm2(f::AbstractSpectrumFunction; β::Real, Nτ::Int, t::Real
     ξⱼₖ = zeros(ComplexF64, M) # j >= k
     ξₖⱼ = zeros(Float64, M)
 
-    ξⱼₖ[1] = quadgkwrapper(-hⱼⱼ * g₁)
-    for k = 2:M
-        ξⱼₖ[k] = quadgkwrapper(-hⱼₖ(k-1) * g₁)
+    ξⱼₖ[1] = quadgkwrapper(-hⱼⱼ)
+    for k in 2:M
+        ξⱼₖ[k] = quadgkwrapper(-hⱼₖ(k-1))
     end
     
-    ξₖⱼ[1] = quadgkwrapper(hₖₖ * g₂)
-    for k = 2:M
-        ξₖⱼ[k] = quadgkwrapper(hⱼₖ(1-k) * g₂)
+    ξₖⱼ[1] = quadgkwrapper(-hₖₖ)
+    for k in 2:M
+        ξₖⱼ[k] = quadgkwrapper(-hₖⱼ(k-1))
     end
 
     # mix time

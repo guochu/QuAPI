@@ -26,10 +26,10 @@ function fermionic_Δτ2(f0::AbstractSpectrumFunction, β::Real, N::Int, μ::Rea
     f = spectrumshift(f0, μ)
     # δτ = β / N
     
-    fⱼₖ(Δk::Int) = _fermionic_fⱼₖ_i(f, β, Δk, δτ)
-    fₖⱼ(Δk::Int) = _fermionic_fₖⱼ_i(f, β, Δk, δτ)
-    fⱼⱼ = _fermionic_fⱼⱼ_i(f, β, δτ)
-    fₖₖ = _fermionic_fₖₖ_i(f, β, δτ)
+    fⱼₖ(Δk::Int) = _fermionic_fⱼₖ_i(f, β, 0, Δk, δτ)
+    fₖⱼ(Δk::Int) = _fermionic_fₖⱼ_i(f, β, 0, Δk, δτ)
+    fⱼⱼ = _fermionic_fⱼⱼ_i(f, β, 0, δτ)
+    fₖₖ = _fermionic_fₖₖ_i(f, β, 0, δτ)
 
     # j >= k
     L = N
@@ -49,18 +49,18 @@ end
 
 
 
-function _fermionic_fⱼₖ_i(f::AbstractBoundedFunction, β, Δk::Int, δτ)
+function _fermionic_fⱼₖ_i(f::AbstractBoundedFunction, β, μ, Δk::Int, δτ)
     function g(ε)
-        if ε >= 0
-            x = exp(-safe_mult(β, ε))+1
+        if ε >= μ
+            x = exp(-safe_mult(β, ε-μ))+1
             if abs(ε) > QuAPI_tol
                 -2exp(-Δk*δτ*ε)*(1-cosh(δτ*ε))/(ε^2 * x)
             else
                 exp(-Δk*δτ*ε)*δτ^2 / x
             end
         else 
-            x = exp(safe_mult(β, ε)) + 1
-            y = exp(safe_mult(β-Δk*δτ, ε))
+            x = exp(safe_mult(β, ε-μ)) + 1
+            y = exp(safe_mult(β-Δk*δτ, ε-μ)) * exp(-Δk*δτ*μ)
             if abs(ε) > QuAPI_tol
                 -2y*(1-cosh(δτ*ε))/(ε^2 * x)
             else
@@ -71,17 +71,17 @@ function _fermionic_fⱼₖ_i(f::AbstractBoundedFunction, β, Δk::Int, δτ)
     return f * g
 end
 
-function _fermionic_fⱼⱼ_i(f::AbstractBoundedFunction, β, δτ)
+function _fermionic_fⱼⱼ_i(f::AbstractBoundedFunction, β, μ, δτ)
     function g(ε)
-        if ε >= 0
-            x = exp(-safe_mult(β, ε))+1
+        if ε >= μ
+            x = exp(-safe_mult(β, ε-μ))+1
             if abs(ε) > QuAPI_tol
                 (exp(-δτ*ε)-(1-δτ*ε))/(ε^2 * x)
             else
                 0.5*δτ^2 / x
             end 
         else
-            x = exp(safe_mult(β, ε))
+            x = exp(safe_mult(β, ε-μ))
             if abs(ε) > QuAPI_tol
                 x*(exp(-δτ*ε)-(1-δτ*ε))/(ε^2 * (x+1))
             else
@@ -92,18 +92,18 @@ function _fermionic_fⱼⱼ_i(f::AbstractBoundedFunction, β, δτ)
     return f * g
 end
 
-function _fermionic_fₖⱼ_i(f::AbstractBoundedFunction, β, Δk::Int, δτ)
+function _fermionic_fₖⱼ_i(f::AbstractBoundedFunction, β, μ, Δk::Int, δτ)
     function g(ε)
-        if ε >= 0
-            x = exp(-safe_mult(β, ε))+1
-            y = exp(-safe_mult(β - Δk*δτ, ε))
+        if ε >= μ
+            x = exp(-safe_mult(β, ε-μ))+1
+            y = exp(-safe_mult(β - Δk*δτ, ε-μ)) * exp(Δk*δτ*μ)
             if abs(ε) > QuAPI_tol
                 2y*(1-cosh(δτ*ε))/(ε^2 * x)
             else
                 -y*δτ^2 / x
             end 
         else
-            x = exp(safe_mult(β, ε))+1
+            x = exp(safe_mult(β, ε-μ))+1
             y = exp(Δk*δτ * ε)
             if abs(ε) > QuAPI_tol
                 2y*(1-cosh(δτ*ε))/(ε^2 * x)
@@ -116,17 +116,17 @@ function _fermionic_fₖⱼ_i(f::AbstractBoundedFunction, β, Δk::Int, δτ)
     return f * g
 end
 
-function _fermionic_fₖₖ_i(f::AbstractBoundedFunction, β, δτ)
+function _fermionic_fₖₖ_i(f::AbstractBoundedFunction, β, μ, δτ)
     function g(ε)
-        if ε >= 0
-            x = exp(-safe_mult(β, ε))
+        if ε >= μ
+            x = exp(-safe_mult(β, ε-μ))
             if abs(ε) > QuAPI_tol
                 -(exp(δτ*ε)-(1+δτ*ε)) * x / (ε^2 * (x+1))
             else
                 -0.5*δτ^2 * x / 2 * (x+1)
             end 
         else
-            x = exp(safe_mult(β, ε))
+            x = exp(safe_mult(β, ε-μ))
             if abs(ε) > QuAPI_tol
                 -(exp(δτ*ε)-(1+δτ*ε)) / (ε^2 * (x+1))
             else
