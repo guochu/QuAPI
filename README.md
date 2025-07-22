@@ -1,1 +1,1 @@
-### Quasi-adiabatic propagator path integral for bosons and fermions
+### Quasi-adiabatic propagator path integral for bosons and fermions, which discretize the continuous trajectory into equal-distant segments
