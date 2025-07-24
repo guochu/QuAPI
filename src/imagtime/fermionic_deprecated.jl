@@ -1,5 +1,5 @@
 Δτ2(bath::AbstractFermionicBath; N::Int, δτ::Real=bath.β/N) = fermionic_Δτ2(bath.spectrum, β=bath.β, N=N, μ=bath.μ, δτ=δτ)
-fermionic_Δτ2(f::AbstractSpectrumFunction; β::Real, N::Int, μ::Real=0, δτ::Real=β/N) = fermionic_Δτ2(f, β, N, μ, δτ)
+fermionic_Δτ2(f::AbstractBoundedFunction; β::Real, N::Int, μ::Real=0, δτ::Real=β/N) = fermionic_Δτ2(f, β, N, μ, δτ)
 
 
 
@@ -19,7 +19,7 @@ f: the spectrum function
 N: number of discrete imaginary time steps, 
 such that δτ = β/N
 """
-function fermionic_Δτ2(f0::AbstractSpectrumFunction, β::Real, N::Int, μ::Real, δτ::Real=β / N)
+function fermionic_Δτ2(f0::AbstractBoundedFunction, β::Real, N::Int, μ::Real, δτ::Real=β / N)
     # f′, lb, ub = f0.f, lowerbound(f0), upperbound(f0)
     β = convert(Float64, β)
     μ = convert(Float64, μ)

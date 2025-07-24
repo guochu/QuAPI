@@ -1,5 +1,5 @@
 Δt(bath::AbstractFermionicBath; N::Int, t::Real) = fermionic_Δt(bath.spectrum, β=bath.β, N=N, t=t, μ=bath.μ)
-fermionic_Δt(f::AbstractSpectrumFunction; β::Real, N::Int, t::Real, μ::Real=0) = fermionic_Δt(f, β, t, N, μ)
+fermionic_Δt(f::AbstractBoundedFunction; β::Real, N::Int, t::Real, μ::Real=0) = fermionic_Δt(f, β, t, N, μ)
 
 """
     fermionic_Δt(f, β::Real, N::Int, δt::Real, μ::Real)
@@ -20,7 +20,7 @@ t: the total evolution time
 N: number of discrete real time steps,
 such that we have δt = t/Nt
 """
-function fermionic_Δt(f::AbstractSpectrumFunction, β::Real, t::Real, N::Int, μ::Real)
+function fermionic_Δt(f::AbstractBoundedFunction, β::Real, t::Real, N::Int, μ::Real)
     β = convert(Float64, β)
     μ = convert(Float64, μ)
     δt = t / N

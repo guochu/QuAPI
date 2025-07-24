@@ -13,6 +13,9 @@ export AbstractMixedCorrelationFunction, MixedCorrelationFunction, Δm, fermioni
 # infinite time hybridization function
 export infinite_Δτ, infinite_Δt
 
+# bcs
+export BCSCorrelationFunction, bcs_Δτ, bcs_Δt, bcs_Δm
+
 using Base: @boundscheck
 using ImpurityModelBase
 
@@ -30,5 +33,7 @@ include("mixedtime/mixedtime.jl")
 include("infinitetime/imagtime.jl")
 include("infinitetime/realtime.jl")
 
+# BCS 
+include("bcs/bcs.jl")
 
 end
