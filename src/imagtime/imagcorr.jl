@@ -7,7 +7,7 @@ Base.size(x::ImagCorrelationFunction, i::Int...) = size(x.data, i...)
 function Base.show(io::IO, ::MIME"text/plain", A::ImagCorrelationFunction)
     print(io, "Imaginary Correlation Function [$(size(A.data, 1))]")
 end
-
+Base.:(-)(x::ImagCorrelationFunction) = ImagCorrelationFunction(-x.data)
 Base.:+(A::ImagCorrelationFunction, B::ImagCorrelationFunction) = ImagCorrelationFunction(A.data + B.data)
 Base.:(==)(x::ImagCorrelationFunction, y::ImagCorrelationFunction) = x.data == y.data
 Base.transpose(x::ImagCorrelationFunction) = ImagCorrelationFunction(transpose(x.data))

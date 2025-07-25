@@ -40,4 +40,5 @@ function Base.:+(x::CorrelationMatrix, y::CorrelationMatrix)
     return CorrelationMatrix(x.ηⱼₖ + y.ηⱼₖ, x.ηₖⱼ + y.ηₖⱼ)
 end
 Base.:(-)(x::CorrelationMatrix) = CorrelationMatrix(-x.ηⱼₖ, -x.ηₖⱼ)
+Base.:-(x::CorrelationMatrix, y::CorrelationMatrix) = x + (-y)
 Base.transpose(x::CorrelationMatrix) = CorrelationMatrix(x.ηₖⱼ, x.ηⱼₖ)

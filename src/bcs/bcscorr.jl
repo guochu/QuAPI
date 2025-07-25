@@ -7,18 +7,18 @@ _v2(ϵ, Δ) = _v(ϵ, Δ)^2
 _uv(ϵ, Δ) = _u(ϵ, Δ) * _v(ϵ, Δ)
 
 struct BCSCorrelationFunction{C <: AbstractCorrelationFunction}
-	c11::C
-	c12::C
-	c21::C
-	c22::C
+	cc::C
+	cn::C
+	nc::C
+	nn::C
 end
 
 function Base.getindex(x::BCSCorrelationFunction, i::Int, j::Int)
 	(1 <= i <= 2) || throw(BoundsError(1:2, i))
 	(1 <= j <= 2) || throw(BoundsError(1:2, j))
-	return ifelse(i==1, ifelse(j==1, x.c11, x.c12), ifelse(j==1, x.c21, x.c22))
+	return ifelse(i==1, ifelse(j==1, x.cc, x.cn), ifelse(j==1, x.nc, x.nn))
 end
-Base.getindex(x::BCSCorrelationFunction, c1::Bool, c2::Bool) = ifelse(c1, ifelse(c2, x.c11, x.c12), ifelse(c2, x.c21, x.c22))
+Base.getindex(x::BCSCorrelationFunction, c1::Bool, c2::Bool) = ifelse(c1, ifelse(c2, x.cc, x.cn), ifelse(c2, x.nc, x.nn))
 
 
 
