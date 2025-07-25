@@ -4,31 +4,53 @@ println("------------------------------------")
 
 
 
-@testset "fermionic Δτ" begin
-	β = 5
+@testset "fermionic Δm" begin
+	β = 2
 	for f in (semicircular(), DiracDelta(ω=0.5))
 		for μ in (-0.3, 0, 0.3)
-			x = fermionic_Δm(f, β=β, t=2, Nt=10, Nτ=5, μ=μ)
-			y = fermionic_Δm2(f, β=β, t=2, Nt=10, Nτ=5, μ=μ)
+			x = fermionic_Δm(f, β=β, t=2, Nt=4, Nτ=5, μ=μ)
+			y = fermionic_Δm2(f, β=β, t=2, Nt=4, Nτ=5, μ=μ)
 			for b1 in (:+, :-, :τ), b2 in (:+, :-, :τ)
 				@test branch(x, b1=b1, b2=b2) ≈ branch(y, b1=b1, b2=b2) atol=1.0e-8
 			end
 			@test x ≈ y atol=1.0e-8
+
+			z = transpose(x)
+			for b1 in (:+, :-, :τ)
+				k1 = ifelse(b1 == :τ, isize(z), rsize(z))
+				for b2 in (:+, :-, :τ)
+					k2 = ifelse(b2 == :τ, isize(z), rsize(z))
+					for i in 1:k1, j in 1:k2
+						@test index(x, i, j, b1=b1, b2=b2) == index(z, j, i, b1=b2, b2=b1)
+					end
+				end
+			end
 		end
 	end
 end
 
 
-@testset "bosonic Δτ" begin
-	β = 5
+@testset "bosonic Δm" begin
+	β = 2
 	for f in (Leggett(), DiracDelta(ω=0.5))
 		for μ in (-0.3, 0)
-			x = bosonic_Δm(f, β=β, t=2, Nt=10, Nτ=5, μ=μ)
-			y = bosonic_Δm2(f, β=β, t=2, Nt=10, Nτ=5, μ=μ)
+			x = bosonic_Δm(f, β=β, t=1, Nt=2, Nτ=5, μ=μ)
+			y = bosonic_Δm2(f, β=β, t=1, Nt=2, Nτ=5, μ=μ)
 			for b1 in (:+, :-, :τ), b2 in (:+, :-, :τ)
 				@test branch(x, b1=b1, b2=b2) ≈ branch(y, b1=b1, b2=b2) atol=1.0e-8
 			end
 			@test x ≈ y atol=1.0e-8
+
+			z = transpose(x)
+			for b1 in (:+, :-, :τ)
+				k1 = ifelse(b1 == :τ, isize(z), rsize(z))
+				for b2 in (:+, :-, :τ)
+					k2 = ifelse(b2 == :τ, isize(z), rsize(z))
+					for i in 1:k1, j in 1:k2
+						@test index(x, i, j, b1=b1, b2=b2) == index(z, j, i, b1=b2, b2=b1)
+					end
+				end
+			end
 		end
 	end
 end

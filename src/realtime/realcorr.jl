@@ -5,6 +5,9 @@ struct RealCorrelationFunction{A<:AbstractMatrix{ComplexF64}, B<:AbstractMatrix{
     G₋₋::D
 end
 
+Base.transpose(x::RealCorrelationFunction) = RealCorrelationFunction(transpose(x.G₊₊), transpose(x.G₋₊), transpose(x.G₊₋), transpose(x.G₋₋))
+
+
 Base.size(x::RealCorrelationFunction, i::Int...) = size(x.G₊₊, i...)
 
 function Base.show(io::IO, ::MIME"text/plain", A::RealCorrelationFunction)

@@ -11,6 +11,11 @@ println("------------------------------------")
 			corr1 = fermionic_Δτ(f, β=β, N=10, μ=μ)
 			corr2 = fermionic_Δτ2(f, β=β, N=10, μ=μ)
 			@test corr1 ≈ corr2 atol=1.0e-8
+
+			corr3 = transpose(corr1)
+			for i in 1:size(corr3, 1), j in 1:size(corr3, 2)
+				@test index(corr1, i, j) == index(corr3, j, i)
+			end
 		end
 	end
 end
@@ -23,6 +28,11 @@ end
 			corr1 = bosonic_Δτ(f, β=β, N=10, μ=μ)
 			corr2 = bosonic_Δτ2(f, β=β, N=10, μ=μ)
 			@test corr1 ≈ corr2 atol=1.0e-8
+
+			corr3 = transpose(corr1)
+			for i in 1:size(corr3, 1), j in 1:size(corr3, 2)
+				@test index(corr1, i, j) == index(corr3, j, i)
+			end
 		end
 	end
 end
