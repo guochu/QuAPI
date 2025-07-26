@@ -27,6 +27,23 @@ println("------------------------------------")
 			end
 		end
 	end
+
+	f1, f2 = semicircular(t=1), semicircular(t=2)
+	μ = 0.23
+	x = fermionic_Δm(f1, β=β, t=2, Nt=4, Nτ=5, μ=μ)
+	y = fermionic_Δm(f2, β=β, t=2, Nt=4, Nτ=5, μ=μ)
+
+	z = x - y
+
+	for b1 in (:+, :-, :τ)
+		k1 = ifelse(b1 == :τ, isize(z), rsize(z))
+		for b2 in (:+, :-, :τ)
+			k2 = ifelse(b2 == :τ, isize(z), rsize(z))
+			for i in 1:k1, j in 1:k2
+				@test index(z, i, j, b1=b1, b2=b2) ≈ index(x, i, j, b1=b1, b2=b2) - index(y, i, j, b1=b1, b2=b2)
+			end
+		end
+	end
 end
 
 
@@ -50,6 +67,21 @@ end
 						@test index(x, i, j, b1=b1, b2=b2) == index(z, j, i, b1=b2, b2=b1)
 					end
 				end
+			end
+		end
+	end
+
+	f1, f2 = Leggett(), Leggett(d=2)
+	μ = -0.2
+	x = bosonic_Δm(f1, β=β, t=1, Nt=2, Nτ=5, μ=μ)
+	y = bosonic_Δm(f2, β=β, t=1, Nt=2, Nτ=5, μ=μ)
+	z = x + y
+	for b1 in (:+, :-, :τ)
+		k1 = ifelse(b1 == :τ, isize(z), rsize(z))
+		for b2 in (:+, :-, :τ)
+			k2 = ifelse(b2 == :τ, isize(z), rsize(z))
+			for i in 1:k1, j in 1:k2
+				@test index(z, i, j, b1=b1, b2=b2) ≈ index(x, i, j, b1=b1, b2=b2) + index(y, i, j, b1=b1, b2=b2) 
 			end
 		end
 	end
