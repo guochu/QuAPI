@@ -14,3 +14,6 @@ include("mixedtime/mixedtime.jl")
 # infinite time hybridization function
 include("infinitetime/imagtime.jl")
 include("infinitetime/realtime.jl")
+
+# BCS 
+include("bcs/bcs.jl")

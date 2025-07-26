@@ -1,11 +1,11 @@
-bcs_Δτ(bath::AbstractFermionicBath, Δ::Real; N::Int, δτ::Real=bath.β/N) = bcs_Δτ(bath.spectrum, Δ, β=bath.β, N=N, μ=bath.μ, δτ=δτ)
+Δτ(bath::AbstractBCSBath; N::Int, δτ::Real=bath.β/N) = bcs_Δτ(bath.spectrum, β=bath.β, N=N, μ=bath.μ, Δ=bath.Δ, δτ=δτ)
 
 
-function bcs_Δτ(f::AbstractBoundedFunction, Δ::Real; β::Real, N::Int, μ::Real=0, δτ::Real=β/N) 
+function bcs_Δτ(f::AbstractBoundedFunction; β::Real, N::Int, μ::Real=0, Δ::Real=0, δτ::Real=β/N) 
 	fu2, fuv, fv2 = get_all_fs(f, Δ)
-	Δτ_uu = Δτ(fu2, β=β, N=N, μ=μ, δτ=δτ)
-	Δτ_uv = Δτ(fuv, β=β, N=N, μ=μ, δτ=δτ)
-	Δτ_vv = Δτ(fv2, β=β, N=N, μ=μ, δτ=δτ)
+	Δτ_uu = fermionic_Δτ(fu2, β=β, N=N, μ=μ, δτ=δτ)
+	Δτ_uv = fermionic_Δτ(fuv, β=β, N=N, μ=μ, δτ=δτ)
+	Δτ_vv = fermionic_Δτ(fv2, β=β, N=N, μ=μ, δτ=δτ)
 	return _bcs_corr(Δτ_uu, Δτ_uv, Δτ_vv)
 end
 

@@ -22,7 +22,7 @@ function Base.show(io::IO, ::MIME"text/plain", A::AbstractMixedCorrelationFuncti
 end
 
 Base.transpose(x::MixedCorrelationFunction) = MixedCorrelationFunction(x.ηₖⱼ, x.ηⱼₖ, x.ξₖⱼ, x.ξⱼₖ, transpose(x.ζₖⱼ), transpose(x.ζⱼₖ))
-
+Base.iszero(x::MixedCorrelationFunction) = iszero(x.ηⱼₖ) && iszero(x.ηₖⱼ) && iszero(x.ξⱼₖ) && iszero(x.ξₖⱼ) && iszero(x.ζⱼₖ) && iszero(x.ζₖⱼ)
 Base.:-(x::MixedCorrelationFunction) = MixedCorrelationFunction(-x.ηⱼₖ, -x.ηₖⱼ, -x.ξⱼₖ, -x.ξₖⱼ, -x.ζⱼₖ, -x.ζₖⱼ)
 Base.:+(A::MixedCorrelationFunction, B::MixedCorrelationFunction) = MixedCorrelationFunction(A.ηⱼₖ + B.ηⱼₖ, A.ηₖⱼ + B.ηₖⱼ, A.ξⱼₖ + B.ξⱼₖ, A.ξₖⱼ + B.ξₖⱼ, A.ζⱼₖ + B.ζⱼₖ, A.ζₖⱼ + B.ζₖⱼ)
 # branch(x::MixedCorrelationFunction, f1::Symbol, f2::Symbol) = ifelse(f1, ifelse(f2, x.G₊₊, x.G₊₋), ifelse(f2, x.G₋₊, x.G₋₋))

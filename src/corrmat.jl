@@ -10,6 +10,7 @@ end
 
 Base.size(x::CorrelationMatrix, i::Int) = ifelse(i <= 2, length(x.ηⱼₖ), 1)
 Base.size(x::CorrelationMatrix) = (length(x.ηⱼₖ), length(x.ηⱼₖ))
+Base.iszero(x::CorrelationMatrix) = iszero(x.ηⱼₖ) && iszero(x.ηₖⱼ)
 
 Base.similar(a::CorrelationMatrix, dims::Tuple{Int, Int}) = Matrix{eltype(a)}(undef, dims)
 Base.similar(a::CorrelationMatrix, T::Type, dims::Tuple{Int, Int}) = Matrix{T}(undef, dims)
