@@ -14,7 +14,10 @@ Base.transpose(x::ImagCorrelationFunction) = ImagCorrelationFunction(transpose(x
 Base.iszero(x::ImagCorrelationFunction) = iszero(x.data)
 
 Base.isapprox(x::ImagCorrelationFunction, y::ImagCorrelationFunction; kwargs...) = isapprox(x.data, y.data; kwargs...)
-index(x::ImagCorrelationFunction, i::Int, j::Int) = x.data[i, j]
+function index(x::ImagCorrelationFunction, i::Int, j::Int; b1::Symbol=:τ, b2::Symbol=:τ)
+    ((b1 == :τ) && (b2 == :τ)) || throw(ArgumentError("branch must be :τ"))
+    x.data[i, j]
+end 
 function branch(x::ImagCorrelationFunction; b1::Symbol=:τ, b2::Symbol=:τ)
     ((b1 == :τ) && (b2 == :τ)) || throw(ArgumentError("branch must be :τ"))
     return x.data
