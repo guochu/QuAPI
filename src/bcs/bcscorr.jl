@@ -1,10 +1,28 @@
 
-_u(ϵ, Δ) = (Δ == 0) ? one(ϵ) : (1 + ϵ/sqrt(ϵ^2 + Δ^2))/2
-_v(ϵ, Δ) = (Δ == 0) ? zero(ϵ) : (1 - ϵ/sqrt(ϵ^2 + Δ^2))/2
+_u(ϵ::Real, Δ::Number) = (Δ == zero(0)) ? one(ϵ) : (1 + ϵ/sqrt(ϵ^2 + abs2(Δ)))/2
+_v(ϵ::Real, Δ::Real) = (Δ == 0) ? zero(ϵ) : (1 - ϵ/sqrt(ϵ^2 + Δ^2))/2
 
-_u2(ϵ, Δ) = _u(ϵ, Δ)^2
-_v2(ϵ, Δ) = _v(ϵ, Δ)^2
-_uv(ϵ, Δ) = _u(ϵ, Δ) * _v(ϵ, Δ)
+
+function _v(ϵ::Real, Δ::Complex)
+	phi = angle(Δ)
+	return (Δ == zero(0)) ? zero(ϵ) : (1 - ϵ/sqrt(ϵ^2 + abs2(Δ))) * exp(im*phi)/2
+end 
+
+
+function _u2(ϵ, Δ) 
+	x = _u(ϵ, Δ)
+	return conj(x) * x
+end
+function _v2(ϵ, Δ)
+	x = _v(ϵ, Δ)
+	return conj(x) * x
+end 
+function _uv(ϵ, Δ)
+	return conj(_u(ϵ, Δ)) * _v(ϵ, Δ)
+end 
+function _vu(ϵ, Δ)
+	return conj(_v(ϵ, Δ)) * _u(ϵ, Δ)
+end
 
 struct BCSCorrelationFunction{C <: AbstractCorrelationFunction}
 	cc::C
@@ -25,9 +43,10 @@ Base.getindex(x::BCSCorrelationFunction, c1::Bool, c2::Bool) = ifelse(c1, ifelse
 _mult_f(x::AbstractBoundedFunction, f) = similar(x, w -> f(w) * x.f(w)) 
 _mult_f(x::DiracDelta, f) = x * f
 
-function get_all_fs(f::AbstractBoundedFunction, Δ::Real)
+function get_all_fs(f::AbstractBoundedFunction, Δ::Number)
 	__u2(ϵ) = _u2(ϵ, Δ)
 	__v2(ϵ) = _v2(ϵ, Δ)
 	__uv(ϵ) = _uv(ϵ, Δ)
-	return _mult_f(f, __u2), _mult_f(f, __uv), _mult_f(f, __v2)
+	__vu(ϵ) = _vu(ϵ, Δ)
+	return _mult_f(f, __u2), _mult_f(f, __uv), _mult_f(f, __vu), _mult_f(f, __v2)
 end

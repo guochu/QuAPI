@@ -8,7 +8,7 @@ println("------------------------------------")
 	for f in (semicircular(), DiracDelta(ω=0.5))
 		for μ in (-0.3, 0, 0.3)
 			corr1 = fermionic_Δτ(f, β=β, N=10, μ=μ)
-			corr2 = bcs_Δτ(f, β=β, N=10, μ=μ)
+			corr2 = bcs_Δτ(f, β=β, N=10, μ=μ, Δ=complex(0))
 			@test corr1 ≈ corr2[true, false] atol=1.0e-8
 			@test corr1 ≈ -transpose(corr2[false, true]) atol=1.0e-8
 			@test iszero(corr2[true, true])
