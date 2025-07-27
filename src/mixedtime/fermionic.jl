@@ -62,7 +62,7 @@ function fermionic_Δm(f::AbstractBoundedFunction; β::Real, Nτ::Int, t::Real, 
 
     # imag time
     ξⱼₖ = zeros(ComplexF64, M) # j >= k
-    ξₖⱼ = zeros(Float64, M)
+    ξₖⱼ = zeros(ComplexF64, M)
 
     ξⱼₖ[1] = quadgkwrapper(-hⱼⱼ)
     for k in 2:M
