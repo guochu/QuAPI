@@ -33,18 +33,20 @@ function fermionic_Δτ(f0::AbstractBoundedFunction, β::Real, N::Int, μ::Real,
 
     # j >= k
     L = N
-    ηⱼₖ = zeros(Float64, L)
-    ηⱼₖ[1] = quadgkwrapper(fⱼⱼ)
+    tmp = quadgkwrapper(fⱼⱼ)
+    T = typeof(tmp)
+    ηⱼₖ = zeros(T, L)
+    ηⱼₖ[1] = tmp
     for k = 1:L-1
         ηⱼₖ[k+1] = quadgkwrapper(fⱼₖ(k))
     end
 
-    ηₖⱼ = zeros(Float64, L)
+    ηₖⱼ = zeros(T, L)
     ηₖⱼ[1] = quadgkwrapper(fₖₖ)
     for k = 1:L-1
         ηₖⱼ[k+1] = quadgkwrapper(fₖⱼ(k))
     end
-    ImagCorrelationFunction(CorrelationMatrix{Float64}(ηⱼₖ, ηₖⱼ))
+    ImagCorrelationFunction(CorrelationMatrix{T}(ηⱼₖ, ηₖⱼ))
 end
 
 

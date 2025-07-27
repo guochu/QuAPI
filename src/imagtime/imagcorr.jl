@@ -1,4 +1,4 @@
-struct ImagCorrelationFunction{M<:AbstractMatrix{Float64}} <: AbstractCorrelationFunction
+struct ImagCorrelationFunction{M<:AbstractMatrix} <: AbstractCorrelationFunction
     data::M
 end
 
