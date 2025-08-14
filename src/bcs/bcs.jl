@@ -1,3 +1,4 @@
+# Bogoliubov transformation have been performed to diagonalize the bath
 include("bcscorr.jl")
 include("imagtime.jl")
 include("realtime.jl")
