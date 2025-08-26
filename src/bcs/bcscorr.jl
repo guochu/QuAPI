@@ -1,11 +1,19 @@
 
-_u(ϵ::Real, Δ::Number) = (Δ == zero(0)) ? one(ϵ) : (1 + ϵ/sqrt(ϵ^2 + abs2(Δ)))/2
-_v(ϵ::Real, Δ::Real) = (Δ == 0) ? zero(ϵ) : (1 - ϵ/sqrt(ϵ^2 + Δ^2))/2
+_dispersion(ϵ::Real, Δ::Number) = sqrt(ϵ^2 + abs2(Δ))
 
+function _u(ϵ::Real, Δ::Number)
+	(Δ == zero(Δ)) && return (ϵ >= 0) ? one(ϵ) : zero(ϵ)
+	return sqrt((1 + ϵ/_dispersion(ϵ, Δ))/2)
+end 
+function _v(ϵ::Real, Δ::Real)
+	(Δ == zero(Δ)) && return (ϵ >= 0) ? zero(ϵ) : one(ϵ)
+	return sqrt((1 - ϵ/_dispersion(ϵ, Δ))/2)
+end 
 
 function _v(ϵ::Real, Δ::Complex)
+	(Δ == zero(Δ)) && return (ϵ >= 0) ? zero(ϵ) : one(ϵ)
 	phi = angle(Δ)
-	return (Δ == zero(0)) ? zero(ϵ) : (1 - ϵ/sqrt(ϵ^2 + abs2(Δ))) * exp(im*phi)/2
+	return sqrt((1 - ϵ/_dispersion(ϵ, Δ))/2) * exp(im*phi)
 end 
 
 

@@ -1,4 +1,4 @@
-Δτ2(bath::AbstractBosonicBath; N::Int, δτ::Real=bath.β/N) = bosonic_Δτ2(bath.spectrum, β=bath.β, N=N, μ=bath.μ, δτ=δτ)
+Δτ2(bath::AbstractBosonicNormalBath; N::Int, δτ::Real=bath.β/N) = bosonic_Δτ2(bath.spectrum, β=bath.β, N=N, μ=bath.μ, δτ=δτ)
 bosonic_Δτ2(f::AbstractBoundedFunction; β::Real, N::Int, μ::Real=0, δτ::Real=β/N) = bosonic_Δτ2(f, β, N, μ, δτ)
 
 """

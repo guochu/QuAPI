@@ -1,4 +1,4 @@
-Δm(bath::AbstractFermionicBath; Nτ::Int, t::Real, Nt::Int, δτ::Real=bath.β/Nτ) = fermionic_Δm(bath.spectrum, β=bath.β, μ=bath.μ, Nτ=Nτ, t=t, Nt=Nt, δτ=δτ)
+Δm(bath::AbstractFermionicNormalBath; Nτ::Int, t::Real, Nt::Int, δτ::Real=bath.β/Nτ) = fermionic_Δm(bath.spectrum, β=bath.β, μ=bath.μ, Nτ=Nτ, t=t, Nt=Nt, δτ=δτ)
 
 
 """

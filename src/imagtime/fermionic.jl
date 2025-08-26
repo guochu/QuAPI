@@ -1,4 +1,4 @@
-Δτ(bath::AbstractFermionicBath; N::Int, δτ::Real=bath.β/N) = fermionic_Δτ(bath.spectrum, β=bath.β, N=N, μ=bath.μ, δτ=δτ)
+Δτ(bath::AbstractFermionicNormalBath; N::Int, δτ::Real=bath.β/N) = fermionic_Δτ(bath.spectrum, β=bath.β, N=N, μ=bath.μ, δτ=δτ)
 fermionic_Δτ(f::AbstractBoundedFunction; β::Real, N::Int, μ::Real=0, δτ::Real=β/N) = fermionic_Δτ(f, β, N, μ, δτ)
 
 

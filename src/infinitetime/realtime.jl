@@ -62,7 +62,7 @@ function compute!(x::InfiniteRealCorrelationCache; atol::Real=1.0e-6, t::Real=20
 	return current_size(x)
 end
 
-function compute_next!(x::InfiniteRealCorrelationCache{<:AbstractFermionicBath})
+function compute_next!(x::InfiniteRealCorrelationCache{<:AbstractFermionicNormalBath})
 	f = x.bath.f
 	# f, lb, ub = f0.f, lowerbound(f0), upperbound(f0)
 	β, μ, δt = x.bath.β, x.bath.μ, x.δt
@@ -87,7 +87,7 @@ function compute_next!(x::InfiniteRealCorrelationCache{<:AbstractFermionicBath})
     return x
 end
 
-function compute_next!(x::InfiniteRealCorrelationCache{<:AbstractBosonicBath})
+function compute_next!(x::InfiniteRealCorrelationCache{<:AbstractBosonicNormalBath})
 	f = x.bath.f
 	# f, lb, ub = f0.f, lowerbound(f0), upperbound(f0)
 	β, μ, δt = x.bath.β, x.bath.μ, x.δt

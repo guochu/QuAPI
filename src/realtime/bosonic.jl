@@ -1,4 +1,4 @@
-Δt(bath::AbstractBosonicBath; N::Int, t::Real) = bosonic_Δt(bath.spectrum, β=bath.β, N=N, t=t, μ=bath.μ)
+Δt(bath::AbstractBosonicNormalBath; N::Int, t::Real) = bosonic_Δt(bath.spectrum, β=bath.β, N=N, t=t, μ=bath.μ)
 bosonic_Δt(f::AbstractBoundedFunction; β::Real, N::Int, t::Real, μ::Real=0) = bosonic_Δt(f, β, N, t/N, μ)
 
 function bosonic_Δt(f::AbstractBoundedFunction, β::Real, N::Int, δt::Real, μ::Real)
