@@ -3,10 +3,11 @@
 
 function bcs_Δτ(f::AbstractBoundedFunction; β::Real, N::Int, μ::Real=0, Δ::Number=0, δτ::Real=β/N) 
 	fu2, fuv, fvu, fv2 = get_all_fs(f, Δ)
-	Δτ_uu = fermionic_Δτ(fu2, β=β, N=N, μ=μ, δτ=δτ)
-	Δτ_uv = fermionic_Δτ(fuv, β=β, N=N, μ=μ, δτ=δτ)
-	Δτ_vu = fermionic_Δτ(fvu, β=β, N=N, μ=μ, δτ=δτ)
-	Δτ_vv = fermionic_Δτ(fv2, β=β, N=N, μ=μ, δτ=δτ)
+	disperse = ϵ -> _dispersion(ϵ, Δ)
+	Δτ_uu = fermionic_Δτ(fu2, disperse, β=β, N=N, μ=μ, δτ=δτ)
+	Δτ_uv = fermionic_Δτ(fuv, disperse, β=β, N=N, μ=μ, δτ=δτ)
+	Δτ_vu = fermionic_Δτ(fvu, disperse, β=β, N=N, μ=μ, δτ=δτ)
+	Δτ_vv = fermionic_Δτ(fv2, disperse, β=β, N=N, μ=μ, δτ=δτ)
 	return _bcs_corr(Δτ_uu, Δτ_uv, Δτ_vu, Δτ_vv)
 end
 
