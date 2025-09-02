@@ -7,35 +7,37 @@ bosonic_Δτ(f::AbstractBoundedFunction, disperse::Function; β::Real, N::Int, �
 
 f: the spectrum function
 """
-function bosonic_Δτ(f0::AbstractBoundedFunction, β::Real, N::Int, μ::Real, δτ::Real=β / N)
-    # f′, lb, ub = f0.f, lowerbound(f0), upperbound(f0)
-    β = convert(Float64, β)
-    μ = convert(Float64, μ)
-    f = spectrumshift(f0, μ)
-    # δτ = β / N
+bosonic_Δτ(f0::AbstractBoundedFunction, β::Real, N::Int, μ::Real, δτ::Real=β / N) = bosonic_Δτ(f0, identity, β, N, μ, δτ)
+
+# function bosonic_Δτ(f0::AbstractBoundedFunction, β::Real, N::Int, μ::Real, δτ::Real=β / N)
+#     # f′, lb, ub = f0.f, lowerbound(f0), upperbound(f0)
+#     β = convert(Float64, β)
+#     μ = convert(Float64, μ)
+#     f = spectrumshift(f0, μ)
+#     # δτ = β / N
     
-    fⱼₖ(Δk::Int) = _bosonic_fⱼₖ_i(f, β, 0, Δk, δτ)
-    fₖⱼ(Δk::Int) = _bosonic_fₖⱼ_i(f, β, 0, Δk, δτ)
-    fⱼⱼ = _bosonic_fⱼⱼ_i(f, β, 0, δτ)
-    fₖₖ = _bosonic_fₖₖ_i(f, β, 0, δτ)
+#     fⱼₖ(Δk::Int) = _bosonic_fⱼₖ_i(f, β, 0, Δk, δτ)
+#     fₖⱼ(Δk::Int) = _bosonic_fₖⱼ_i(f, β, 0, Δk, δτ)
+#     fⱼⱼ = _bosonic_fⱼⱼ_i(f, β, 0, δτ)
+#     fₖₖ = _bosonic_fₖₖ_i(f, β, 0, δτ)
 
-    # j >= k
-    L = N
-    tmp = quadgkwrapper(fⱼⱼ)
-    T = typeof(tmp)
-    ηⱼₖ = zeros(T, L)
-    ηⱼₖ[1] = tmp
-    for k = 1:L-1
-        ηⱼₖ[k+1] = quadgkwrapper(fⱼₖ(k))
-    end
+#     # j >= k
+#     L = N
+#     tmp = quadgkwrapper(fⱼⱼ)
+#     T = typeof(tmp)
+#     ηⱼₖ = zeros(T, L)
+#     ηⱼₖ[1] = tmp
+#     for k = 1:L-1
+#         ηⱼₖ[k+1] = quadgkwrapper(fⱼₖ(k))
+#     end
 
-    ηₖⱼ = zeros(T, L)
-    ηₖⱼ[1] = quadgkwrapper(fₖₖ)
-    for k = 1:L-1
-        ηₖⱼ[k+1] = quadgkwrapper(fₖⱼ(k))
-    end
-    ImagCorrelationFunction(CorrelationMatrix{T}(ηⱼₖ, ηₖⱼ))
-end
+#     ηₖⱼ = zeros(T, L)
+#     ηₖⱼ[1] = quadgkwrapper(fₖₖ)
+#     for k = 1:L-1
+#         ηₖⱼ[k+1] = quadgkwrapper(fₖⱼ(k))
+#     end
+#     ImagCorrelationFunction(CorrelationMatrix{T}(ηⱼₖ, ηₖⱼ))
+# end
 
 function bosonic_Δτ(f0::AbstractBoundedFunction, disperse::Function, β::Real, N::Int, μ::Real, δτ::Real=β / N)
     # f′, lb, ub = f0.f, lowerbound(f0), upperbound(f0)
