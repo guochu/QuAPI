@@ -9,4 +9,4 @@ include("imagtime.jl")
 include("realtime.jl")
 include("mixedtime.jl")
 
-# include("bcs.jl")
+include("bcs.jl")
