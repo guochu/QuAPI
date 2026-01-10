@@ -29,8 +29,8 @@ function Δiw_to_Δτ(Δiw::AbstractVector{<:Number}; β::Real, N::Int)
         end
     end
     for i in 1:N
-        (abs(imag(ηⱼₖ[i])) < 1.0e-8) || error("imag part of ηⱼₖ[$i] is nonzero")
-        (abs(imag(ηₖⱼ[i])) < 1.0e-8) || error("imag part of ηₖⱼ[$i] is nonzero")
+        (abs(imag(ηⱼₖ[i])) < 1.0e-8) || error("imag part of ηⱼₖ[$i]=$(imag(ηⱼₖ[i])) is nonzero")
+        (abs(imag(ηₖⱼ[i])) < 1.0e-8) || error("imag part of ηₖⱼ[$i]=$(imag(ηₖⱼ[i])) is nonzero")
     end
 
     ImagCorrelationFunction(CorrelationMatrix{Float64}(real(ηⱼₖ), real(ηₖⱼ)))
