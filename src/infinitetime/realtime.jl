@@ -101,11 +101,11 @@ function compute_next!(x::InfiniteRealCorrelationCache{<:AbstractBosonicNormalBa
     # j >= k
     N = current_size(x)
     if N == 0
-    	ηⱼₖ_new = quadgkwrapper(fⱼⱼ * g₁)
-    	ηₖⱼ_new = quadgkwrapper(fⱼⱼ' * g₂)
+    	ηⱼₖ_new = quadgkwrapper(-fⱼⱼ * g₁)
+    	ηₖⱼ_new = quadgkwrapper(-fⱼⱼ' * g₂)
     else
-    	ηⱼₖ_new = quadgkwrapper(fⱼₖ(N) * g₁)
-    	ηₖⱼ_new = quadgkwrapper(fⱼₖ(N)' * g₂)
+    	ηⱼₖ_new = quadgkwrapper(-fⱼₖ(N) * g₁)
+    	ηₖⱼ_new = quadgkwrapper(-fⱼₖ(N)' * g₂)
     end
     push!(x.ηⱼₖ, ηⱼₖ_new)
     push!(x.ηₖⱼ, ηₖⱼ_new)
