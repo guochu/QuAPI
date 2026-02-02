@@ -1,4 +1,4 @@
-using Test
+using Test, LinearAlgebra
 
 include("../src/includes.jl")
 

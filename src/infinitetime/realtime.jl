@@ -67,11 +67,11 @@ function compute_next!(x::InfiniteRealCorrelationCache{<:AbstractFermionicNormal
 	# f, lb, ub = f0.f, lowerbound(f0), upperbound(f0)
 	β, μ, δt = x.bath.β, x.bath.μ, x.δt
 
-    g₁(ε) = QuAPI._f₁(β, μ, ε); g₂(ε) = QuAPI._f₂(β, μ, ε)
+    g₁(ε) = _f₁(β, μ, ε); g₂(ε) = _f₂(β, μ, ε)
     # real time
-    fⱼₖ(Δk) = QuAPI._fⱼₖ_r(f, Δk, δt)
-    fⱼⱼ = QuAPI._fⱼⱼ_r(f, δt)
-    fₖₖ = QuAPI._fₖₖ_r(f, δt)
+    fⱼₖ(Δk) = _fⱼₖ_r(f, Δk, δt)
+    fⱼⱼ = _fⱼⱼ_r(f, δt)
+    fₖₖ = _fₖₖ_r(f, δt)
 
     # j >= k
     N = current_size(x)
@@ -92,20 +92,20 @@ function compute_next!(x::InfiniteRealCorrelationCache{<:AbstractBosonicNormalBa
 	# f, lb, ub = f0.f, lowerbound(f0), upperbound(f0)
 	β, μ, δt = x.bath.β, x.bath.μ, x.δt
 
-    g₁(ε) = QuAPI._f₁(β, μ, ε); g₂(ε) = QuAPI._f₂(β, μ, ε)
+    g₁(ε) = _g₁(β, μ, ε); g₂(ε) = _g₂(β, μ, ε)
     # real time
-    fⱼₖ(Δk) = QuAPI._fⱼₖ_r(f, Δk, δt)
-    fⱼⱼ = QuAPI._fⱼⱼ_r(f, δt)
-    fₖₖ = QuAPI._fₖₖ_r(f, δt)
+    fⱼₖ(Δk) = _fⱼₖ_r(f, Δk, δt)
+    fⱼⱼ = _fⱼⱼ_r(f, δt)
+    # fₖₖ = _fₖₖ_r(f, δt)
 
     # j >= k
     N = current_size(x)
     if N == 0
-    	ηⱼₖ_new = quadgkwrapper(-fⱼⱼ * g₁)
-    	ηₖⱼ_new = quadgkwrapper(-fₖₖ * g₂)
+    	ηⱼₖ_new = quadgkwrapper(fⱼⱼ * g₁)
+    	ηₖⱼ_new = quadgkwrapper(fⱼⱼ' * g₂)
     else
     	ηⱼₖ_new = quadgkwrapper(fⱼₖ(N) * g₁)
-    	ηₖⱼ_new = quadgkwrapper(fⱼₖ(-N) * g₂)
+    	ηₖⱼ_new = quadgkwrapper(fⱼₖ(N)' * g₂)
     end
     push!(x.ηⱼₖ, ηⱼₖ_new)
     push!(x.ηₖⱼ, ηₖⱼ_new)
