@@ -60,6 +60,8 @@ end
 	for f in (Leggett(), DiracDelta(ω=0.5))
 		for μ in (-0.3, 0)
 			x = bosonic_Δt(f, β=β, t=2, N=5, μ=μ)
+			x′ = bosonic_Δt2(f, β=β, t=2, N=5, μ=μ)
+			@test x ≈ x′ atol=1.0e-8
 
 			z = transpose(x)
 			for i in 1:size(z, 1), b1 in (:+, :-)

@@ -72,21 +72,23 @@ bosonic_Δt(f::AbstractBoundedFunction, β::Real, N::Int, δt::Real, μ::Real) =
 function bosonic_Δt(f::AbstractBoundedFunction, disperse::Function, β::Real, N::Int, δt::Real, μ::Real)
     β = convert(Float64, β)
     μ = convert(Float64, μ)
-    g₁(ε) = _g₁(β, μ, disperse(ε)); g₂(ε) = _g₂(β, μ, disperse(ε))
-    fⱼₖ(Δk) = _fⱼₖ_r_disperse(f, disperse, Δk, δt)
-    fⱼⱼ = _fⱼⱼ_r_disperse(f, disperse, δt)
+    # g₁(ε) = _g₁(β, μ, disperse(ε)); g₂(ε) = _g₂(β, μ, disperse(ε))
+    fⱼₖ(Δk) = _bosonic_fⱼₖ_r_disperse(f, disperse, β, μ, Δk, δt)
+    fₖⱼ(Δk) = _bosonic_fₖⱼ_r_disperse(f, disperse, β, μ, Δk, δt)
+    fⱼⱼ = _bosonic_fⱼⱼ_r_disperse(f, disperse, β, μ, δt)
+    fₖₖ = _bosonic_fₖₖ_r_disperse(f, disperse, β, μ, δt)
 
     ### G₊₊
     ηⱼₖ = zeros(ComplexF64, N+1)
     ηₖⱼ = zeros(ComplexF64, N+1)
 
-    ηⱼₖ[1] = quadgkwrapper(-fⱼⱼ * g₁)
+    ηⱼₖ[1] = quadgkwrapper(-fⱼⱼ)
     for i = 1:N
-        ηⱼₖ[i+1] = quadgkwrapper(-fⱼₖ(i) * g₁)
+        ηⱼₖ[i+1] = quadgkwrapper(-fⱼₖ(i))
     end
-    ηₖⱼ[1] = quadgkwrapper(-fⱼⱼ' * g₂)
+    ηₖⱼ[1] = quadgkwrapper(-fₖₖ)
     for i = 1:N
-        ηₖⱼ[i+1] = quadgkwrapper(-fⱼₖ(i)' * g₂)
+        ηₖⱼ[i+1] = quadgkwrapper(-fₖⱼ(-i))
     end
     G₊₊ = CorrelationMatrix(ηⱼₖ, ηₖⱼ)   
 
@@ -94,11 +96,11 @@ function bosonic_Δt(f::AbstractBoundedFunction, disperse::Function, β::Real, N
     ηⱼₖ = zeros(ComplexF64, N+1)
     ηₖⱼ = zeros(ComplexF64, N+1)
 
-    ηⱼₖ[1] = quadgkwrapper(fⱼⱼ * g₂)
+    ηⱼₖ[1] = quadgkwrapper(fₖⱼ(0))/2
     for i = 1:N
-        ηⱼₖ[i+1] = quadgkwrapper(fⱼₖ(i) * g₂)
+        ηⱼₖ[i+1] = quadgkwrapper(fₖⱼ(i))
     end
-    ηₖⱼ[1] = quadgkwrapper(fⱼⱼ' * g₂)
+    ηₖⱼ[1] = ηⱼₖ[1]
     for i = 1:N
         ηₖⱼ[i+1] = ηⱼₖ[i+1]'
     end
@@ -108,11 +110,11 @@ function bosonic_Δt(f::AbstractBoundedFunction, disperse::Function, β::Real, N
     ηⱼₖ = zeros(ComplexF64, N+1)
     ηₖⱼ = zeros(ComplexF64, N+1)
 
-    ηⱼₖ[1] = quadgkwrapper(fⱼⱼ * g₁)
+    ηⱼₖ[1] = quadgkwrapper(fⱼₖ(0))/2
     for i = 1:N
-        ηⱼₖ[i+1] = quadgkwrapper(fⱼₖ(i) * g₁)
+        ηⱼₖ[i+1] = quadgkwrapper(fⱼₖ(i))
     end
-    ηₖⱼ[1] = quadgkwrapper(fⱼⱼ' * g₁)
+    ηₖⱼ[1] = ηⱼₖ[1]
     for i = 1:N
         ηₖⱼ[i+1] = ηⱼₖ[i+1]'
     end
@@ -122,14 +124,78 @@ function bosonic_Δt(f::AbstractBoundedFunction, disperse::Function, β::Real, N
     ηⱼₖ = zeros(ComplexF64, N+1)
     ηₖⱼ = zeros(ComplexF64, N+1)
 
-    ηⱼₖ[1] = quadgkwrapper(-fⱼⱼ * g₂)
+    ηⱼₖ[1] = quadgkwrapper(-fₖₖ')
     for i = 1:N
-        ηⱼₖ[i+1] = quadgkwrapper(-fⱼₖ(i) * g₂)
+        ηⱼₖ[i+1] = quadgkwrapper(-fₖⱼ(i))
     end
-    ηₖⱼ[1] = quadgkwrapper(-fⱼⱼ' * g₁)
+    ηₖⱼ[1] = quadgkwrapper(-fⱼⱼ')
     for i = 1:N
-        ηₖⱼ[i+1] = quadgkwrapper(-fⱼₖ(i)' * g₁)
+        ηₖⱼ[i+1] = quadgkwrapper(-fⱼₖ(-i))
     end
     G₋₋ = CorrelationMatrix(ηⱼₖ, ηₖⱼ)
     return RealCorrelationFunction(G₊₊, G₊₋, G₋₊, G₋₋)
+end
+
+function _bosonic_fⱼₖ_r_disperse(f::AbstractBoundedFunction, disperse, β, μ, Δk::Int, δt)
+    g = _bosonic_gⱼₖ_r(β, μ, Δk, δt)
+    g′ = ϵ -> g(disperse(ϵ))
+    return f * g′  
+end
+_bosonic_fⱼₖ_r(f::AbstractBoundedFunction, β, μ, Δk::Int, δt) = f * _bosonic_gⱼₖ_r(β, μ, Δk, δt)
+function _bosonic_gⱼₖ_r(β, μ, Δk::Int, δt)
+    return ε -> begin
+        if abs(ε) > QuAPI_tol
+            2*_g₁(β, μ, ε)*exp(-im*ε*Δk*δt)*(1-cos(ε*δt))/ε^2
+        else
+            exp(-im*ε*Δk*δt)*δt^2/(β*ε)
+        end
+    end
+end
+
+function _bosonic_fₖⱼ_r_disperse(f::AbstractBoundedFunction, disperse, β, μ, Δk::Int, δt)
+    g = _bosonic_gₖⱼ_r(β, μ, Δk, δt)
+    g′ = ϵ -> g(disperse(ϵ))
+    return f * g′  
+end
+_bosonic_fₖⱼ_r(f::AbstractBoundedFunction, β, μ, Δk::Int, δt) = f * _bosonic_gₖⱼ_r(β, μ, Δk, δt)
+function _bosonic_gₖⱼ_r(β, μ, Δk::Int, δt)
+    return ε -> begin
+        if abs(ε) > QuAPI_tol
+            2*_g₂(β, μ, ε)*exp(-im*ε*Δk*δt)*(1-cos(ε*δt))/ε^2
+        else
+            exp(-im*ε*Δk*δt)*δt^2/(β*ε)
+        end
+    end
+end
+
+function _bosonic_fⱼⱼ_r_disperse(f::AbstractBoundedFunction, disperse, β, μ, δt)
+    g = _bosonic_gⱼⱼ_r(β, μ, δt)
+    g′ = ϵ -> g(disperse(ϵ))
+    return f * g′  
+end
+_bosonic_fⱼⱼ_r(f::AbstractBoundedFunction, β, μ, δt) = f * _bosonic_gⱼⱼ_r(β, μ, δt)
+function _bosonic_gⱼⱼ_r(β, μ, δt)
+    return ε -> begin
+        if abs(ε) > QuAPI_tol
+            _g₁(β, μ, ε)*((1-im*ε*δt)-exp(-im*ε*δt))/ε^2
+        else
+            0.5*δt^2/(β*ε)
+        end
+    end
+end
+
+function _bosonic_fₖₖ_r_disperse(f::AbstractBoundedFunction, disperse, β, μ, δt)
+    g = _bosonic_gₖₖ_r(β, μ, δt)
+    g′ = ϵ -> g(disperse(ϵ))
+    return f * g′      
+end
+_bosonic_fₖₖ_r(f::AbstractBoundedFunction, β, μ, δt) = f * _bosonic_gₖₖ_r(β, μ, δt)
+function _bosonic_gₖₖ_r(β, μ, δt)
+    return ε -> begin
+        if abs(ε) > QuAPI_tol
+            _g₂(β, μ, ε)*((1+im*ε*δt)-exp(im*ε*δt))/ε^2
+        else
+            0.5*δt^2/(β*ε)
+        end
+    end
 end
