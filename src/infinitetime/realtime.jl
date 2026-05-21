@@ -87,25 +87,52 @@ function compute_next!(x::InfiniteRealCorrelationCache{<:AbstractFermionicNormal
     return x
 end
 
+# function compute_next!(x::InfiniteRealCorrelationCache{<:AbstractBosonicNormalBath})
+# 	f = x.bath.f
+# 	# f, lb, ub = f0.f, lowerbound(f0), upperbound(f0)
+# 	β, μ, δt = x.bath.β, x.bath.μ, x.δt
+
+#     g₁(ε) = _g₁(β, μ, ε); g₂(ε) = _g₂(β, μ, ε)
+#     # real time
+#     fⱼₖ(Δk) = _fⱼₖ_r(f, Δk, δt)
+#     fⱼⱼ = _fⱼⱼ_r(f, δt)
+#     # fₖₖ = _fₖₖ_r(f, δt)
+
+#     # j >= k
+#     N = current_size(x)
+#     if N == 0
+#     	ηⱼₖ_new = quadgkwrapper(-fⱼⱼ * g₁)
+#     	ηₖⱼ_new = quadgkwrapper(-fⱼⱼ' * g₂)
+#     else
+#     	ηⱼₖ_new = quadgkwrapper(-fⱼₖ(N) * g₁)
+#     	ηₖⱼ_new = quadgkwrapper(-fⱼₖ(N)' * g₂)
+#     end
+#     push!(x.ηⱼₖ, ηⱼₖ_new)
+#     push!(x.ηₖⱼ, ηₖⱼ_new)
+#     return x
+# end
+
 function compute_next!(x::InfiniteRealCorrelationCache{<:AbstractBosonicNormalBath})
 	f = x.bath.f
 	# f, lb, ub = f0.f, lowerbound(f0), upperbound(f0)
 	β, μ, δt = x.bath.β, x.bath.μ, x.δt
 
-    g₁(ε) = _g₁(β, μ, ε); g₂(ε) = _g₂(β, μ, ε)
+    # g₁(ε) = _g₁(β, μ, ε); g₂(ε) = _g₂(β, μ, ε)
     # real time
-    fⱼₖ(Δk) = _fⱼₖ_r(f, Δk, δt)
-    fⱼⱼ = _fⱼⱼ_r(f, δt)
+    fⱼₖ(Δk) = _bosonic_fⱼₖ_r(f, β, μ, Δk, δt)
+    fₖⱼ(Δk) = _bosonic_fₖⱼ_r(f, β, μ, Δk, δt)
+    fⱼⱼ = _bosonic_fⱼⱼ_r(f, β, μ, δt)
+    fₖₖ = _bosonic_fₖₖ_r(f, β, μ, δt)
     # fₖₖ = _fₖₖ_r(f, δt)
 
     # j >= k
     N = current_size(x)
     if N == 0
-    	ηⱼₖ_new = quadgkwrapper(-fⱼⱼ * g₁)
-    	ηₖⱼ_new = quadgkwrapper(-fⱼⱼ' * g₂)
+    	ηⱼₖ_new = quadgkwrapper(-fⱼⱼ)
+    	ηₖⱼ_new = quadgkwrapper(-fₖₖ)
     else
-    	ηⱼₖ_new = quadgkwrapper(-fⱼₖ(N) * g₁)
-    	ηₖⱼ_new = quadgkwrapper(-fⱼₖ(N)' * g₂)
+    	ηⱼₖ_new = quadgkwrapper(-fⱼₖ(N))
+    	ηₖⱼ_new = quadgkwrapper(-fₖⱼ(-N))
     end
     push!(x.ηⱼₖ, ηⱼₖ_new)
     push!(x.ηₖⱼ, ηₖⱼ_new)
