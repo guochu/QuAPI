@@ -66,11 +66,16 @@ bosonic_Δm(f::AbstractBoundedFunction; β::Real, Nτ::Int, t::Real, Nt::Int, μ
 
 function bosonic_Δm(f::AbstractBoundedFunction, disperse::Function; β::Real, Nτ::Int, t::Real, Nt::Int, μ::Real=0, δτ::Real=β/Nτ)
     δt = t / Nt
-    g₁(ε) = _g₁(β, μ, disperse(ε)); g₂(ε) = _g₂(β, μ, disperse(ε))
+    # g₁(ε) = _g₁(β, μ, disperse(ε)); g₂(ε) = _g₂(β, μ, disperse(ε))
     # real time
-    fⱼₖ(Δk) = _fⱼₖ_r_disperse(f, disperse, Δk, δt)
-    fⱼⱼ = _fⱼⱼ_r_disperse(f, disperse, δt)
-    fₖₖ = _fₖₖ_r_disperse(f, disperse, δt)
+    # fⱼₖ(Δk) = _fⱼₖ_r_disperse(f, disperse, Δk, δt)
+    # fⱼⱼ = _fⱼⱼ_r_disperse(f, disperse, δt)
+    # fₖₖ = _fₖₖ_r_disperse(f, disperse, δt)
+    fⱼₖ(Δk) = _bosonic_fⱼₖ_r_disperse(f, disperse, β, μ, Δk, δt)
+    fₖⱼ(Δk) = _bosonic_fₖⱼ_r_disperse(f, disperse, β, μ, Δk, δt)
+    fⱼⱼ = _bosonic_fⱼⱼ_r_disperse(f, disperse, β, μ, δt)
+    fₖₖ = _bosonic_fₖₖ_r_disperse(f, disperse, β, μ, δt)
+
     # imaginary time
     # hⱼₖ(Δk::Int) = _fⱼₖ_i(f, Δk, δτ)
     # hⱼⱼ = _fⱼⱼ_i(f, δτ)
@@ -92,13 +97,13 @@ function bosonic_Δm(f::AbstractBoundedFunction, disperse::Function; β::Real, N
     ηⱼₖ = zeros(ComplexF64, Nt+1)
     ηₖⱼ = zeros(ComplexF64, Nt+1)
 
-    ηⱼₖ[1] = quadgkwrapper(-fⱼⱼ * g₁)
+    ηⱼₖ[1] = quadgkwrapper(-fⱼⱼ)
     for i = 1:Nt
-        ηⱼₖ[i+1] = quadgkwrapper(-fⱼₖ(i) * g₁)
+        ηⱼₖ[i+1] = quadgkwrapper(-fⱼₖ(i))
     end
-    ηₖⱼ[1] = quadgkwrapper(-fₖₖ * g₂)
+    ηₖⱼ[1] = quadgkwrapper(-fₖₖ)
     for i = 1:Nt
-        ηₖⱼ[i+1] = quadgkwrapper(-fⱼₖ(-i) * g₂)
+        ηₖⱼ[i+1] = quadgkwrapper(-fₖⱼ(-i))
     end
 
     # imag time
@@ -160,11 +165,15 @@ end
 _bosonic_lⱼₖ(f::AbstractBoundedFunction, β, μ, j::Int, k::Int, δt, δτ) = f * _bosonic_gⱼₖ(β, μ, j, k, δt, δτ)
 function _bosonic_gⱼₖ(β, μ, j::Int, k::Int, δt, δτ)
     return ε -> begin
-        x = 1-exp(-safe_mult(β, ε-μ))
+        # x = 1-exp(-safe_mult(β, ε-μ))
         if abs(ε) > QuAPI_tol
-            -im*exp(-ε*j*δτ)*exp(im*ε*k*δt)*(exp(-ε*δτ)-1)*(exp(im*ε*δt)-1)/(ε^2 * x)
+            return -im*_g₁(β, μ, ε)*exp(-ε*j*δτ)*exp(im*ε*k*δt)*(exp(-ε*δτ)-1)*(exp(im*ε*δt)-1)/ε^2 
         else
-            -exp(-ε*j*δτ)*exp(im*ε*k*δt)*δτ*δt / x
+            if μ == zero(μ)
+                return 2*exp(-ε*j*δτ)*exp(im*ε*k*δt)*δτ*δt / safe_mult(β, ε)
+            else
+                return -_g₁(β, μ, ε)*exp(-ε*j*δτ)*exp(im*ε*k*δt)*δτ*δt 
+            end
         end
     end
 end
@@ -177,12 +186,20 @@ end
 _bosonic_lₖⱼ(f::AbstractBoundedFunction, β, μ, k::Int, j::Int, δt, δτ) = f * _bosonic_gₖⱼ(β, μ, k, j, δt, δτ)
 function _bosonic_gₖⱼ(β, μ, k::Int, j::Int, δt, δτ)
     return ε -> begin
-        x = 1 - exp(-safe_mult(β, ε-μ))
-        y = exp(-safe_mult(β - j*δτ, ε-μ)) * exp(j*δτ*μ)
+        # x = 1 - exp(-safe_mult(β, ε-μ))
+        # y = exp(-safe_mult(β - j*δτ, ε-μ)) * exp(j*δτ*μ)
         if abs(ε) > QuAPI_tol
-            -im*y*exp(-im*ε*k*δt)*(exp(ε*δτ)-1)*(exp(-im*ε*δt)-1)/(ε^2 * x)
+            x = 1 - exp(-safe_mult(β, ε-μ))
+            y = exp(-safe_mult(β - j*δτ, ε-μ)) * exp(j*δτ*μ)
+            return -im*y*exp(-im*ε*k*δt)*(exp(ε*δτ)-1)*(exp(-im*ε*δt)-1)/(ε^2 * x)
         else
-            -y*exp(-im*ε*k*δt)*δτ*δt / x
+            if μ == zero(μ)
+                return 2*exp(ε*j*δτ)*exp(-im*ε*k*δt)*δτ*δt / safe_mult(β, ε)
+            else
+                x = 1 - exp(-safe_mult(β, ε-μ))
+                y = exp(-safe_mult(β - j*δτ, ε-μ)) * exp(j*δτ*μ)
+                return -y*exp(-im*ε*k*δt)*δτ*δt / x
+            end
         end
     end
 end
