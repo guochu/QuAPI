@@ -145,9 +145,13 @@ _bosonic_fⱼₖ_r(f::AbstractBoundedFunction, β, μ, Δk::Int, δt) = f * _bos
 function _bosonic_gⱼₖ_r(β, μ, Δk::Int, δt)
     return ε -> begin
         if abs(ε) > QuAPI_tol
-            2*_g₁(β, μ, ε)*exp(-im*ε*Δk*δt)*(1-cos(ε*δt))/ε^2
+            return 2*_g₁(β, μ, ε)*exp(-im*ε*Δk*δt)*(1-cos(ε*δt))/ε^2
         else
-            exp(-im*ε*Δk*δt)*δt^2/(β*ε)
+            if μ == zero(μ)
+                return exp(-im*ε*Δk*δt)*δt^2/(β*ε)
+            else
+                return _g₁(β, μ, ε)*exp(-im*ε*Δk*δt)*δt^2
+            end
         end
     end
 end
@@ -161,9 +165,13 @@ _bosonic_fₖⱼ_r(f::AbstractBoundedFunction, β, μ, Δk::Int, δt) = f * _bos
 function _bosonic_gₖⱼ_r(β, μ, Δk::Int, δt)
     return ε -> begin
         if abs(ε) > QuAPI_tol
-            2*_g₂(β, μ, ε)*exp(-im*ε*Δk*δt)*(1-cos(ε*δt))/ε^2
+            return 2*_g₂(β, μ, ε)*exp(-im*ε*Δk*δt)*(1-cos(ε*δt))/ε^2
         else
-            exp(-im*ε*Δk*δt)*δt^2/(β*ε)
+            if μ == zero(μ)
+                return exp(-im*ε*Δk*δt)*δt^2/(β*ε)
+            else
+                return _g₂(β, μ, ε) * exp(-im*ε*Δk*δt)*δt^2
+            end
         end
     end
 end
@@ -177,9 +185,13 @@ _bosonic_fⱼⱼ_r(f::AbstractBoundedFunction, β, μ, δt) = f * _bosonic_gⱼ�
 function _bosonic_gⱼⱼ_r(β, μ, δt)
     return ε -> begin
         if abs(ε) > QuAPI_tol
-            _g₁(β, μ, ε)*((1-im*ε*δt)-exp(-im*ε*δt))/ε^2
+            return _g₁(β, μ, ε)*((1-im*ε*δt)-exp(-im*ε*δt))/ε^2
         else
-            0.5*δt^2/(β*ε)
+            if μ == zero(μ)
+                return 0.5*δt^2/(β*ε)
+            else
+                return _g₁(β, μ, ε)*0.5*δt^2
+            end
         end
     end
 end
@@ -193,9 +205,13 @@ _bosonic_fₖₖ_r(f::AbstractBoundedFunction, β, μ, δt) = f * _bosonic_gₖ�
 function _bosonic_gₖₖ_r(β, μ, δt)
     return ε -> begin
         if abs(ε) > QuAPI_tol
-            _g₂(β, μ, ε)*((1+im*ε*δt)-exp(im*ε*δt))/ε^2
+            return _g₂(β, μ, ε)*((1+im*ε*δt)-exp(im*ε*δt))/ε^2
         else
-            0.5*δt^2/(β*ε)
+            if μ == zero(μ)
+                return 0.5*δt^2/(β*ε)
+            else
+                return _g₂(β, μ, ε)*0.5*δt^2
+            end
         end
     end
 end

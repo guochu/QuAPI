@@ -18,7 +18,8 @@ function index(x::ImagCorrelationFunction, i::Int, j::Int; b1::Symbol=:τ, b2::S
     ((b1 == :τ) && (b2 == :τ)) || throw(ArgumentError("branch must be :τ"))
     x.data[i, j]
 end 
-function branch(x::ImagCorrelationFunction; b1::Symbol=:τ, b2::Symbol=:τ)
+function branch(x::ImagCorrelationFunction, b1::Symbol, b2::Symbol)
     ((b1 == :τ) && (b2 == :τ)) || throw(ArgumentError("branch must be :τ"))
     return x.data
 end 
+branch(x::ImagCorrelationFunction; b1::Symbol=:τ, b2::Symbol=:τ) = branch(x, b1, b2)

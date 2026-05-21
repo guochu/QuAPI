@@ -127,11 +127,15 @@ end
 _bosonic_fⱼₖ_i(f::AbstractBoundedFunction, β, μ, Δk::Int, δτ) = f * _bosonic_gⱼₖ_i(β, μ, Δk, δτ)
 function _bosonic_gⱼₖ_i(β, μ, Δk::Int, δτ)
     return ε -> begin
-        x = 1-exp(-safe_mult(β, ε-μ))
+        # x = 1-exp(-safe_mult(β, ε-μ))
         if abs(ε) > QuAPI_tol
-            -2exp(-Δk*δτ*ε)*(1-cosh(δτ*ε))/(ε^2 * x)
+            return -2*_g₁(β, μ, ε)*exp(-Δk*δτ*ε)*(1-cosh(δτ*ε))/ε^2
         else
-            exp(-Δk*δτ*ε)*δτ^2 / x
+            if μ == zero(μ)
+                return exp(-Δk*δτ*ε)*δτ^2 / safe_mult(β, ε)
+            else
+                return _g₁(β, μ, ε) * exp(-Δk*δτ*ε)*δτ^2 
+            end
         end
     end
 end
@@ -146,9 +150,13 @@ function _bosonic_gⱼⱼ_i(β, μ, δτ)
     return ε -> begin
         x = 1-exp(-safe_mult(β, ε-μ))
         if abs(ε) > QuAPI_tol
-            (exp(-δτ*ε)-(1-δτ*ε))/(ε^2 * x)
+            return _g₁(β, μ, ε) * (exp(-δτ*ε)-(1-δτ*ε))/ε^2 
         else
-            0.5*δτ^2 / x
+            if μ == zero(μ)
+                return 0.5*δτ^2 / safe_mult(β, ε)
+            else
+                return _g₁(β, μ, ε) * 0.5*δτ^2 
+            end
         end
     end
 end
@@ -161,12 +169,18 @@ end
 _bosonic_fₖⱼ_i(f::AbstractBoundedFunction, β, μ, Δk::Int, δτ) = f * _bosonic_gₖⱼ_i(β, μ, Δk, δτ)
 function _bosonic_gₖⱼ_i(β, μ, Δk::Int, δτ)
     return ε -> begin
-        x = 1 - exp(-safe_mult(β, ε-μ))
-        y = exp(-safe_mult(β - Δk*δτ, ε-μ)) * exp(Δk*δτ*μ)
         if abs(ε) > QuAPI_tol
-            -2y*(1-cosh(δτ*ε))/(ε^2 * x)
+            x = 1 - exp(-safe_mult(β, ε-μ))
+            y = exp(-safe_mult(β - Δk*δτ, ε-μ)) * exp(Δk*δτ*μ)
+            return -2y*(1-cosh(δτ*ε))/(ε^2 * x)
         else
-            y*δτ^2 / x
+            if μ == zero(μ)
+                return exp(Δk*δτ*ε)*δτ^2 / safe_mult(β, ε)
+            else
+                x = 1 - exp(-safe_mult(β, ε-μ))
+                y = exp(-safe_mult(β - Δk*δτ, ε-μ)) * exp(Δk*δτ*μ)
+                return y*δτ^2 / x
+            end
         end
     end
 end
@@ -179,11 +193,15 @@ end
 _bosonic_fₖₖ_i(f::AbstractBoundedFunction, β, μ, δτ) = f * _bosonic_gₖₖ_i(β, μ, δτ)
 function _bosonic_gₖₖ_i(β, μ, δτ)
     return ε -> begin
-        x = exp(-safe_mult(β, ε-μ))
+        # x = exp(-safe_mult(β, ε-μ))
         if abs(ε) > QuAPI_tol
-            (exp(δτ*ε)-(1+δτ*ε)) * x / (ε^2 * (1-x))
+            return _g₂(β, μ, ε)*(exp(δτ*ε)-(1+δτ*ε))  / ε^2 
         else
-            0.5*δτ^2 * x / 2 * (1-x)
+            if μ == zero(μ)
+                return 0.5*δτ^2 / safe_mult(β, ε)
+            else
+                return _g₂(β, μ, ε)*0.5*δτ^2 / 2
+            end
         end
     end
 end
