@@ -59,6 +59,14 @@ Base.getindex(x::BCSCorrelationFunction, c1::Bool, c2::Bool) = ifelse(c1, ifelse
 function BCSCorrelationFunction(; uu::AbstractCorrelationFunction, ud::AbstractCorrelationFunction, du::AbstractCorrelationFunction, dd::AbstractCorrelationFunction)
 	return BCSCorrelationFunction(ud, uu, dd, du)
 end 
+function BCSCorrelationFunction(corr::AbstractMatrix{<:AbstractCorrelationFunction})
+	(size(corr) == (2,2)) || throw(ArgumentError("input matrix must be of size (2,2)"))
+	uu = corr[1,1]
+	ud = corr[1,2]
+	du = corr[2,1]
+	dd = corr[2,2]
+	return BCSCorrelationFunction(ud, uu, dd, du)
+end
 
 function Base.getindex(x::BCSCorrelationFunction, c1::Symbol, c2::Symbol)
 	(c1 in (:↑, :↓)) || throw(ArgumentError("c1 must be :↑ or :↓"))
