@@ -103,6 +103,7 @@ end
 
 _mult_f(x::AbstractBoundedFunction, f) = similar(x, w -> f(w) * x.f(w)) 
 _mult_f(x::DiracDelta, f) = x * f
+_mult_f(x::DiscreteSpectrum, f) = x * f
 
 function get_all_fs(f::AbstractBoundedFunction, Δ::Number)
 	__u2(ϵ) = _u2(ϵ, Δ)

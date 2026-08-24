@@ -65,9 +65,7 @@ uuid = "8ba89e20-285c-5b6f-9357-94700520ee1b"
 
 [[deps.ImpurityModelBase]]
 deps = ["Interpolations", "LinearAlgebra", "QuadGK"]
-git-tree-sha1 = "4903a4c918b7604941ac75c390b2b00cbe356ac3"
-repo-rev = "master"
-repo-url = "../ImpurityModelBase"
+path = "/Users/guochu/Documents/Missile/ImpurityModelBase"
 uuid = "a5817ebb-6d84-46c1-a17a-d25f868e249e"
 version = "0.0.1"
 

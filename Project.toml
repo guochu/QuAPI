@@ -5,3 +5,11 @@ version = "0.0.1"
 
 [deps]
 ImpurityModelBase = "a5817ebb-6d84-46c1-a17a-d25f868e249e"
+
+[extras]
+GrassmannTensors = "3a8f9c10-1e5d-4b72-9c44-9f3a2b1c8d5e"
+HadamardProduct = "6c01f027-8456-4d0c-9bda-5593334bb268"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[targets]
+test = ["GrassmannTensors", "HadamardProduct", "Test"]
