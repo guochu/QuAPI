@@ -1,3 +1,18 @@
+"""
+    Δτ(bath::AbstractFermionicNormalBath; N::Int, δτ::Real=bath.β/N)
+    Δτ(bath::AbstractBosonicNormalBath; N::Int, δτ::Real=bath.β/N)
+    Δτ(bath::AbstractBCSBath; N::Int, δτ::Real=bath.β/N)
+
+Discretized imaginary-time hybridization function Δ[τᵢ, τⱼ] of a bath in
+thermal equilibrium at inverse temperature β, on a uniform grid of `N` steps
+δτ = β/N.  Returns an `ImagCorrelationFunction`, or a `BCSCorrelationFunction`
+for a superconducting bath.
+
+Convenience wrapper that dispatches to `fermionic_Δτ` (fermionic baths),
+`bosonic_Δτ` (bosonic baths) and `bcs_Δτ` (BCS baths), reading `β` and `μ`
+from the bath object.  As everywhere in this package, the minus sign of the
+influence-functional exponent is absorbed into Δ.
+"""
 Δτ(bath::AbstractFermionicNormalBath; N::Int, δτ::Real=bath.β/N) = fermionic_Δτ(bath.spectrum, β=bath.β, N=N, μ=bath.μ, δτ=δτ)
 fermionic_Δτ(f::AbstractBoundedFunction; β::Real, N::Int, μ::Real=0, δτ::Real=β/N) = fermionic_Δτ(f, β, N, μ, δτ)
 fermionic_Δτ(f::AbstractBoundedFunction, disperse::Function; β::Real, N::Int, μ::Real=0, δτ::Real=β/N) = fermionic_Δτ(f, disperse, β, N, μ, δτ)
@@ -5,20 +20,32 @@ fermionic_Δτ(f::AbstractBoundedFunction, disperse::Function; β::Real, N::Int,
 
 
 """
-    fermionic_Δτ(f, β::Real, N::Int, μ::Real)
+    fermionic_Δτ(bath::AbstractFermionicNormalBath; N::Int, δτ::Real=bath.β/N)
+    fermionic_Δτ(f::AbstractBoundedFunction; β::Real, N::Int, μ::Real=0, δτ::Real=β/N)
+    fermionic_Δτ(f::AbstractBoundedFunction, disperse::Function; β::Real, N::Int, μ::Real=0, δτ::Real=β/N)
 
-Fermionic hybiriization function Δᵢⱼ on the imaginary-time axis
+Fermionic hybridization function Δᵢⱼ on the imaginary-time axis.
 
-The Feynman-Vernon influence functional has the form 
-        I[ā, a] = e^{ΣᵢⱼāᵢΔᵢⱼaⱼ},
-where we have absorbed the minus sign into the definition of Δ compared
-to the usually used convention, i, j are discrete time step indices
+The Feynman-Vernon influence functional has the form
 
-f: the spectrum function
-β: the inverse temperature
-μ: the chemical potential
-N: number of discrete imaginary time steps, 
-such that δτ = β/N
+    I[ā, a] = e^{Σᵢⱼ āᵢ Δᵢⱼ aⱼ},
+
+where the minus sign is absorbed into the definition of Δ compared with the
+usual convention; `i`, `j` are discrete imaginary-time step indices (nodes
+τᵢ = (i-1)δτ).  Returns an `ImagCorrelationFunction` wrapping the Toeplitz
+`CorrelationMatrix`.
+
+Arguments:
+- `f`:  the bath spectrum function A(ε) as an `AbstractBoundedFunction`
+  (e.g. `DiscreteSpectrum`, `DiracDelta` or `bounded`);
+- `disperse`:  optional dispersion applied to the integration variable,
+  `ε -> disperse(ε)` (default `identity`);
+- `β`:  the inverse temperature;
+- `μ`:  the chemical potential, absorbed into the spectrum via `spectrumshift`;
+- `N`:  number of discrete imaginary-time steps, such that δτ = β/N;
+- `δτ`:  the step size (defaults to β/N).
+
+The `bath` convenience form reads `β` and `μ` from the bath object.
 """
 fermionic_Δτ(f0::AbstractBoundedFunction, β::Real, N::Int, μ::Real, δτ::Real=β / N) = fermionic_Δτ(f0, identity, β, N, μ, δτ)
 # function fermionic_Δτ(f0::AbstractBoundedFunction, β::Real, N::Int, μ::Real, δτ::Real=β / N)
@@ -265,14 +292,14 @@ function _fermionic_gₖₖ_i(β, μ, δτ)
             if abs(ε) > QuAPI_tol
                 -(exp(δτ*ε)-(1+δτ*ε)) * x / (ε^2 * (x+1))
             else
-                -0.5*δτ^2 * x / 2 * (x+1)
+                -0.5*δτ^2 * x / (x+1)
             end 
         else
             x = exp(safe_mult(β, ε-μ))
             if abs(ε) > QuAPI_tol
                 -(exp(δτ*ε)-(1+δτ*ε)) / (ε^2 * (x+1))
             else
-                -0.5*δτ^2 / 2 * (x+1)
+                -0.5*δτ^2 / (x+1)
             end 
         end
     end

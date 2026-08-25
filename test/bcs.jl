@@ -53,3 +53,34 @@ end
 		@test iszero(y[false, false])
 	end
 end
+
+@testset "BCS bath convenience" begin
+	atol = 1.0e-8
+	β = 5
+	μ = 0
+	Δ = 0.5
+	for f in (semicircular(), DiracDelta(ω=0.5))
+		bath = bcsbath(f, β=β, μ=μ, Δ=Δ)
+
+		x = Δτ(bath, N=10)
+		y = bcs_Δτ(f, β=β, N=10, μ=μ, Δ=Δ)
+		@test x.uu ≈ y.uu atol=atol
+		@test x.ud ≈ y.ud atol=atol
+		@test x.du ≈ y.du atol=atol
+		@test x.dd ≈ y.dd atol=atol
+
+		x = Δt(bath, N=10, t=2)
+		y = bcs_Δt(f, β=β, N=10, t=2, μ=μ, Δ=Δ)
+		@test x.uu ≈ y.uu atol=atol
+		@test x.ud ≈ y.ud atol=atol
+		@test x.du ≈ y.du atol=atol
+		@test x.dd ≈ y.dd atol=atol
+
+		x = Δm(bath, Nt=4, Nτ=5, t=2)
+		y = bcs_Δm(f, β=β, Nt=4, Nτ=5, t=2, μ=μ, Δ=Δ)
+		@test x.uu ≈ y.uu atol=atol
+		@test x.ud ≈ y.ud atol=atol
+		@test x.du ≈ y.du atol=atol
+		@test x.dd ≈ y.dd atol=atol
+	end
+end

@@ -1,3 +1,15 @@
+"""
+    struct InfiniteImagCorrelationCache{B <: Vacuum}
+
+Incrementally grown, translationally invariant imaginary-time hybridization
+function of a `Vacuum` (zero-temperature) bath.
+
+The Toeplitz vectors `ηⱼₖ`/`ηₖⱼ` are extended one node at a time by
+`compute_next!` until the newest element falls below `atol` (or a maximum
+iteration count is reached); `compute!` drives the growth and `current_size`
+/`current_temperature` report the current number of nodes and the covered
+imaginary time.
+"""
 struct InfiniteImagCorrelationCache{B <: Vacuum}
 	ηⱼₖ::Vector{Float64}
 	ηₖⱼ::Vector{Float64}
@@ -12,9 +24,25 @@ current_temperature(x::InfiniteImagCorrelationCache) = current_size(x) * x.δτ
 InfiniteImagCorrelationCache(bath::Vacuum, δτ::Real) = InfiniteImagCorrelationCache(Float64[], Float64[], bath, convert(Float64, δτ))
 
 """
-    infinite_Δτ(bath::Vacuum; δt::Real, atol::Real, β::Real)
+    infinite_Δτ(bath::Vacuum; δτ::Real, atol::Real=1.0e-6, β::Real=200)
 
-Translationally invariant zero-temperature imaginary time hybridization function
+Translationally invariant zero-temperature (β → ∞) imaginary-time
+hybridization function of a `Vacuum` bath, discretized on a grid of step `δτ`.
+
+The Toeplitz vectors are grown node by node until the newest element drops
+below `atol`; `β` only sets the maximum imaginary-time window
+(`maxiter = round(Int, β/δτ)`) and a warning is emitted if the correlation
+does not decay to `atol` within it.
+
+Returns an `InfiniteImagCorrelationCache`, whose `ηⱼₖ`/`ηₖⱼ` vectors (of
+equal length) can be wrapped into a `CorrelationMatrix` once the decay
+criterion is met.
+
+Arguments:
+- `bath`:  a fermionic or bosonic `Vacuum` bath;
+- `δτ`:  the imaginary-time step size;
+- `atol`:  absolute tolerance for the newest `η` element (default 1.0e-6);
+- `β`:  maximum imaginary-time window for the growth (default 200).
 """
 function infinite_Δτ(bath::Vacuum; δτ::Real, kwargs...)
     corr = InfiniteImagCorrelationCache(bath, δτ)

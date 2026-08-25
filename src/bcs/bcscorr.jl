@@ -33,15 +33,27 @@ function _vu(ϵ, Δ)
 end
 
 """
-	struct BCSCorrelationFunction
+    struct BCSCorrelationFunction{C <: AbstractCorrelationFunction}
 
-Exponent of Feynman-Vernon IF is:
-ā↑ Δ↑↑ a↑ + ā↑ Δ↑↓ ā↓ + a↓ Δ↓↑ a↑ + a↓ Δ↓↓ ā↓
+Bath correlation function of a BCS (superconducting) environment, stored as
+four blocks labeled by the (pseudo-)spin/flavor pair.
 
-uu <-> cn
-ud <-> cc
-du <-> nn
-dd <-> nc
+The exponent of the Feynman-Vernon influence functional reads
+
+    ā↑ Δ↑↑ a↑ + ā↑ Δ↑↓ ā↓ + a↓ Δ↓↑ a↑ + a↓ Δ↓↓ ā↓
+
+with the normal blocks Δ↑↑, Δ↓↓ and the anomalous blocks Δ↑↓, Δ↓↑ built from
+the Bogoliubov coherence factors (u, v).  Internally the four blocks are
+stored in the pairing convention
+
+- `cc` ↔ anomalous 2-particle (Δ↑↓),
+- `cn` ↔ normal ↑↑,
+- `nc` ↔ normal ↓↓,
+- `nn` ↔ anomalous 0-particle (Δ↓↑),
+
+and the convenience aliases `uu`, `ud`, `du`, `dd` are exposed through
+`getproperty`.  `x[c1, c2]` with `c1, c2 ∈ (:↑, :↓)` (or `Bool`s) selects the
+block by flavor.
 """
 struct BCSCorrelationFunction{C <: AbstractCorrelationFunction}
 	cc::C

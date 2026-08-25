@@ -86,3 +86,12 @@ end
 		end
 	end
 end
+
+@testset "Δm bath convenience" begin
+	β = 2
+	fb = fermionicbath(semicircular(), β=β, μ=0)
+	@test Δm(fb, Nt=4, Nτ=5, t=2) ≈ fermionic_Δm(semicircular(), β=β, Nt=4, Nτ=5, t=2, μ=0) atol=1.0e-8
+
+	bb = bosonicbath(Leggett(), β=β, μ=0)
+	@test Δm(bb, Nt=2, Nτ=5, t=1) ≈ bosonic_Δm(Leggett(), β=β, Nt=2, Nτ=5, t=1, μ=0) atol=1.0e-8
+end

@@ -1,3 +1,36 @@
+"""
+    bosonic_Δm(bath::AbstractBosonicNormalBath; Nτ::Int, t::Real, Nt::Int, δτ::Real=bath.β/Nτ)
+    bosonic_Δm(f::AbstractBoundedFunction; β::Real, Nτ::Int, t::Real, Nt::Int, μ::Real=0, δτ::Real=β/Nτ)
+    bosonic_Δm(f::AbstractBoundedFunction, disperse::Function; β::Real, Nτ::Int, t::Real, Nt::Int, μ::Real=0, δτ::Real=β/Nτ)
+
+Bosonic hybridization function Δᵢⱼᵘᵛ on the Kadanoff-Baym (L-shaped) contour.
+
+Same convention as `fermionic_Δm`: the influence functional reads
+I = e^{Σᵤᵥ Σᵢⱼ sᵢᵘ Δᵢⱼᵘᵛ sⱼᵛ} (spin indices suppressed) with the minus sign
+absorbed into Δ; `u`, `v ∈ (:+, :-, :τ)` label the forward/backward real-time
+branch (Nt+1 nodes, δt = t/Nt) and the imaginary-time branch (Nτ nodes,
+δτ = β/Nτ).  Returns a `MixedCorrelationFunction`.
+
+Arguments:
+- `f`:  the bath spectrum function A(ε) as an `AbstractBoundedFunction`;
+- `disperse`:  optional dispersion applied to the integration variable,
+  `ε -> disperse(ε)` (default `identity`);
+- `β`:  the inverse temperature;
+- `μ`:  the chemical potential;
+- `Nτ`:  number of imaginary-time steps, δτ = β/Nτ;
+- `t`:  the total real evolution time;
+- `Nt`:  number of real-time steps, δt = t/Nt;
+- `δτ`:  the imaginary-time step size (defaults to β/Nτ).
+
+The `bath` convenience form reads `β` and `μ` from the bath object.
+
+Note:  for μ = 0 the Bose factor carries a 1/ε singularity at ε = 0, and the
+small-ε branch of the integrand diverges as `1/(β ε)`, which is `Inf` exactly
+at ε = 0.  Spectra with support touching ε = 0 (a flat band, an ohmic-like
+edge, or a delta peak at zero frequency) can therefore make the quadrature
+raise a `DomainError`; shifting the band edge slightly above 0 avoids the
+instability.
+"""
 Δm(bath::AbstractBosonicNormalBath; Nτ::Int, t::Real, Nt::Int, δτ::Real=bath.β/Nτ) = bosonic_Δm(bath.spectrum, β=bath.β, μ=bath.μ, Nτ=Nτ, t=t, Nt=Nt, δτ=δτ)
 bosonic_Δm(f::AbstractBoundedFunction; β::Real, Nτ::Int, t::Real, Nt::Int, μ::Real=0, δτ::Real=β/Nτ) = bosonic_Δm(
                                         f, identity, β=β, Nτ=Nτ, t=t, Nt=Nt, μ=μ, δτ=δτ)

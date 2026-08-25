@@ -9,7 +9,24 @@ include("bosonic_deprecated.jl")
 """
     Δiw_to_Δτ(Δiw::AbstractVector{<:Number}; β::Real, N::Int)
 
-Convert Δiw to Δτ, see docs/quapi.pdf for detailed derivation by R.F.Chen
+Convert a hybridization function given in the Matsubara-frequency domain to
+the discrete imaginary-time hybridization matrix Δ[τᵢ, τⱼ].
+
+`Δiw` holds the values Δ(iωₙ) at the first `length(Δiw)` Matsubara
+frequencies (an even number, ordered as returned by `ifrequencies`).  The
+discrete Fourier transform
+
+    Δ(τ) = Σₙ -(2/β) Δ(iωₙ) (1 - cos(ωₙ δτ)) e^{-iωₙ k δτ} / ωₙ²
+
+is evaluated on a grid of `N` steps δτ = β/N (see docs/quapi.pdf for the
+detailed derivation), returning an `ImagCorrelationFunction` wrapping a real
+`CorrelationMatrix`.  The imaginary part is checked to vanish to numerical
+precision, and an `error` is raised otherwise.
+
+Arguments:
+- `Δiw`:  hybridization values at the Matsubara frequencies (even length);
+- `β`:  the inverse temperature;
+- `N`:  number of imaginary-time steps, δτ = β/N.
 """
 function Δiw_to_Δτ(Δiw::AbstractVector{<:Number}; β::Real, N::Int)
     iseven(length(Δiw)) || throw(ArgumentError("even number of frequencies expected"))

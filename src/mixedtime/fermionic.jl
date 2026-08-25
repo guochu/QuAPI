@@ -1,26 +1,52 @@
+"""
+    Δm(bath::AbstractFermionicNormalBath; Nτ::Int, t::Real, Nt::Int, δτ::Real=bath.β/Nτ)
+    Δm(bath::AbstractBosonicNormalBath; Nτ::Int, t::Real, Nt::Int, δτ::Real=bath.β/Nτ)
+    Δm(bath::AbstractBCSBath; Nτ::Int, t::Real, Nt::Int, δτ::Real=bath.β/Nτ)
+
+Discretized hybridization function on the L-shaped (Kadanoff-Baym) contour:
+an imaginary-time branch of `Nτ` steps δτ = β/Nτ followed by the closed Keldysh
+part of total time t with `Nt` steps δt = t/Nt.  Returns a
+`MixedCorrelationFunction` (or `BCSCorrelationFunction` for a superconducting
+bath) with the nine branch combinations G¹¹ ... G³³.
+
+Convenience wrapper that dispatches to `fermionic_Δm` (fermionic baths),
+`bosonic_Δm` (bosonic baths) and `bcs_Δm` (BCS baths), reading `β` and `μ`
+from the bath object.  The minus sign of the influence-functional exponent is
+absorbed into Δ.
+"""
 Δm(bath::AbstractFermionicNormalBath; Nτ::Int, t::Real, Nt::Int, δτ::Real=bath.β/Nτ) = fermionic_Δm(bath.spectrum, β=bath.β, μ=bath.μ, Nτ=Nτ, t=t, Nt=Nt, δτ=δτ)
 
 
 """
-    fermionic_Δm(f, β::Real, Nτ::Int, t::Real, Nt::Int, μ::Real=0)
+    fermionic_Δm(bath::AbstractFermionicNormalBath; Nτ::Int, t::Real, Nt::Int, δτ::Real=bath.β/Nτ)
+    fermionic_Δm(f::AbstractBoundedFunction; β::Real, Nτ::Int, t::Real, Nt::Int, μ::Real=0, δτ::Real=β/Nτ)
+    fermionic_Δm(f::AbstractBoundedFunction, disperse::Function; β::Real, Nτ::Int, t::Real, Nt::Int, μ::Real=0, δτ::Real=β/Nτ)
 
-Fermionic hybiriization function Δᵢⱼᵘᵛ on the Kadanoff-Baym contour
+Fermionic hybridization function Δᵢⱼᵘᵛ on the Kadanoff-Baym (L-shaped)
+contour.
 
-The Feynman-Vernon influence functional has the form 
-        I[ā, a] = e^{ΣᵤᵥΣᵢⱼāᵢᵘΔᵢⱼᵘᵛaⱼᵛ},
-where we have absorbed the minus sign into the definition of Δ compared
-to the usually used convention
-Here i, j are discrete time step indices, u, v = ±, τ denotes the branch
-labels (+ means forward branch, - means backward branch, τ means imaginary
-time branch)
+The Feynman-Vernon influence functional has the form
 
-f: the spectrum function
-β: the inverse temperature
-Nτ: number of discrete real time steps
-μ: the chemical potential
-t: the total evolution time
-Nt: number of discrete real time steps,
-such that we have δt = t/Nt, δτ = β/Nτ
+    I[ā, a] = e^{Σᵤᵥ Σᵢⱼ āᵢᵘ Δᵢⱼᵘᵛ aⱼᵛ},
+
+where the minus sign is absorbed into the definition of Δ compared with the
+usual convention; `i`, `j` are discrete step indices and `u`, `v ∈ (:+, :-, :τ)`
+label the branch: `:+`/`:-` the forward/backward real-time branch (Nt+1 nodes
+tᵢ = i·δt, δt = t/Nt), `:τ` the imaginary-time branch (Nτ nodes
+τᵢ = (i-1)δτ, δτ = β/Nτ).  Returns a `MixedCorrelationFunction`.
+
+Arguments:
+- `f`:  the bath spectrum function A(ε) as an `AbstractBoundedFunction`;
+- `disperse`:  optional dispersion applied to the integration variable,
+  `ε -> disperse(ε)` (default `identity`);
+- `β`:  the inverse temperature;
+- `μ`:  the chemical potential;
+- `Nτ`:  number of imaginary-time steps, δτ = β/Nτ;
+- `t`:  the total real evolution time;
+- `Nt`:  number of real-time steps, δt = t/Nt;
+- `δτ`:  the imaginary-time step size (defaults to β/Nτ).
+
+The `bath` convenience form reads `β` and `μ` from the bath object.
 """
 fermionic_Δm(f::AbstractBoundedFunction; β::Real, Nτ::Int, t::Real, Nt::Int, μ::Real=0, δτ::Real=β/Nτ) = fermionic_Δm(
                 f, identity, β=β, Nτ=Nτ, t=t, Nt=Nt, μ=μ, δτ=δτ)

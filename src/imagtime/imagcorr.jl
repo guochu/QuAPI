@@ -1,3 +1,16 @@
+"""
+    struct ImagCorrelationFunction{M <: AbstractMatrix} <: AbstractCorrelationFunction
+
+Imaginary-time hybridization function Δ(τ) on the Matsubara contour
+τ ∈ [0, β), discretized into N steps of δτ = β/N.
+
+Only the single branch `:τ` exists.  The object wraps a matrix (typically a
+`CorrelationMatrix` storing the Toeplitz data) of size (N, N), whose
+`(i, j)` element is the hybridization Δ[i, j] between contour nodes
+`τᵢ = (i-1)δτ` and `τⱼ = (j-1)δτ`, entering the discretized influence
+functional as `exp[Σᵢⱼ āᵢ Δᵢⱼ aⱼ]` (minus sign absorbed, see
+`AbstractCorrelationFunction`).
+"""
 struct ImagCorrelationFunction{M<:AbstractMatrix} <: AbstractCorrelationFunction
     data::M
 end

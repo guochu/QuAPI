@@ -2,6 +2,39 @@
 bosonic_Δt(f::AbstractBoundedFunction; β::Real, N::Int, t::Real, μ::Real=0) = bosonic_Δt(f, β, N, t/N, μ)
 bosonic_Δt(f::AbstractBoundedFunction, disperse::Function; β::Real, N::Int, t::Real, μ::Real=0) = bosonic_Δt(f, disperse, β, N, t/N, μ)
 
+"""
+    bosonic_Δt(bath::AbstractBosonicNormalBath; N::Int, t::Real)
+    bosonic_Δt(f::AbstractBoundedFunction; β::Real, N::Int, t::Real, μ::Real=0)
+    bosonic_Δt(f::AbstractBoundedFunction, disperse::Function; β::Real, N::Int, t::Real, μ::Real=0)
+
+Bosonic hybridization function Δᵢⱼᵘᵛ on the real-time (closed Keldysh)
+contour.
+
+Same convention as `fermionic_Δt`: the influence functional reads
+I = e^{Σᵤᵥ Σᵢⱼ sᵢᵘ Δᵢⱼᵘᵛ sⱼᵛ} (spin indices suppressed) with the minus sign
+absorbed into Δ; `i`, `j` are discrete real-time step indices (nodes
+tᵢ = i·δt, δt = t/N) and `u`, `v ∈ (:+, :-)` label the forward/backward
+branch.  Returns a `RealCorrelationFunction` whose four blocks are selected by
+`branch(x; b1, b2)`.
+
+Arguments:
+- `f`:  the bath spectrum function A(ε) as an `AbstractBoundedFunction`;
+- `disperse`:  optional dispersion applied to the integration variable,
+  `ε -> disperse(ε)` (default `identity`);
+- `β`:  the inverse temperature;
+- `μ`:  the chemical potential;
+- `t`:  the total evolution time;
+- `N`:  number of discrete real-time steps, such that δt = t/N.
+
+The `bath` convenience form reads `β` and `μ` from the bath object.
+
+Note:  for μ = 0 the Bose factor carries a 1/ε singularity at ε = 0, and the
+small-ε branch of the integrand diverges as `1/(β ε)`, which is `Inf` exactly
+at ε = 0.  Spectra with support touching ε = 0 (a flat band, an ohmic-like
+edge, or a delta peak at zero frequency) can therefore make the quadrature
+raise a `DomainError`; shifting the band edge slightly above 0 avoids the
+instability.
+"""
 bosonic_Δt(f::AbstractBoundedFunction, β::Real, N::Int, δt::Real, μ::Real) = bosonic_Δt(f, identity, β, N, δt, μ)
 
 # function bosonic_Δt(f::AbstractBoundedFunction, β::Real, N::Int, δt::Real, μ::Real)
@@ -77,6 +110,11 @@ function bosonic_Δt(f::AbstractBoundedFunction, disperse::Function, β::Real, N
     fₖⱼ(Δk) = _bosonic_fₖⱼ_r_disperse(f, disperse, β, μ, Δk, δt)
     fⱼⱼ = _bosonic_fⱼⱼ_r_disperse(f, disperse, β, μ, δt)
     fₖₖ = _bosonic_fₖₖ_r_disperse(f, disperse, β, μ, δt)
+    # the equal-time entries of G₊₋/G₋₊ are stored as the two ordering pieces
+    # (conjugate pair of the gⱼⱼ/gₖₖ kernels), matching the legacy `bosonic_Δt2`
+    # storage convention; only for diagonal coupling do the two parts add
+    fⱼⱼg₂ = f * (ε -> _g₂(β, μ, disperse(ε)) * _gⱼⱼ_r(δt)(disperse(ε)))
+    fₖₖg₁ = f * (ε -> _g₁(β, μ, disperse(ε)) * _gₖₖ_r(δt)(disperse(ε)))
 
     ### G₊₊
     ηⱼₖ = zeros(ComplexF64, N+1)
@@ -96,11 +134,11 @@ function bosonic_Δt(f::AbstractBoundedFunction, disperse::Function, β::Real, N
     ηⱼₖ = zeros(ComplexF64, N+1)
     ηₖⱼ = zeros(ComplexF64, N+1)
 
-    ηⱼₖ[1] = quadgkwrapper(fₖⱼ(0))/2
+    ηⱼₖ[1] = quadgkwrapper(fⱼⱼg₂)
+    ηₖⱼ[1] = quadgkwrapper(fₖₖ)
     for i = 1:N
         ηⱼₖ[i+1] = quadgkwrapper(fₖⱼ(i))
     end
-    ηₖⱼ[1] = ηⱼₖ[1]
     for i = 1:N
         ηₖⱼ[i+1] = ηⱼₖ[i+1]'
     end
@@ -110,11 +148,11 @@ function bosonic_Δt(f::AbstractBoundedFunction, disperse::Function, β::Real, N
     ηⱼₖ = zeros(ComplexF64, N+1)
     ηₖⱼ = zeros(ComplexF64, N+1)
 
-    ηⱼₖ[1] = quadgkwrapper(fⱼₖ(0))/2
+    ηⱼₖ[1] = quadgkwrapper(fⱼⱼ)
+    ηₖⱼ[1] = quadgkwrapper(fₖₖg₁)
     for i = 1:N
         ηⱼₖ[i+1] = quadgkwrapper(fⱼₖ(i))
     end
-    ηₖⱼ[1] = ηⱼₖ[1]
     for i = 1:N
         ηₖⱼ[i+1] = ηⱼₖ[i+1]'
     end

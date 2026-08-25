@@ -1,3 +1,22 @@
+"""
+    struct RealCorrelationFunction{...} <: AbstractCorrelationFunction
+
+Real-time hybridization function on the closed Keldysh contour.
+
+The Keldysh contour runs forward (`+`) from t = 0 to t = t and backward (`-`)
+back to t = 0; each branch carries N+1 nodes tᵢ = i·δt (i = 0..N, δt = t/N).
+The four branch sub-blocks are stored as (N+1)×(N+1) matrices (usually
+`CorrelationMatrix` instances):
+
+- `G₊₊`:  time-ordered (+/+),
+- `G₊₋`:  lesser-like (+/−),
+- `G₋₊`:  greater-like (−/+),
+- `G₋₋`:  anti-time-ordered (−/−),
+
+and are selected by `branch(x; b1, b2)` with `b1, b2 ∈ (:+, :-)`.  They enter
+the discretized influence functional `exp[Σᵤᵥ Σᵢⱼ āᵢᵘ Δᵢⱼᵘᵛ aⱼᵛ]` (minus sign
+absorbed, see `AbstractCorrelationFunction`).
+"""
 struct RealCorrelationFunction{A<:AbstractMatrix{ComplexF64}, B<:AbstractMatrix{ComplexF64}, C<:AbstractMatrix{ComplexF64}, D<:AbstractMatrix{ComplexF64}} <: AbstractCorrelationFunction
     G₊₊::A
     G₊₋::B

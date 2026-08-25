@@ -3,9 +3,34 @@ bosonic_Δτ(f::AbstractBoundedFunction; β::Real, N::Int, μ::Real=0, δτ::Rea
 bosonic_Δτ(f::AbstractBoundedFunction, disperse::Function; β::Real, N::Int, μ::Real=0, δτ::Real=β/N) = bosonic_Δτ(f, disperse, β, N, μ, δτ)
 
 """
-    bosonic_Δτ(f, β::Real, N::Int)
+    bosonic_Δτ(bath::AbstractBosonicNormalBath; N::Int, δτ::Real=bath.β/N)
+    bosonic_Δτ(f::AbstractBoundedFunction; β::Real, N::Int, μ::Real=0, δτ::Real=β/N)
+    bosonic_Δτ(f::AbstractBoundedFunction, disperse::Function; β::Real, N::Int, μ::Real=0, δτ::Real=β/N)
 
-f: the spectrum function
+Bosonic hybridization function Δᵢⱼ on the imaginary-time axis.
+
+Same convention as `fermionic_Δτ`: the influence functional reads
+I = e^{Σᵢⱼ sᵢ Δᵢⱼ sⱼ} (spin/flavor indices suppressed) with the minus sign
+absorbed into Δ, `i`, `j` discrete imaginary-time step indices on a grid of
+`N` steps δτ = β/N.  Returns an `ImagCorrelationFunction` wrapping the
+Toeplitz `CorrelationMatrix`.
+
+Arguments:
+- `f`:  the bath spectrum function A(ε) as an `AbstractBoundedFunction`;
+- `disperse`:  optional dispersion applied to the integration variable,
+  `ε -> disperse(ε)` (default `identity`);
+- `β`:  the inverse temperature;
+- `μ`:  the chemical potential, absorbed into the spectrum via `spectrumshift`;
+- `N`:  number of discrete imaginary-time steps, such that δτ = β/N;
+- `δτ`:  the step size (defaults to β/N).
+
+The `bath` convenience form reads `β` and `μ` from the bath object.
+
+Note:  for μ = 0 the Bose factor carries a 1/ε singularity at ε = 0, and the
+small-ε branch of the integrand evaluates `1/(β ε)`, which is `Inf` exactly at
+ε = 0.  Spectra with support touching ε = 0 (a flat band, an ohmic-like edge,
+or a delta peak at zero frequency) can therefore make the quadrature raise a
+`DomainError`; shifting the band edge slightly above 0 avoids the instability.
 """
 bosonic_Δτ(f0::AbstractBoundedFunction, β::Real, N::Int, μ::Real, δτ::Real=β / N) = bosonic_Δτ(f0, identity, β, N, μ, δτ)
 

@@ -1,3 +1,16 @@
+"""
+    struct InfiniteRealCorrelationCache{B <: AbstractBath}
+
+Incrementally grown, translationally invariant real-time hybridization
+function on the closed Keldysh contour.
+
+The Toeplitz vectors `ηⱼₖ`/`ηₖⱼ` are extended one node at a time by
+`compute_next!` until the newest element falls below `atol` (or a maximum
+iteration count is reached); `compute!` drives the growth and `current_size`
+/`current_time` report the current number of nodes and the covered real time.
+`branch(x; b1, b2)` with `b1, b2 ∈ (:+, :-)` returns the corresponding Keldysh
+sub-block as a `CorrelationMatrix`.
+"""
 struct InfiniteRealCorrelationCache{B <: AbstractBath}
 	ηⱼₖ::Vector{ComplexF64}
 	ηₖⱼ::Vector{ComplexF64}
@@ -39,9 +52,25 @@ function branch(x::InfiniteRealCorrelationCache, b1::Symbol, b2::Symbol)
 end
 
 """
-	infinite_Δt(bath::AbstractBath; δt::Real, atol::Real, t::Real)
+    infinite_Δt(bath::AbstractBath; δt::Real, atol::Real=1.0e-6, t::Real=200)
 
-Translationally invariant real time hybridization function
+Translationally invariant real-time hybridization function on the closed
+Keldysh contour, discretized on a grid of step `δt`.
+
+The Toeplitz vectors are grown node by node until the newest element drops
+below `atol`; `t` only sets the maximum real-time window
+(`maxiter = round(Int, t/δt)`) and a warning is emitted if the correlation
+does not decay to `atol` within it.
+
+Returns an `InfiniteRealCorrelationCache`, whose `ηⱼₖ`/`ηₖⱼ` vectors can be
+combined into the Keldysh branch blocks via `branch(x; b1, b2)` once the decay
+criterion is met.
+
+Arguments:
+- `bath`:  a fermionic or bosonic bath (e.g. a `NormalBath` or `Vacuum`);
+- `δt`:  the real-time step size;
+- `atol`:  absolute tolerance for the newest `η` element (default 1.0e-6);
+- `t`:  maximum real-time window for the growth (default 200).
 """
 function infinite_Δt(bath::AbstractBath; δt::Real, kwargs...)
 	corr = InfiniteRealCorrelationCache(bath, δt)

@@ -1,9 +1,32 @@
+"""
+    abstract type AbstractMixedCorrelationFunction <: AbstractCorrelationFunction end
+
+Abstract supertype of correlation functions defined on the L-shaped
+(Kadanoff-Baym) contour, which combines an imaginary-time branch `:τ` of
+`Nτ` nodes and a real-time Keldysh part with branches `:+`/`:-` of `Nt+1`
+nodes each.  See `MixedCorrelationFunction` for the concrete implementation.
+"""
 abstract type AbstractMixedCorrelationFunction <: AbstractCorrelationFunction end
+
 """
 	struct MixedCorrelationFunction
 
-Correlations on the L-shaped contour,
-there are 9 of them due to the double integral
+Correlations on the L-shaped (Kadanoff-Baym) contour.
+
+The contour consists of an imaginary-time branch τ ∈ [0, β) discretized into
+`Nτ` steps of δτ = β/Nτ, followed by the closed Keldysh part t ∈ [0, t] with
+`Nt+1` nodes per branch (δt = t/Nt).  Owing to the double contour integral the
+hybridization is stored as nine blocks, grouped in three pairs:
+
+- real-time blocks `ηⱼₖ`/`ηₖⱼ` (length `Nt+1`), entering the (++), (+-), (-+),
+  (--) Keldysh combinations;
+- imaginary-time blocks `ξⱼₖ`/`ξₖⱼ` (length `Nτ`), entering the (τ,τ) block;
+- mixed-time blocks `ζⱼₖ` (size `Nτ × (Nt+1)`) and `ζₖⱼ` (size `(Nt+1) × Nτ`),
+  entering the cross (+/-,τ) combinations.
+
+`branch(x; b1, b2)` with `b1, b2 ∈ (:+, :-, :τ)` returns the corresponding
+sub-block as a matrix (the nine combinations G¹¹ ... G³³); `index` gives the
+individual matrix element.
 """
 struct MixedCorrelationFunction <: AbstractMixedCorrelationFunction
     # real time
@@ -119,13 +142,13 @@ function branch(x::MixedCorrelationFunction; b1::Symbol, b2::Symbol)
     elseif b1 == :-
         if b2 == :+
             ηⱼₖ = -x.ηⱼₖ
-            ηₖⱼ = -conj(x.ηₖⱼ)
+            ηₖⱼ = -conj(x.ηⱼₖ)
             ηₖⱼ[1] = ηⱼₖ[1]
             return CorrelationMatrix(ηⱼₖ, ηₖⱼ)
         elseif b2 == :-
-            ηⱼₖ = conj(x.ηⱼₖ)
+            ηⱼₖ = conj(x.ηₖⱼ)
             ηⱼₖ[1] = x.ηⱼₖ[1]
-            ηₖⱼ = conj(x.ηₖⱼ)
+            ηₖⱼ = conj(x.ηⱼₖ)
             ηₖⱼ[1] = x.ηₖⱼ[1]
             return CorrelationMatrix(ηⱼₖ, ηₖⱼ)
         else
