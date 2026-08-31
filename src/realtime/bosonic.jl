@@ -111,7 +111,7 @@ function bosonic_Δt(f::AbstractBoundedFunction, disperse::Function, β::Real, N
     fⱼⱼ = _bosonic_fⱼⱼ_r_disperse(f, disperse, β, μ, δt)
     fₖₖ = _bosonic_fₖₖ_r_disperse(f, disperse, β, μ, δt)
     # the equal-time entries of G₊₋/G₋₊ are stored as the two ordering pieces
-    # (conjugate pair of the gⱼⱼ/gₖₖ kernels), matching the legacy `bosonic_Δt2`
+    # (conjugate pair of the gⱼⱼ/gₖₖ kernels), matching the legacy `bosonic_Δt_deprecated`
     # storage convention; only for diagonal coupling do the two parts add
     fⱼⱼg₂ = f * (ε -> _g₂(β, μ, disperse(ε)) * _gⱼⱼ_r(δt)(disperse(ε)))
     fₖₖg₁ = f * (ε -> _g₁(β, μ, disperse(ε)) * _gₖₖ_r(δt)(disperse(ε)))

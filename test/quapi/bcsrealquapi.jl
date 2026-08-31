@@ -3,7 +3,6 @@ println("|  Real-time QuAPI (BCS bath)      |")
 println("------------------------------------")
 
 using Test, LinearAlgebra
-include("../../src/includes.jl")
 
 # =====================================================================
 # Real-time QuAPI for the Toulouse model with a BCS bath

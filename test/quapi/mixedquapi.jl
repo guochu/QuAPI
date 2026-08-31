@@ -4,7 +4,6 @@ println("|     (Kadanoff / L-shaped)        |")
 println("------------------------------------")
 
 using Test, LinearAlgebra
-include("../../src/includes.jl")
 
 """
     quapi_mixed(β, ε, Δ, ωs, λs; Nt, Nτ, t, μ=0.0)

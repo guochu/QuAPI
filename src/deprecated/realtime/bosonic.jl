@@ -1,8 +1,8 @@
-Δt2(bath::AbstractBosonicNormalBath; N::Int, t::Real) = bosonic_Δt2(bath.spectrum, β=bath.β, N=N, t=t, μ=bath.μ)
-bosonic_Δt2(f::AbstractBoundedFunction; β::Real, N::Int, t::Real, μ::Real=0) = bosonic_Δt2(f, β, N, t/N, μ)
-bosonic_Δt2(f::AbstractBoundedFunction, disperse::Function; β::Real, N::Int, t::Real, μ::Real=0) = bosonic_Δt2(f, disperse, β, N, t/N, μ)
+Δt_deprecated(bath::AbstractBosonicNormalBath; N::Int, t::Real) = bosonic_Δt_deprecated(bath.spectrum, β=bath.β, N=N, t=t, μ=bath.μ)
+bosonic_Δt_deprecated(f::AbstractBoundedFunction; β::Real, N::Int, t::Real, μ::Real=0) = bosonic_Δt_deprecated(f, β, N, t/N, μ)
+bosonic_Δt_deprecated(f::AbstractBoundedFunction, disperse::Function; β::Real, N::Int, t::Real, μ::Real=0) = bosonic_Δt_deprecated(f, disperse, β, N, t/N, μ)
 
-bosonic_Δt2(f::AbstractBoundedFunction, β::Real, N::Int, δt::Real, μ::Real) = bosonic_Δt2(f, identity, β, N, δt, μ)
+bosonic_Δt_deprecated(f::AbstractBoundedFunction, β::Real, N::Int, δt::Real, μ::Real) = bosonic_Δt_deprecated(f, identity, β, N, δt, μ)
 
 # function bosonic_Δt(f::AbstractBoundedFunction, β::Real, N::Int, δt::Real, μ::Real)
 #     β = convert(Float64, β)
@@ -69,7 +69,7 @@ bosonic_Δt2(f::AbstractBoundedFunction, β::Real, N::Int, δt::Real, μ::Real) 
 #     return RealCorrelationFunction(G₊₊, G₊₋, G₋₊, G₋₋)
 # end
 
-function bosonic_Δt2(f::AbstractBoundedFunction, disperse::Function, β::Real, N::Int, δt::Real, μ::Real)
+function bosonic_Δt_deprecated(f::AbstractBoundedFunction, disperse::Function, β::Real, N::Int, δt::Real, μ::Real)
     β = convert(Float64, β)
     μ = convert(Float64, μ)
     g₁(ε) = _g₁(β, μ, disperse(ε)); g₂(ε) = _g₂(β, μ, disperse(ε))

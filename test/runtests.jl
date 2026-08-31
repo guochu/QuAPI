@@ -1,6 +1,9 @@
 using Test, LinearAlgebra
 
-include("../src/includes.jl")
+using QuAPI
+using ImpurityModelBase
+# deprecated implementations, kept for cross-validation tests
+using QuAPI: fermionic_Δτ_deprecated, bosonic_Δτ_deprecated, bosonic_Δt_deprecated, fermionic_Δm_deprecated, bosonic_Δm_deprecated, isize, rsize
 
 
 ### fermionic Δτ

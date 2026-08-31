@@ -1,6 +1,6 @@
 include("util.jl")
 include("mixedcorr.jl")
 include("fermionic.jl")
-include("fermionic_deprecated.jl")
 include("bosonic.jl")
-include("bosonic_deprecated.jl")
+include("../deprecated/mixedtime/fermionic.jl")
+include("../deprecated/mixedtime/bosonic.jl")

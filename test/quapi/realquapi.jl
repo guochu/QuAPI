@@ -4,7 +4,6 @@ println("|  (spin-boson + fermionic)        |")
 println("------------------------------------")
 
 using Test, LinearAlgebra
-include("../../src/includes.jl")
 
 """
     quapi_rt(β, ε, Δ, ωs, λs; N, t, ρ_imp, μ=0.0)

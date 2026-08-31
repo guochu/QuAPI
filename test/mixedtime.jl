@@ -9,7 +9,7 @@ println("------------------------------------")
 	for f in (semicircular(), DiracDelta(ω=0.5))
 		for μ in (-0.3, 0, 0.3)
 			x = fermionic_Δm(f, β=β, t=2, Nt=4, Nτ=5, μ=μ)
-			y = fermionic_Δm2(f, β=β, t=2, Nt=4, Nτ=5, μ=μ)
+			y = fermionic_Δm_deprecated(f, β=β, t=2, Nt=4, Nτ=5, μ=μ)
 			for b1 in (:+, :-, :τ), b2 in (:+, :-, :τ)
 				@test branch(x, b1=b1, b2=b2) ≈ branch(y, b1=b1, b2=b2) atol=1.0e-8
 			end
@@ -52,7 +52,7 @@ end
 	for f in (Leggett(), DiracDelta(ω=0.5))
 		for μ in (-0.3, 0)
 			x = bosonic_Δm(f, β=β, t=1, Nt=2, Nτ=5, μ=μ)
-			y = bosonic_Δm2(f, β=β, t=1, Nt=2, Nτ=5, μ=μ)
+			y = bosonic_Δm_deprecated(f, β=β, t=1, Nt=2, Nτ=5, μ=μ)
 			for b1 in (:+, :-, :τ), b2 in (:+, :-, :τ)
 				@test branch(x, b1=b1, b2=b2) ≈ branch(y, b1=b1, b2=b2) atol=1.0e-8
 			end
