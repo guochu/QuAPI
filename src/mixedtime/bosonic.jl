@@ -1,4 +1,16 @@
 """
+    Δm(bath::AbstractBosonicNormalBath; Nτ::Int, t::Real, Nt::Int, δτ::Real=bath.β/Nτ)
+
+Bosonic hybridization function on the L-shaped (Kadanoff-Baym) contour:
+an imaginary-time branch of `Nτ` steps δτ = β/Nτ followed by the closed
+Keldysh part of total time t with `Nt` steps δt = t/Nt.  Returns a
+`MixedCorrelationFunction`.  Convenience wrapper that dispatches to
+`bosonic_Δm`, reading `β` and `μ` from the bath object.  The minus sign of
+the influence-functional exponent is absorbed into Δ.
+"""
+Δm(bath::AbstractBosonicNormalBath; Nτ::Int, t::Real, Nt::Int, δτ::Real=bath.β/Nτ) = bosonic_Δm(bath.spectrum, β=bath.β, μ=bath.μ, Nτ=Nτ, t=t, Nt=Nt, δτ=δτ)
+
+"""
     bosonic_Δm(bath::AbstractBosonicNormalBath; Nτ::Int, t::Real, Nt::Int, δτ::Real=bath.β/Nτ)
     bosonic_Δm(f::AbstractBoundedFunction; β::Real, Nτ::Int, t::Real, Nt::Int, μ::Real=0, δτ::Real=β/Nτ)
     bosonic_Δm(f::AbstractBoundedFunction, disperse::Function; β::Real, Nτ::Int, t::Real, Nt::Int, μ::Real=0, δτ::Real=β/Nτ)
@@ -31,7 +43,6 @@ edge, or a delta peak at zero frequency) can therefore make the quadrature
 raise a `DomainError`; shifting the band edge slightly above 0 avoids the
 instability.
 """
-Δm(bath::AbstractBosonicNormalBath; Nτ::Int, t::Real, Nt::Int, δτ::Real=bath.β/Nτ) = bosonic_Δm(bath.spectrum, β=bath.β, μ=bath.μ, Nτ=Nτ, t=t, Nt=Nt, δτ=δτ)
 bosonic_Δm(f::AbstractBoundedFunction; β::Real, Nτ::Int, t::Real, Nt::Int, μ::Real=0, δτ::Real=β/Nτ) = bosonic_Δm(
                                         f, identity, β=β, Nτ=Nτ, t=t, Nt=Nt, μ=μ, δτ=δτ)
 

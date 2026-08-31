@@ -18,7 +18,18 @@ struct InfiniteRealCorrelationCache{B <: AbstractBath}
 	δt::Float64
 end
 
+"""
+    current_size(x::InfiniteRealCorrelationCache)
+
+Number of nodes of the incrementally grown Toeplitz vectors.
+"""
 current_size(x::InfiniteRealCorrelationCache) = length(x.ηⱼₖ)
+
+"""
+    current_time(x::InfiniteRealCorrelationCache)
+
+Covered real-time window, `current_size(x) * x.δt`.
+"""
 current_time(x::InfiniteRealCorrelationCache) = current_size(x) * x.δt
 
 InfiniteRealCorrelationCache(bath::AbstractBath, δt::Real) = InfiniteRealCorrelationCache(ComplexF64[], ComplexF64[], bath, convert(Float64, δt))
@@ -78,6 +89,13 @@ function infinite_Δt(bath::AbstractBath; δt::Real, kwargs...)
 	return corr
 end
 
+"""
+    compute!(x::InfiniteRealCorrelationCache; atol::Real=1.0e-6, t::Real=200)
+
+Grow the Toeplitz vectors by repeated `compute_next!` until the newest
+element falls below `atol` or the window `t` is exhausted.  Returns the
+number of nodes.
+"""
 function compute!(x::InfiniteRealCorrelationCache; atol::Real=1.0e-6, t::Real=200)
 	maxiter = round(Int, t / x.δt)
 	atol = convert(Float64, atol)
@@ -91,6 +109,11 @@ function compute!(x::InfiniteRealCorrelationCache; atol::Real=1.0e-6, t::Real=20
 	return current_size(x)
 end
 
+"""
+    compute_next!(x::InfiniteRealCorrelationCache)
+
+Append one node to the Toeplitz vectors.
+"""
 function compute_next!(x::InfiniteRealCorrelationCache{<:AbstractFermionicNormalBath})
 	f = x.bath.f
 	# f, lb, ub = f0.f, lowerbound(f0), upperbound(f0)

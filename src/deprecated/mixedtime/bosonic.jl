@@ -1,4 +1,11 @@
 Δm_deprecated(bath::AbstractBosonicNormalBath; Nτ::Int, t::Real, Nt::Int, δτ::Real=bath.β/Nτ) = bosonic_Δm_deprecated(bath.spectrum, β=bath.β, μ=bath.μ, Nτ=Nτ, t=t, Nt=Nt, δτ=δτ)
+
+"""
+    bosonic_Δm_deprecated(f::AbstractBoundedFunction; β::Real, Nτ::Int, t::Real, Nt::Int, μ::Real=0, δτ::Real=β/Nτ)
+
+Deprecated legacy implementation of `bosonic_Δm`, kept only for
+cross-validation of the current implementation in the test suite.
+"""
 function bosonic_Δm_deprecated(f::AbstractBoundedFunction; β::Real, Nτ::Int, t::Real, Nt::Int, μ::Real=0, δτ::Real=β/Nτ)
     δt = t / Nt
     g₁(ε) = _g₁(β, μ, ε); g₂(ε) = _g₂(β, μ, ε)

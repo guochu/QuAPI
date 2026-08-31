@@ -18,7 +18,18 @@ struct InfiniteImagCorrelationCache{B <: Vacuum}
 end
 
 
+"""
+    current_size(x::InfiniteImagCorrelationCache)
+
+Number of nodes of the incrementally grown Toeplitz vectors.
+"""
 current_size(x::InfiniteImagCorrelationCache) = length(x.ηⱼₖ)
+
+"""
+    current_temperature(x::InfiniteImagCorrelationCache)
+
+Covered imaginary-time window, `current_size(x) * x.δτ`.
+"""
 current_temperature(x::InfiniteImagCorrelationCache) = current_size(x) * x.δτ
 
 InfiniteImagCorrelationCache(bath::Vacuum, δτ::Real) = InfiniteImagCorrelationCache(Float64[], Float64[], bath, convert(Float64, δτ))
@@ -50,6 +61,13 @@ function infinite_Δτ(bath::Vacuum; δτ::Real, kwargs...)
     return corr
 end
 
+"""
+    compute!(x::InfiniteImagCorrelationCache; atol::Real=1.0e-6, β::Real=200)
+
+Grow the Toeplitz vectors by repeated `compute_next!` until the newest
+element falls below `atol` or the window `β` is exhausted.  Returns the
+number of nodes.
+"""
 function compute!(x::InfiniteImagCorrelationCache; atol::Real=1.0e-6, β::Real=200)
 	maxiter = round(Int, β / x.δτ)
 	atol = convert(Float64, atol)
@@ -64,6 +82,11 @@ function compute!(x::InfiniteImagCorrelationCache; atol::Real=1.0e-6, β::Real=2
 end
 
 
+"""
+    compute_next!(x::InfiniteImagCorrelationCache)
+
+Append one node to the Toeplitz vectors.
+"""
 function compute_next!(x::InfiniteImagCorrelationCache{<:FermionicVacuum})
 	f0 = x.bath.f
 	β, μ = x.bath.β, x.bath.μ
