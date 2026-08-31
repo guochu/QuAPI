@@ -13,7 +13,7 @@ makedocs(;
         "Home" => "index.md",
         "Guide" => "guide.md",
         "API" => "api.md",
-        "QuAPI Algorithms" => "quapi.md",
+        "Hybridization Functions" => "hybridization.md",
     ],
     warnonly = false,
 )

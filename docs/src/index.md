@@ -1,14 +1,14 @@
 # QuAPI
 
 QuAPI（Quasi-Adiabatic Propagator Path Integral）用于玻色子和费米子杂化函数的
-离散化，以及在此基础上的准绝热传播子路径积分。包分为两层：
+离散化，以及在此基础上的准绝热传播子路径积分。文档结构：
 
 - **[API](api.md)**（`src/`，导出）：把连续谱的杂化函数（influence
   functional 的核）离散为虚时、实时、混合时（Kadanoff L 形回路）三种时间
   网格上的 `CorrelationMatrix`，支持玻色、费米以及 BCS 超导 bath。
-- **[QuAPI Algorithms](quapi.md)**（`test/quapi/`，参考实现）：在上述离散杂化
-  矩阵之上完整实现 QuAPI 路径积分（自旋-玻色、Toulouse、BCS 模型），并与
-  严格对角化（ED）和解析解交叉验证。
+- **[Hybridization Functions](hybridization.md)**：Δτ、Δt、Δm 及 BCS
+  杂化函数的完整数学定义——Toeplitz 结构、每个生成元素的谱积分表达式与
+  时间核的封闭形式。
 
 ## 全局符号约定
 
