@@ -195,14 +195,15 @@ _bosonic_fₖⱼ_i(f::AbstractBoundedFunction, β, μ, Δk::Int, δτ) = f * _bo
 function _bosonic_gₖⱼ_i(β, μ, Δk::Int, δτ)
     return ε -> begin
         if abs(ε) > QuAPI_tol
-            x = 1 - exp(-safe_mult(β, ε-μ))
+            # -expm1(-x) avoids the catastrophic cancellation of 1-exp(-x) for small x
+            x = -expm1(-safe_mult(β, ε-μ))
             y = exp(-safe_mult(β - Δk*δτ, ε-μ)) * exp(Δk*δτ*μ)
             return -2y*(1-cosh(δτ*ε))/(ε^2 * x)
         else
             if μ == zero(μ)
                 return exp(Δk*δτ*ε)*δτ^2 / safe_mult(β, ε)
             else
-                x = 1 - exp(-safe_mult(β, ε-μ))
+                x = -expm1(-safe_mult(β, ε-μ))
                 y = exp(-safe_mult(β - Δk*δτ, ε-μ)) * exp(Δk*δτ*μ)
                 return y*δτ^2 / x
             end
