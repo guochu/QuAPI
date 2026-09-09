@@ -351,7 +351,8 @@ I = \exp\Big[\bar a_\uparrow\Delta_{\uparrow\uparrow}a_\uparrow
 
 ## 7. Matsubara 频域入口
 
-`Δiw_to_Δτ` 从频域数据直接构造虚时矩阵（推导见 `docs/quapi.pdf`）：
+`Δiw_to_Δτ` 从频域数据直接构造虚时矩阵（详细推导见作者笔记
+`docs/quapi.pdf`，未随仓库分发）：
 
 ```math
 \Delta(\tau_k) = \sum_{n=-n_{max}}^{n_{max}}

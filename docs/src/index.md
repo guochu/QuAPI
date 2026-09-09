@@ -65,8 +65,6 @@ test/
 ├── imagtime/realtime/mixedtime.jl, bcs.jl    # src 层测试
 └── quapi/                # QuAPI 算法实现 + ED 对比
 docs/
-├── quapi.pdf             # Δiw_to_Δτ 推导
-├── 1_polaron-path.pdf / 2_polaron-path.pdf
 └── src/                  # 本文档源
 ```
 

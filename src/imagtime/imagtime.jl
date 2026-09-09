@@ -18,8 +18,9 @@ discrete Fourier transform
 
     Δ(τ) = Σₙ -(2/β) Δ(iωₙ) (1 - cos(ωₙ δτ)) e^{-iωₙ k δτ} / ωₙ²
 
-is evaluated on a grid of `N` steps δτ = β/N (see docs/quapi.pdf for the
-detailed derivation), returning an `ImagCorrelationFunction` wrapping a real
+is evaluated on a grid of `N` steps δτ = β/N (detailed derivation in the
+author's notes, `docs/quapi.pdf`, not distributed with the repository),
+returning an `ImagCorrelationFunction` wrapping a real
 `CorrelationMatrix`.  The imaginary part is checked to vanish to numerical
 precision, and an `error` is raised otherwise.
 
