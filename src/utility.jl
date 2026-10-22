@@ -129,7 +129,7 @@ function dense_fermionicIF(x::AbstractCorrelationFunction)
 end
 
 """
-    dense_bosonicIF(x::AbstractCorrelationFunction, hyb::AbstractMatrix)
+    dense_bosonicIF(x::AbstractCorrelationFunction, λ::AbstractVector{<:Real})
         -> Array{ComplexF64}
 
 玻色影响泛函 IF 的**稠密路径张量**。耦合形式
@@ -138,9 +138,10 @@ end
 H_int = hyb ⊗ Σ_k g_k (a†_k + a_k)
 ```
 
-（`hyb` 作用于杂质自由度，自旋-玻色模型取 `hyb = σ_z`；要求 `hyb` 厄米）。
-对 bath 精确积分后 IF 只依赖杂质路径——在 `hyb` 的本征基下每个 contour
-节点的路径值取其**本征值** `λ_α ∈ ℝ`：
+（`hyb` 作用于杂质自由度，自旋-玻色模型取 `hyb = σ_z`）。对 bath 精确
+积分后 IF 只依赖杂质路径——在 `hyb` 的本征基下每个 contour 节点的路径值
+取其本征值。`λ` 即该**本征值矢量**（厄米矩阵的本征值为实，自旋-玻色取
+`[1, -1]` 等；矢量顺序决定张量指标到路径值的映射），张量元素为
 
 ```text
 I[v₁..v_n] = exp(Σ_pq Δ_pq v_p v_q)
@@ -149,24 +150,14 @@ I[v₁..v_n] = exp(Σ_pq Δ_pq v_p v_q)
 其中 `Δ = _contour_delta(x)` 为整条 contour 的 hybridization 矩阵（节点
 行序 `[:+; :-; :τ]`），`n` 为节点数；这与 brute-force QuAPI 的
 `exp(dot(v, G, v))` 约定一致（含对角项与上下三角全求和）。返回
-`d×d×…×d`（`n` 阶，`d = size(hyb,1)`）张量，维度顺序与
+`d×d×…×d`（`n` 阶，`d = length(λ)`）张量，维度顺序与
 `dense_fermionicIF` 相同（GTEMPO 默认 ordering，见 `_if_legorder`）。
 
 复杂度 O(n² dⁿ)；`dⁿ > 2³⁰` 时抛 `ArgumentError`（自旋-玻色 d=2 即
 n ≤ 30）。
 """
-function dense_bosonicIF(x::AbstractCorrelationFunction, hyb::AbstractMatrix)
-    size(hyb, 1) == size(hyb, 2) || throw(ArgumentError("hyb 必须是方阵"))
-    local λ::Vector{Float64}
-    if eltype(hyb) <: Real
-        opnorm(hyb - transpose(hyb), Inf) ≤ 1e-12 * max(1.0, opnorm(hyb, Inf)) ||
-            throw(ArgumentError("hyb 必须是厄米矩阵"))
-        λ = eigvals(Symmetric(Matrix{Float64}(hyb)))
-    else
-        opnorm(hyb - hyb', Inf) ≤ 1e-12 * max(1.0, opnorm(hyb, Inf)) ||
-            throw(ArgumentError("hyb 必须是厄米矩阵"))
-        λ = real.(eigvals(Hermitian(Matrix{ComplexF64}(hyb))))
-    end
+function dense_bosonicIF(x::AbstractCorrelationFunction, λ::AbstractVector{<:Real})
+    isempty(λ) && throw(ArgumentError("λ 不能为空"))
     d = length(λ)
     Δ = _contour_delta(x)
     nodes = _contour_nodes(x)
@@ -175,7 +166,7 @@ function dense_bosonicIF(x::AbstractCorrelationFunction, hyb::AbstractMatrix)
     # 内存上限：总元素数 d^n ≤ 2^30（用 n·log2(d) 防整数溢出）
     n * log2(d) ≤ 30 || throw(ArgumentError(
         "稠密 IF 张量总元素数 d^n = $(d)^$(n) 超过上限 2^30；" *
-        "请减小 contour 节点数 n（当前 $(n)）或杂质维度 d（当前 $(d)）"))
+        "请减小 contour 节点数 n（当前 $(n)）或路径值个数 d（当前 $(d)）"))
     nodeidx = Dict(bi => k for (k, bi) in enumerate(nodes))
     T = ones(ComplexF64, ntuple(_ -> d, n))
     # 逐对吸收 exp(Δ_pq λ_a λ_b)：I = Π_pq exp(Δ_pq v_p v_q)
