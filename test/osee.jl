@@ -111,12 +111,18 @@ end
     for (name, corr) in cases
         T = dense_fermionicIF(corr)
         n = size(QuAPI._contour_delta(corr), 1)
-        @test size(T) == ntuple(_ -> 2, 2n)          # 每节点 (a, ā) 两条腿
-        @test norm(T) > 0
+        @test T isa DenseFermionicIF
+        @test length(T.basis) == 2n && length(T.data) == 2^(2n)
+        @test norm(T.data) > 0
+        # basis：链序节点 × (a, ā)，band=1（BCS 多 band 场景待扩展）
+        b1, j1 = QuAPI._if_legorder(corr)[1]
+        @test T.basis[1:2] == [FermionicLeg(j1, b1, 1, false),
+                               FermionicLeg(j1, b1, 1, true)]
+        @test all(l -> l.band == 1, T.basis)
         s = FermionicGaussianState(fermionic_bdg_matrix(corr))
         chain = QuAPI._if_legorder(corr)             # GTEMPO ordering 链序节点
         nodes = QuAPI._contour_nodes(corr)           # Δ 行序节点（fast 模式指标）
-        v = vec(T)
+        v = T.data
         for k in 1:n-1                                # 链前缀 k 个节点块
             modes = [findfirst(==(bi), nodes) for bi in chain[1:k]]
             S_dense = svent(reshape(v, 2^(2k), 2^(2(n - k))))
@@ -164,13 +170,18 @@ end
                          ("RT", bosonic_Δt(f0b, β=2.0, t=1.0, N=2)),
                          ("MX", bosonic_Δm(f0b, β=2.0, Nτ=2, t=0.5, Nt=1)))
         T = dense_bosonicIF(corr, λsbm)
-        @test T ≈ ref_IF(corr, λsbm) rtol = 1e-12
+        @test T isa DenseBosonicIF
+        @test T.d == 2 && length(T.data) == 2^length(T.basis)
+        # basis：链序节点，一条路径腿
+        b1, j1 = QuAPI._if_legorder(corr)[1]
+        @test T.basis[1] == BosonicLeg(j1, b1)
+        @test T.data ≈ vec(ref_IF(corr, λsbm)) rtol = 1e-12
     end
     # 一般本征值矢量（非 ±1；含零）
     λg = [0.3, 1.7, -0.9]
     T4 = dense_bosonicIF(bosonic_Δτ(f0b, β=2.0, N=3), λg)
-    @test T4 ≈ ref_IF(bosonic_Δτ(f0b, β=2.0, N=3), λg) rtol = 1e-12
-    @test size(T4) == (3, 3, 3)
+    @test T4.data ≈ vec(ref_IF(bosonic_Δτ(f0b, β=2.0, N=3), λg)) rtol = 1e-12
+    @test T4.d == 3 && length(T4.data) == 27 && length(T4.basis) == 3
     # 负检验：链序（GTEMPO ordering）确实影响结果——升序链的参考与实现不同，
     # 保证上面的逐元素对照不是平凡通过。用实时 corr（虚时 Δ 有 KMS 时间反转
     # 对称 Δ = JΔJ，升降序恰好重合，不能用于此检验）
@@ -192,7 +203,7 @@ end
         end
         return T
     end
-    @test !(Tdown ≈ ref_IF_wrong(corr3, λsbm))
+    @test !(Tdown.data ≈ vec(ref_IF_wrong(corr3, λsbm)))
     # 空 λ 报错
     @test_throws ArgumentError dense_bosonicIF(corr3, Float64[])
     # 元素数上限：d=2, n=31 ⟹ 2^31 > 2^30
