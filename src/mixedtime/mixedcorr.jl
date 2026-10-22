@@ -27,6 +27,27 @@ hybridization is stored as nine blocks, grouped in three pairs:
 `branch(x; b1, b2)` with `b1, b2 ∈ (:+, :-, :τ)` returns the corresponding
 sub-block as a matrix (the nine combinations G¹¹ ... G³³); `index` gives the
 individual matrix element.
+
+The exponent of the discretized Feynman-Vernon influence functional built
+from these blocks depends on the statistics of the bath (the minus sign is
+absorbed into Δ, see `AbstractCorrelationFunction`).  With branch labels
+`b₁, b₂ ∈ (:+, :-, :τ)` and `i, j` running over the nodes of the respective
+branch (`Nt+1` for `:+`/`:-`, `Nτ` for `:τ`),
+
+- fermionic bath, with Grassmann fields `a` (annihilation) and `ā`
+  (conjugate):
+
+      Σ_{b₁b₂} Σᵢⱼ āᵢ^{b₁} Δᵢⱼ^{b₁b₂} aⱼ^{b₂} ;
+
+- bosonic bath with the coupling `s ⊗ B† + s† ⊗ B` (the PT case of TEMPO,
+  also covering non-Hermitian `s`, e.g. a ladder operator):
+
+      Σ_{b₁b₂} Σᵢⱼ s†ᵢ^{b₁} Δᵢⱼ^{b₁b₂} sⱼ^{b₂} ,
+
+  where `s^{b}` is the system field on branch `b`.  For Hermitian `s`
+  (`s† = s`) the exponent degenerates to the single-operator (ADT) form
+
+      Σ_{b₁b₂} Σᵢⱼ sᵢ^{b₁} Δᵢⱼ^{b₁b₂} sⱼ^{b₂} .
 """
 struct MixedCorrelationFunction <: AbstractMixedCorrelationFunction
     # real time

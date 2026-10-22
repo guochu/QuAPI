@@ -13,9 +13,28 @@ The four branch sub-blocks are stored as (N+1)×(N+1) matrices (usually
 - `G₋₊`:  greater-like (−/+),
 - `G₋₋`:  anti-time-ordered (−/−),
 
-and are selected by `branch(x; b1, b2)` with `b1, b2 ∈ (:+, :-)`.  They enter
-the discretized influence functional `exp[Σᵤᵥ Σᵢⱼ āᵢᵘ Δᵢⱼᵘᵛ aⱼᵛ]` (minus sign
-absorbed, see `AbstractCorrelationFunction`).
+and are selected by `branch(x; b1, b2)` with `b1, b2 ∈ (:+, :-)`.
+
+The exponent of the discretized Feynman-Vernon influence functional built
+from these blocks depends on the statistics of the bath (the minus sign is
+absorbed into Δ, see `AbstractCorrelationFunction`).  With branch labels
+`b₁, b₂ ∈ (:+, :-)` and `i, j` running over the `N+1` nodes of the
+respective branch,
+
+- fermionic bath, with Grassmann fields `a` (annihilation) and `ā`
+  (conjugate):
+
+      Σ_{b₁b₂} Σᵢⱼ āᵢ^{b₁} Δᵢⱼ^{b₁b₂} aⱼ^{b₂} ;
+
+- bosonic bath with the coupling `s ⊗ B† + s† ⊗ B` (the PT case of TEMPO,
+  also covering non-Hermitian `s`, e.g. a ladder operator):
+
+      Σ_{b₁b₂} Σᵢⱼ s†ᵢ^{b₁} Δᵢⱼ^{b₁b₂} sⱼ^{b₂} ,
+
+  where `s^{b}` is the system field on branch `b`.  For Hermitian `s`
+  (`s† = s`) the exponent degenerates to the single-operator (ADT) form
+
+      Σ_{b₁b₂} Σᵢⱼ sᵢ^{b₁} Δᵢⱼ^{b₁b₂} sⱼ^{b₂} .
 """
 struct RealCorrelationFunction{A<:AbstractMatrix{ComplexF64}, B<:AbstractMatrix{ComplexF64}, C<:AbstractMatrix{ComplexF64}, D<:AbstractMatrix{ComplexF64}} <: AbstractCorrelationFunction
     G₊₊::A

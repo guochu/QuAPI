@@ -7,9 +7,34 @@ Imaginary-time hybridization function Δ(τ) on the Matsubara contour
 Only the single branch `:τ` exists.  The object wraps a matrix (typically a
 `CorrelationMatrix` storing the Toeplitz data) of size (N, N), whose
 `(i, j)` element is the hybridization Δ[i, j] between contour nodes
-`τᵢ = (i-1)δτ` and `τⱼ = (j-1)δτ`, entering the discretized influence
-functional as `exp[Σᵢⱼ āᵢ Δᵢⱼ aⱼ]` (minus sign absorbed, see
-`AbstractCorrelationFunction`).
+`τᵢ = (i-1)δτ` and `τⱼ = (j-1)δτ`.
+
+The exponent of the discretized Feynman-Vernon influence functional built
+from Δ depends on the statistics of the bath (the minus sign is absorbed
+into Δ, see `AbstractCorrelationFunction`).
+
+For a fermionic bath, with Grassmann fields `a` (annihilation) and `ā`
+(conjugate), the exponent is
+
+    Σᵢⱼ āᵢ Δᵢⱼ aⱼ .
+
+For a bosonic bath, the system couples to the bath operators `B†` and `B`
+through an operator `s` and its Hermitian conjugate,
+
+    H_int = s ⊗ B† + s† ⊗ B ,
+
+which is the PT (process-tensor) case of TEMPO and also covers
+non-Hermitian `s` (e.g. a ladder operator).  The exponent is then
+
+    Σᵢⱼ s†ᵢ Δᵢⱼ sⱼ ,
+
+where `sᵢ = s(τᵢ)`.  For Hermitian `s` (`s† = s`) the two couplings
+coincide and the exponent degenerates to the single-operator (ADT) form
+
+    Σᵢⱼ sᵢ Δᵢⱼ sⱼ ;
+
+for diagonal `s` this is exactly the exponent of the standard
+imaginary-time QuAPI/TEMPO ADT framework.
 """
 struct ImagCorrelationFunction{M<:AbstractMatrix} <: AbstractCorrelationFunction
     data::M
