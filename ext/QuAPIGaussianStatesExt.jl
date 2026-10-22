@@ -28,14 +28,15 @@
 module QuAPIGaussianStatesExt
 
 using QuAPI
-using QuAPI: AbstractCorrelationFunction, _contour_delta
+using QuAPI: AbstractCorrelationFunction
+using QuAPI.Dense: _contour_delta
 using GaussianStates
 using GaussianStates: FermionicGaussianState
 using LinearAlgebra
 
 # ------------------------------------------------------------------ #
 # fermionic_bdg_matrix 重载：IF 系数态的反对称配对矩阵
-#（contour Δ 组装在 src/utility.jl 的 _contour_delta，两种实现共用）
+#（contour Δ 组装在 src/models.jl（QuAPI.Dense）的 _contour_delta，两种实现共用）
 # ------------------------------------------------------------------ #
 
 """

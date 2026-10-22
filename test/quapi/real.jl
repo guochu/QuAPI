@@ -219,11 +219,11 @@ end
     end
 end
 
-### fermionic Toulouse impurity (dense Grassmann tensor from src/utility.jl) ###
+### fermionic Toulouse impurity (dense Grassmann tensor from src/models.jl) ###
 
-# The influence functional comes from `QuAPI._if_coefficients` in the GTEMPO
-# leg order; the impurity kinetics, measures and contour closure are added to
-# the same bilinear exponent and the tensor is folded once with
+# The influence functional comes from `QuAPI.Dense._if_coefficients` in the
+# GTEMPO leg order; the impurity kinetics, measures and contour closure are
+# added to the same bilinear exponent and the tensor is folded once with
 # `_fold_grassmann` (no Grassmann-tensor package needed).
 
 """
@@ -231,7 +231,7 @@ end
 
 Real-time (closed Keldysh contour) fermionic QuAPI for the Toulouse impurity,
 represented as a single dense Grassmann tensor over the legs of
-`QuAPI._if_legs(corr)` (per node: `a`, `ā`; nodes in GTEMPO order, i.e.
+`QuAPI.Dense._if_legs(corr)` (per node: `a`, `ā`; nodes in GTEMPO order, i.e.
 `(+,Nt+1), (-,Nt+1), …, (+,1), (-,1)`).
 
 Contour: nodes 0..Nt on the + branch (t = 0..t) and on the - branch.
@@ -253,8 +253,8 @@ function quapi_rlm_rt_gt(β, ϵ_d, spectrum; Nt, t, μ=0.0)
     xc = conj(x)
     corr = fermionic_Δt(spectrum, β=β, N=Nt, t=t, μ=μ)
 
-    C = QuAPI._if_coefficients(corr)
-    basis = QuAPI._if_legs(corr)
+    C = QuAPI.Dense._if_coefficients(corr)
+    basis = QuAPI.Dense._if_legs(corr)
     li = Dict(l => k for (k, l) in enumerate(basis))
     # 节点 j = i+1（i = 0..Nt），branch = :+ / :-
     leg(i, b, c) = li[GrassmannContourIndex(i + 1, b, 1, c)]
@@ -269,16 +269,16 @@ function quapi_rlm_rt_gt(β, ϵ_d, spectrum; Nt, t, μ=0.0)
     C[leg(Nt, :-, true), leg(Nt, :+, false)] += -1.0          # contour closure
     C[leg(0, :+, true), leg(0, :-, false)] += exp(-β * ϵ_d)   # initial weight
 
-    data = QuAPI._fold_grassmann(C)
+    data = QuAPI.Dense._fold_grassmann(C)
     L = length(basis)
     ctop = data[1 << L]                            # all-odd coefficient
     Z = ctop
     # Under the GTEMPO leg order (a before ā per node, times descending) the
     # {ā⁺₀, a⁺_j} numerator changes order relative to the ascending layout
     # (one minus sign), while {ā⁻₀, a⁺_j} does not.
-    Gg = [QuAPI._grassmann_coefficient(data, leg(0, :+, true), leg(j, :+, false)) / ctop
+    Gg = [QuAPI.Dense._grassmann_coefficient(data, leg(0, :+, true), leg(j, :+, false)) / ctop
           for j in 0:Nt]
-    Gl = [QuAPI._grassmann_coefficient(data, leg(0, :-, true), leg(j, :+, false)) / ctop
+    Gl = [QuAPI.Dense._grassmann_coefficient(data, leg(0, :-, true), leg(j, :+, false)) / ctop
           for j in 0:Nt]
     return Z, Gg, Gl, δt
 end

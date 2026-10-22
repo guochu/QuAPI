@@ -134,10 +134,10 @@ end
 # Fermionic QuAPI (Toulouse / resonant-level model)
 # ---------------------------------------------------------------------------
 # The dense Grassmann tensor of the influence functional is built by
-# `QuAPI.GrassmannIF` / `QuAPI._if_coefficients`; the impurity kinetic
-# terms and the Berezin measures are added to the same bilinear exponent, so
-# the full path weight is again exp(Σ C_ij ξ_i ξ_j) over the legs of
-# `QuAPI._if_legs(corr)`.
+# `QuAPI.Dense.GrassmannADT` / `QuAPI.Dense._if_coefficients`; the impurity
+# kinetic terms and the Berezin measures are added to the same bilinear
+# exponent, so the full path weight is again exp(Σ C_ij ξ_i ξ_j) over the legs
+# of `QuAPI.Dense._if_legs(corr)`.
 
 """
     quapi_rlm_gt(β, ϵ_d, spectrum::AbstractBoundedFunction; N, μ=0.0)
@@ -149,7 +149,7 @@ Imaginary-time QuAPI for the Toulouse (resonant-level) model
 with the discretized path weight exp[Σᵢⱼ āᵢ (M_imp + Δ)ᵢⱼ aⱼ] (M_imp the
 anti-periodic kinetic matrix with x = e^{-δτϵ_d}, Δ the fermionic influence-
 functional matrix from `fermionic_Δτ`).  The Δ part is taken from the shared
-dense Grassmann machinery in `src/utility.jl` (`_if_coefficients` in the
+dense Grassmann machinery in `src/models.jl` (`_if_coefficients` in the
 GTEMPO leg order), the impurity kinetic terms and the measures −āᵢaᵢ are
 added to the same exponent matrix, and the tensor is folded once with
 `_fold_grassmann`.  Z and the Matsubara Green's function in the standard
@@ -169,8 +169,8 @@ function quapi_rlm_gt(β, ϵ_d, spectrum::AbstractBoundedFunction; N, μ=0.0)
     corr = fermionic_Δτ(spectrum, β=β, N=N, μ=μ)
 
     # influence functional: coefficient matrix in the GTEMPO leg order
-    C = QuAPI._if_coefficients(corr)
-    basis = QuAPI._if_legs(corr)
+    C = QuAPI.Dense._if_coefficients(corr)
+    basis = QuAPI.Dense._if_legs(corr)
     li = Dict(l => k for (k, l) in enumerate(basis))
     leg(j, c) = li[GrassmannContourIndex(j, :τ, 1, c)]
     for i in 1:N                                  # Berezin measure −āᵢaᵢ
@@ -181,7 +181,7 @@ function quapi_rlm_gt(β, ϵ_d, spectrum::AbstractBoundedFunction; N, μ=0.0)
     end
     C[leg(1, true), leg(N, false)] += -x          # anti-periodic wrap
 
-    data = QuAPI._fold_grassmann(C)
+    data = QuAPI.Dense._fold_grassmann(C)
     L = length(basis)
     ctop = data[1 << L]                           # all-odd top coefficient
     # The measure contributes (-1)^N, but the GTEMPO leg order here is
@@ -190,7 +190,7 @@ function quapi_rlm_gt(β, ϵ_d, spectrum::AbstractBoundedFunction; N, μ=0.0)
     # and the a/ā swap another (-1)^N, so these cancel and Z = +ctop.
     # The numerator monomial {ā₁, a_{m+1}} changes order under the same
     # relabelling, hence the extra minus sign in G.
-    c = [QuAPI._grassmann_coefficient(data, leg(1, true), leg(m + 1, false))
+    c = [QuAPI.Dense._grassmann_coefficient(data, leg(1, true), leg(m + 1, false))
          for m in 0:N-1]
     return ctop, -c ./ ctop, δτ
 end

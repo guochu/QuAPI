@@ -5,9 +5,9 @@ println("------------------------------------")
 using Test, LinearAlgebra
 
 # The influence functional — both flavors and the anomalous pairing blocks —
-# comes from the shared `QuAPI.GrassmannIF` machinery
-# (`QuAPI._if_coefficients` in the GTEMPO 2-flavor leg order); only the
-# impurity kinetic terms and the Berezin measures are added here.
+# comes from the shared `QuAPI.Dense.GrassmannADT` machinery (GTEMPO 2-flavor
+# leg order); the impurity kinetic terms and the Berezin measures are applied
+# by multiplying in two-leg `GrassmannADT` factors `exp(c ξᵢξⱼ) = 1 + c ξᵢξⱼ`.
 
 """
     quapi_bcs_gt(β, ϵ_d, spectrum::AbstractBoundedFunction; N, Δ, μ=0.0)
@@ -25,12 +25,11 @@ src/bcs/bcscorr.jl the discretized path weight is
 
 with M_imp the anti-periodic kinetic matrix (x = e^{-δτϵ_d}) and Δ↑↑/Δ↓↓ the
 normal, Δ↑↓/Δ↓↑ the anomalous influence-functional blocks from `bcs_Δτ`.  The
-Δ part is assembled by `QuAPI._if_coefficients` in the GTEMPO 2-flavor leg
-order (per node: a↑, ā↑, a↓, ā↓ with band = 1, 2), the impurity terms are
-added to the same exponent matrix, and the tensor is folded once with
-`_fold_grassmann`.  Z and the Matsubara Green's function in the standard
-convention G(τ_m) = -⟨d↑(τ_m)d↑†(0)⟩ are the Berezin integrals read off the
-coefficients
+bath part is assembled by `GrassmannADTIF` in the GTEMPO 2-flavor leg order
+(per node: a↑, ā↑, a↓, ā↓ with band = 1, 2), and the impurity terms are
+multiplied in as two-leg `GrassmannADT` factors; Z and the Matsubara Green's
+function in the standard convention G(τ_m) = -⟨d↑(τ_m)d↑†(0)⟩ are then read
+off the coefficients
 
     Z      = (-1)^(2N) · (all-odd top coefficient)
     G(τ_m) = (coefficient with legs ā↑₀, a↑_m even) / (top coefficient).
@@ -47,29 +46,41 @@ function quapi_bcs_gt(β, ϵ_d, spectrum::AbstractBoundedFunction; N, Δ, μ=0.0
     corr = bcs_Δτ(spectrum, β=β, N=N, μ=μ, Δ=Δ)
 
     # influence functional (normal + anomalous blocks, both flavors)
-    C = QuAPI._if_coefficients(corr)
-    basis = QuAPI._if_legs(corr)
+    gif = GrassmannADTIF(corr)
+    basis = gif.basis
     li = Dict(l => k for (k, l) in enumerate(basis))
     leg(j, band, c) = li[GrassmannContourIndex(j, :τ, band, c)]
+    # exp(c ξᵢξⱼ) = 1 + c ξᵢξⱼ as a two-leg GrassmannADT
+    function term(i, j, c)
+        return GrassmannADT([basis[i], basis[j]],
+                            promote_type(eltype(gif.data), typeof(c))[1, 0, 0, c])
+    end
     for band in (1, 2)
         for i in 1:N                              # Berezin measure −āᵢaᵢ
-            C[leg(i, band, true), leg(i, band, false)] += -1.0
+            gif = gif * term(leg(i, band, true), leg(i, band, false), -1.0)
         end
         for i in 2:N                              # forward kinetic x āᵢaᵢ₋₁
-            C[leg(i, band, true), leg(i - 1, band, false)] += x
+            gif = gif * term(leg(i, band, true), leg(i - 1, band, false), x)
         end
-        C[leg(1, band, true), leg(N, band, false)] += -x    # anti-periodic wrap
+        gif = gif * term(leg(1, band, true), leg(N, band, false), -x)   # anti-periodic wrap
     end
 
-    data = QuAPI._fold_grassmann(C)
+    data = gif.data
     L = length(basis)
-    ctop = data[1 << L]                           # all-odd top coefficient
+    ctop = Zvalue(gif)                            # all-odd top coefficient
+    # coefficient with the given legs removed from the all-odd top monomial
+    function coeff(legs...)
+        mask = (1 << L) - 1
+        for k in legs
+            mask &= ~(1 << (k - 1))
+        end
+        return data[mask + 1]
+    end
     # Z = +ctop in this ordering (the (-1)^(2N) measure sign and the
     # τ-descending leg reversal cancel); the G numerator monomial
     # {ā↑₁, a↑_{m+1}} changes order under the same relabelling, hence the
     # extra minus sign.
-    c = [QuAPI._grassmann_coefficient(data, leg(1, 1, true), leg(m + 1, 1, false))
-         for m in 0:N-1]
+    c = [coeff(leg(1, 1, true), leg(m + 1, 1, false)) for m in 0:N-1]
     return ctop, -c ./ ctop, δτ
 end
 

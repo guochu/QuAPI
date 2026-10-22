@@ -7,6 +7,7 @@ using GaussianStates: FermionicGaussianState, BosonicGaussianState,
                       osee, entropy, covariance, nmodes,
                       fermionic_bdg_matrix, bosonic_bdg_matrix
 using QuAPI
+using QuAPI.Dense
 using ImpurityModelBase
 # deprecated implementations, kept for cross-validation tests
 using QuAPI: fermionic_Δτ_deprecated, bosonic_Δτ_deprecated, bosonic_Δt_deprecated, fermionic_Δm_deprecated, bosonic_Δm_deprecated, isize, rsize

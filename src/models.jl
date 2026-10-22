@@ -1,6 +1,21 @@
 # ============================================================================
-# utility.jl —— 影响泛函的稠密表示与 contour 组装工具
+# models.jl —— 影响泛函的稠密表示与 contour 组装工具（QuAPI.Dense）
 # ============================================================================
+
+module Dense
+
+using ..QuAPI: AbstractCorrelationFunction, BCSCorrelationFunction,
+               ImagCorrelationFunction, RealCorrelationFunction,
+               AbstractMixedCorrelationFunction, CorrelationMatrix,
+               GrassmannContourIndex, BosonicContourIndex, branch, branches,
+               isize, rsize
+using LinearAlgebra: I, kron, triu, tril
+
+export GrassmannADT, BosonicADT, BosonicPT,
+       GrassmannADTIF, BosonicIF, Zvalue
+
+"稠密 IF 张量的最大元素数（2³⁰）。"
+const MAXTENSORDIM = 2^30
 
 # ------------------------------------------------------------------ #
 # contour Δ（hybridization 矩阵）组装
@@ -10,17 +25,12 @@
 # 实/混合含虚部），这里不写死为复数。
 # ------------------------------------------------------------------ #
 
-_branches(::ImagCorrelationFunction) = [:τ]
-_branches(::RealCorrelationFunction) = [:+, :-]
-_branches(::AbstractMixedCorrelationFunction) = [:+, :-, :τ]
-
 # BCS bath：2 个 flavor（band ↑=1, ↓=2），四个块的 contour 结构相同
 _bands(::AbstractCorrelationFunction) = 1
 _bands(::BCSCorrelationFunction) = 2
-_branches(x::BCSCorrelationFunction) = _branches(x.uu)
 
 # 分支块矩阵 → 整块矩阵（类型自动提升）
-function _assemble(brs::Vector{Symbol}, blocks::Matrix)
+function _assemble(brs, blocks::Matrix)
     dims = [size(blocks[i, 1], 1) for i in eachindex(brs)]
     offs = cumsum([0; dims])
     T = promote_type(map(eltype, blocks)...)
@@ -32,7 +42,7 @@ function _assemble(brs::Vector{Symbol}, blocks::Matrix)
 end
 
 function _contour_delta(x::AbstractCorrelationFunction)
-    brs = _branches(x)
+    brs = branches(x)
     blocks = [Matrix(branch(x; b1=b1, b2=b2)) for b1 in brs, b2 in brs]
     return _assemble(brs, blocks)
 end
@@ -61,7 +71,7 @@ end
 _split_block(B::AbstractMatrix) = (Matrix(triu(B)), Matrix(tril(B, -1)))
 
 function _contour_delta_split(x::AbstractCorrelationFunction)
-    brs = _branches(x)
+    brs = branches(x)
     parts = [_split_block(branch(x; b1=b1, b2=b2)) for b1 in brs, b2 in brs]
     return _assemble(brs, [p[1] for p in parts]),
            _assemble(brs, [p[2] for p in parts])
@@ -101,40 +111,41 @@ _if_legorder(x::BCSCorrelationFunction) = _if_legorder(x.uu)
 # ------------------------------------------------------------------ #
 
 """
-    GrassmannIF{T<:Number}
+    GrassmannADT{T<:Number}
 
 费米影响泛函的稠密 Grassmann 表示：`basis` 为 `L` 条腿（链序，每节点
 band 逐次展开、每个 band 内 `a`、`ā` 相邻），`data` 为 `2^L` 个
 Grassmann monomial 系数（腿 1 最快）。`T` 由 correlation function 的
-元素类型决定。
+元素类型决定。用 [`GrassmannADTIF`](@ref) 从 correlation function 构造。
 """
-struct GrassmannIF{T<:Number}
+struct GrassmannADT{T<:Number}
     basis::Vector{GrassmannContourIndex}
     data::Vector{T}
 end
 
 """
-    BosonicIF{T<:Number}
+    BosonicADT{T<:Number}
 
 玻色影响泛函在对角（ADT）耦合下的稠密表示：`basis` 为 `n` 个 contour
 节点（链序），`d` 为物理维度（耦合算符本征值矢量的长度），`data` 为
-`dⁿ` 个路径权重（节点 1 最快）——指标数与 `basis` 数一致。
+`dⁿ` 个路径权重（节点 1 最快）——指标数与 `basis` 数一致。用
+[`BosonicIF`](@ref) 从 correlation function 构造。
 """
-struct BosonicIF{T<:Number}
+struct BosonicADT{T<:Number}
     basis::Vector{BosonicContourIndex}
     d::Int
     data::Vector{T}
 end
 
 """
-    NonDiagonalBosonicIF{T<:Number}
+    BosonicPT{T<:Number}
 
 玻色影响泛函在非对角（PT）耦合下的稠密表示：`basis` 为 `n` 个 contour
 节点（链序），`d` 为系统维度，`data` 为 `d^{2n}` 个矩阵元（指标 2p−1 =
 节点 p 的 ket 路径、2p = 节点 p 的 bra 路径，指标 1 最快）——指标数是
-`basis` 数的两倍。
+`basis` 数的两倍。用 [`BosonicIF`](@ref) 从 correlation function 构造。
 """
-struct NonDiagonalBosonicIF{T<:Number}
+struct BosonicPT{T<:Number}
     basis::Vector{BosonicContourIndex}
     d::Int
     data::Vector{T}
@@ -145,7 +156,7 @@ end
 # ------------------------------------------------------------------ #
 
 # ------------------------------------------------------------------ #
-# 费米稠密 Grassmann 表示的三件套（供 GrassmannIF 与外部复用）：
+# 费米稠密 Grassmann 表示的三件套（供 GrassmannADTIF 与外部复用）：
 #   _if_legs(x)         → 链序腿列表（每节点逐 band、a/ā 相邻）
 #   _if_coefficients(x) → 双线性指数矩阵 C（行 = 腿，C[i,j] 配 ξ_i ξ_j）
 #   _fold_grassmann(C)  → exp(Σ C_ij ξ_i ξ_j) 的稠密系数向量
@@ -237,8 +248,8 @@ function _if_coefficients(x::IFSource)
 end
 
 """
-    GrassmannIF(x::Union{AbstractCorrelationFunction,BCSCorrelationFunction})
-        -> GrassmannIF
+    GrassmannADTIF(x::Union{AbstractCorrelationFunction,BCSCorrelationFunction})
+        -> GrassmannADT
 
 费米影响泛函 IF 的**稠密 Grassmann 表示**：
 
@@ -259,21 +270,22 @@ bath 每节点 2 条腿 `(a, ā)`，**BCS bath 每节点 4 条腿**（`band = 1,
 
 元素类型 `T` 取自 correlation function（虚时通常为实）。
 
-腿数 `L ≤ 30`（`2^30` 个系数即内存上限）；超过时抛 `ArgumentError`。
+腿数满足 `2^L ≤ MAXTENSORDIM`（`2^30` 个系数即内存上限）；超过时抛
+`ArgumentError`。
 
 前缀割（链前 `k` 个节点块，即腿 `1..2k·bands`）的 plain SVD 熵等于
 系数态的 OSEE（协方差快速算法，`GaussianStates.osee`），可用于交叉
 验证；节点 `p` 在 Δ 行序（`[:+; :-; :τ]`，分支内时间升序）中的指标即
 GaussianStates 配对态的模式指标。
 """
-function GrassmannIF(x::IFSource)
+function GrassmannADTIF(x::IFSource)
     basis = _if_legs(x)
     L = length(basis)
-    L ≤ 30 || throw(ArgumentError(
-        "稠密 IF 张量阶数 L = $(L) 超过上限 30（2^L 个系数将耗尽内存）；" *
+    L ≤ log2(MAXTENSORDIM) || throw(ArgumentError(
+        "稠密 IF 张量阶数 L = $(L) 超过上限 2^$(Int(log2(MAXTENSORDIM)))（2^L 个系数将耗尽内存）；" *
         "请减小 contour 节点数 n 或 flavor 数（当前 L = $(L)），" *
         "或使用协方差快速算法"))
-    return GrassmannIF(basis, _fold_grassmann(_if_coefficients(x)))
+    return GrassmannADT(basis, _fold_grassmann(_if_coefficients(x)))
 end
 
 # ------------------------------------------------------------------ #
@@ -282,7 +294,7 @@ end
 
 """
     BosonicIF(x::AbstractCorrelationFunction, λ::AbstractVector{<:Real})
-        -> BosonicIF
+        -> BosonicADT
 
 玻色影响泛函在**对角（ADT）耦合**下的稠密表示。耦合形式
 
@@ -302,7 +314,8 @@ I[v₁..v_n] = exp(Σ_pq Δ_pq v_p v_q)
 张量指标到路径值的映射）；`basis` 为链序节点（GTEMPO/TEMPO 默认
 ordering，见 `_if_legorder`），`d = length(λ)`。
 
-复杂度 O(n² dⁿ)；`dⁿ > 2³⁰` 时抛 `ArgumentError`（d=2 即 n ≤ 30）。
+复杂度 O(n² dⁿ)；`dⁿ > MAXTENSORDIM`（`2³⁰`）时抛 `ArgumentError`
+（d=2 即 n ≤ 30）。
 """
 function BosonicIF(x::AbstractCorrelationFunction,
                          λ::AbstractVector{<:Real})
@@ -312,8 +325,8 @@ function BosonicIF(x::AbstractCorrelationFunction,
     nodes = _contour_nodes(x)
     chain = _if_legorder(x)
     n = length(chain)
-    n * log2(d) ≤ 30 || throw(ArgumentError(
-        "稠密 IF 张量总元素数 d^n = $(d)^$(n) 超过上限 2^30；" *
+    n * log2(d) ≤ log2(MAXTENSORDIM) || throw(ArgumentError(
+        "稠密 IF 张量总元素数 d^n = $(d)^$(n) 超过上限 MAXTENSORDIM = 2³⁰；" *
         "请减小 contour 节点数 n（当前 $(n)）或路径值个数 d（当前 $(d)）"))
     T = eltype(Δ)
     nodeidx = Dict(bi => k for (k, bi) in enumerate(nodes))
@@ -328,12 +341,12 @@ function BosonicIF(x::AbstractCorrelationFunction,
         end
     end
     basis = BosonicContourIndex[BosonicContourIndex(j, b) for (b, j) in chain]
-    return BosonicIF(basis, d, vec(data))
+    return BosonicADT(basis, d, vec(data))
 end
 
 """
-    NonDiagonalBosonicIF(x::AbstractCorrelationFunction, hyb::AbstractMatrix)
-        -> NonDiagonalBosonicIF
+    BosonicIF(x::AbstractCorrelationFunction, hyb::AbstractMatrix)
+        -> BosonicPT
 
 玻色影响泛函在**非对角（PT）耦合**下的稠密表示，`hyb` 为任意方阵
 （`NonDiagonalHyb` 约定：`op*a + op'*a'`，`op = hyb`，不要求厄米）。
@@ -353,10 +366,10 @@ H = Σ_pq [ M1[p,q]·op1_p·op2_q + M2[p,q]·op2_p·op1_q ]
 
 `data` 为 `d^{2n}` 个矩阵元：指标 `2p−1` = 节点 `p` 的 ket 路径，
 `2p` = 节点 `p` 的 bra 路径，指标 1 最快；`basis` 为链序节点，
-`d = size(hyb, 1)`。总元素数 `d^{2n} > 2³⁰` 时抛 `ArgumentError`
-（d=2 即 n ≤ 15）。
+`d = size(hyb, 1)`。总元素数 `d^{2n} > MAXTENSORDIM`（`2³⁰`）时抛
+`ArgumentError`（d=2 即 n ≤ 15）。
 """
-function NonDiagonalBosonicIF(x::AbstractCorrelationFunction, hyb::AbstractMatrix)
+function BosonicIF(x::AbstractCorrelationFunction, hyb::AbstractMatrix)
     size(hyb, 1) == size(hyb, 2) || throw(ArgumentError("hyb 必须是方阵"))
     d = size(hyb, 1)
     M1, M2 = _contour_delta_split(x)
@@ -367,8 +380,8 @@ function NonDiagonalBosonicIF(x::AbstractCorrelationFunction, hyb::AbstractMatri
     M1 = M1[ord, ord]
     M2 = M2[ord, ord]
     n = length(chain)
-    n * log2(d) ≤ 15 || throw(ArgumentError(
-        "稠密 PT 张量总元素数 d^{2n} = $(d)^$(2n) 超过上限 2^30；" *
+    2n * log2(d) ≤ log2(MAXTENSORDIM) || throw(ArgumentError(
+        "稠密 PT 张量总元素数 d^{2n} = $(d)^$(2n) 超过上限 MAXTENSORDIM = 2³⁰；" *
         "请减小 contour 节点数 n（当前 $(n)）或系统维度 d（当前 $(d)）"))
     T = promote_type(eltype(M1), eltype(hyb))
     op1 = Matrix{T}(hyb)
@@ -395,7 +408,7 @@ function NonDiagonalBosonicIF(x::AbstractCorrelationFunction, hyb::AbstractMatri
     Ten = reshape(F, ntuple(_ -> d, 2n))
     perm = vcat([[p, n + p] for p in 1:n]...)
     basis = BosonicContourIndex[BosonicContourIndex(j, b) for (b, j) in chain]
-    return NonDiagonalBosonicIF(basis, d, vec(permutedims(Ten, perm)))
+    return BosonicPT(basis, d, vec(permutedims(Ten, perm)))
 end
 
 # op 作用在 d^n 维空间的第 p 个张量因子上（节点 1 为最快指标，与 data 的
@@ -406,3 +419,193 @@ function _op_at(op::AbstractMatrix{T}, p::Int, n::Int) where {T}
     fast = d^(p - 1)      # 节点 p−1..1
     return kron(Matrix{T}(I, slow, slow), op, Matrix{T}(I, fast, fast))
 end
+
+# ------------------------------------------------------------------ #
+# 稠密 IF 之间的乘法（Grassmann / 玻色）
+#
+# 两个 IF 的 basis 可以不同：共享的腿按 Grassmann 乘法融合
+# （1·ξ = ξ，ξ·ξ = 0，重排符号计入），只出现在一边的腿成为外腿；
+# 玻色情形为共享节点上的逐点（Hadamard）乘积。
+# ------------------------------------------------------------------ #
+
+# 并基：bA 在前，bB 独有的元素按 bB 的顺序追加；返回并基以及 bB 各元素在
+# 并基中的位置。
+function _union_basis(bA, bB)
+    ubasis = collect(bA)
+    where = Dict(l => k for (k, l) in enumerate(ubasis))
+    posB = Vector{Int}(undef, length(bB))
+    for (k, l) in enumerate(bB)
+        p = get(where, l, 0)
+        if p == 0
+            push!(ubasis, l)
+            p = length(ubasis)
+            where[l] = p
+        end
+        posB[k] = p
+    end
+    return ubasis, posB
+end
+
+"""
+    *(A::GrassmannADT, B::GrassmannADT) -> GrassmannADT
+
+两个稠密 Grassmann IF 的乘法，允许 `basis` 不同：共享腿按 Grassmann
+乘法融合（`1·ξ = ξ`、`ξ·ξ = 0`，重排符号计入），只在一边出现的腿成为
+外腿。结果 `basis` 为 `A.basis` 后接 `B` 中不在 `A.basis` 里的腿；
+`data` 按该顺序展开（腿 1 最快）。
+"""
+function Base.:*(A::GrassmannADT, B::GrassmannADT)
+    ubasis, posB = _union_basis(A.basis, B.basis)
+    LA, LB, L = length(A.basis), length(B.basis), length(ubasis)
+    T = promote_type(eltype(A.data), eltype(B.data))
+    data = zeros(T, 1 << L)
+    for mA in 0:(1 << LA) - 1
+        a = A.data[mA + 1]
+        iszero(a) && continue
+        for mB in 0:(1 << LB) - 1
+            b = B.data[mB + 1]
+            iszero(b) && continue
+            bitsB = 0
+            ok = true
+            for k in 1:LB
+                ((mB >> (k - 1)) & 1) == 0 && continue
+                p = posB[k]
+                if ((mA >> (p - 1)) & 1) == 1 || ((bitsB >> (p - 1)) & 1) == 1
+                    ok = false
+                    break
+                end
+                bitsB |= 1 << (p - 1)
+            end
+            ok || continue
+            # A 的变量在前（并基序升序）；B 的变量按 B 的 basis 序，统计
+            # 把它们重排成并基升序所需的逆序数
+            inv = 0
+            for k in 1:LB
+                ((mB >> (k - 1)) & 1) == 0 && continue
+                p = posB[k]
+                inv += count_ones(mA & ~((1 << p) - 1))
+                for l in 1:(k - 1)
+                    ((mB >> (l - 1)) & 1) != 0 && posB[l] > p && (inv += 1)
+                end
+            end
+            data[(mA | bitsB) + 1] += isodd(inv) ? -a * b : a * b
+        end
+    end
+    return GrassmannADT(ubasis, data)
+end
+
+"""
+    Zvalue(x::GrassmannADT)
+
+稠密 Grassmann IF 的 Berezin 积分：全腿单项式的系数（`x.data` 的末项）。
+"""
+Zvalue(x::GrassmannADT) = x.data[end]
+
+"""
+    *(A::BosonicADT, B::BosonicADT) -> BosonicADT
+
+ADT 路径权重的逐点（Hadamard）乘积，允许节点集合不同：共享节点上的
+指标对齐相乘，独有节点取外积。
+"""
+function Base.:*(A::BosonicADT, B::BosonicADT)
+    A.d == B.d || throw(DimensionMismatch(
+        "path dimension mismatch: $(A.d) vs $(B.d)"))
+    ubasis, posB = _union_basis(A.basis, B.basis)
+    nA, nB, n = length(A.basis), length(B.basis), length(ubasis)
+    T = promote_type(eltype(A.data), eltype(B.data))
+    data = zeros(T, ntuple(_ -> A.d, n))
+    for I in CartesianIndices(data)
+        ia, stride = 0, 1
+        for p in 1:nA
+            ia += (I[p] - 1) * stride
+            stride *= A.d
+        end
+        ib, stride = 0, 1
+        for q in 1:nB
+            ib += (I[posB[q]] - 1) * stride
+            stride *= B.d
+        end
+        data[I] = A.data[ia + 1] * B.data[ib + 1]
+    end
+    return BosonicADT(ubasis, A.d, vec(data))
+end
+
+# PT 的矩阵视图：行 = 各节点 ket（节点 1 最快），列 = 各节点 bra
+function _pt_matrix(P::BosonicPT)
+    d, n = P.d, length(P.basis)
+    n == 0 && return reshape([P.data[1]], 1, 1)
+    T = reshape(P.data, ntuple(_ -> d, 2n))
+    perm = vcat(collect(1:2:2n), collect(2:2:2n))   # (ket₁..ketₙ, bra₁..braₙ)
+    return reshape(permutedims(T, perm), d^n, d^n)
+end
+
+function _pt_from_matrix(M::AbstractMatrix, basis, d::Int)
+    n = length(basis)
+    n == 0 && return BosonicPT(collect(basis), d, [M[1]])
+    T = reshape(M, ntuple(_ -> d, 2n))              # (ket₁..ketₙ, bra₁..braₙ)
+    perm = vcat([[p, n + p] for p in 1:n]...)       # → (ket₁, bra₁, ket₂, bra₂, …)
+    return BosonicPT(collect(basis), d, vec(permutedims(T, perm)))
+end
+
+# 把 basis 为 ubasis 子集的 PT 提升到 ubasis：缺失节点取恒等超算符
+function _pt_matrix_on(P::BosonicPT, ubasis, posP)
+    M = _pt_matrix(P)
+    n, nP, d = length(ubasis), length(P.basis), P.d
+    n == nP && return M
+    nP == 0 && return M[1] .* Matrix{eltype(M)}(I, d^n, d^n)
+    dims = ntuple(_ -> d, n)
+    lin = LinearIndices(dims)
+    linP = LinearIndices(ntuple(_ -> d, nP))
+    out = zeros(eltype(M), d^n, d^n)
+    for I in CartesianIndices(dims), J in CartesianIndices(dims)
+        ok = true
+        for p in 1:n
+            (p in posP || I[p] == J[p]) || (ok = false; break)
+        end
+        ok || continue
+        IP = CartesianIndex(ntuple(q -> I[posP[q]], nP))
+        JP = CartesianIndex(ntuple(q -> J[posP[q]], nP))
+        out[lin[I], lin[J]] = M[linP[IP], linP[J]]
+    end
+    return out
+end
+
+"""
+    *(A::BosonicPT, B::BosonicPT) -> BosonicPT
+
+PT 视为矩阵（行 = 各节点 ket、列 = 各节点 bra）的矩阵乘积
+`reshape(A) * reshape(B)`；basis 不同时缺失节点按恒等超算符补齐，
+结果定义在并基上。
+"""
+function Base.:*(A::BosonicPT, B::BosonicPT)
+    A.d == B.d || throw(DimensionMismatch(
+        "path dimension mismatch: $(A.d) vs $(B.d)"))
+    ubasis, posB = _union_basis(A.basis, B.basis)
+    posA = collect(1:length(A.basis))
+    return _pt_from_matrix(_pt_matrix_on(A, ubasis, posA) *
+                           _pt_matrix_on(B, ubasis, posB), ubasis, A.d)
+end
+
+"""
+    Zvalue(x::BosonicADT)
+
+ADT 路径权重之和（对角耦合下的配分函数 / 迹）。
+"""
+Zvalue(x::BosonicADT) = sum(x.data)
+
+"""
+    Zvalue(x::BosonicPT)
+
+PT 表示下的迹：每个节点取 ket 指标等于 bra 指标后求和。
+"""
+function Zvalue(x::BosonicPT)
+    d, n = x.d, length(x.basis)
+    data = reshape(x.data, ntuple(_ -> d, 2n))
+    s = zero(eltype(x.data))
+    for I in CartesianIndices(data)
+        all(I[2p-1] == I[2p] for p in 1:n) && (s += data[I])
+    end
+    return s
+end
+
+end # module Dense

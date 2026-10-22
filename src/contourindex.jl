@@ -41,25 +41,41 @@ branch(x::AbstractContourIndex) = x.branch
 
 # ------------------------------------------------------------------ #
 # 用腿指标访问 hybridization function：
-#     x[i::AbstractContourIndex, j::AbstractContourIndex] ==
-#         index(x, i.j, j.j; b1 = branch(i), b2 = branch(j))
+# - 普通费米 bath：按 conj 组合给出 Wick 收缩（a-ā 取 Δ，ā-a 取 -Δ，
+#   同 conj 为零）；
+# - BCS bath：按 band 选择自旋块；
+# - 玻色 bath：直接取 Δ 矩阵元。
 # ------------------------------------------------------------------ #
 
 """
     x[i::GrassmannContourIndex, j::GrassmannContourIndex]
 
-读取费米 hybridization function 的矩阵元，等价于
-`index(x, i.j, j.j; b1=branch(i), b2=branch(j))`。
+Bath contraction of a normal (non-BCS) fermionic bath between the two
+Grassmann legs `i` and `j`, selected by the `conj` flags:
 
-普通（单 flavor）费米 bath 的 hybridization function 只有**带内耦合**，
-因此要求两个指标的 `band` 相等（BCS bath 见下一个方法）。
+- `a-ā` (`i.conj == false`, `j.conj == true`):
+
+      x[i, j] = Δ[i.j, j.j] ;
+
+- `ā-a` (`i.conj == true`, `j.conj == false`):
+
+      x[i, j] = -Δ[i.j, j.j] ;
+
+- `a-a` and `ā-ā`: zero.
+
+Δ is the `branch` block carried by the two indices; the legs may belong to
+different bands (no band matching is required).
 """
 function Base.getindex(x::AbstractCorrelationFunction,
                        i::GrassmannContourIndex, j::GrassmannContourIndex)
-    i.band == j.band || throw(ArgumentError(
-        "普通费米 bath 的 hybridization function 只有带内耦合：" *
-        "两个 GrassmannContourIndex 的 band 必须相等（$(i.band) vs $(j.band)）"))
-    return index(x, i.j, j.j; b1=branch(i), b2=branch(j))
+    D = branch(x; b1=branch(i), b2=branch(j))
+    if !i.conj && j.conj          # a-ā
+        return D[i.j, j.j]
+    elseif i.conj && !j.conj      # ā-a
+        return -D[i.j, j.j]
+    else                          # a-a, ā-ā
+        return zero(eltype(D))
+    end
 end
 
 """
