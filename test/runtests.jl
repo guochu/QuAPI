@@ -24,16 +24,16 @@ include("osee.jl")
 
 ### imaginary-time QuAPI
 
-include("quapi/imagquapi.jl")
-include("quapi/bcsimagquapi.jl")
+include("quapi/imag.jl")
+include("quapi/bcsimag.jl")
 
 ### real-time QuAPI
 
-include("quapi/realquapi.jl")
-include("quapi/bcsrealquapi.jl")
+include("quapi/real.jl")
+include("quapi/bcsreal.jl")
 
 ### mixed-time (Kadanoff contour) QuAPI
 
-include("quapi/mixedquapi.jl")
+include("quapi/mixed.jl")
 
 include("bcs.jl")

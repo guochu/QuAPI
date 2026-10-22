@@ -109,11 +109,11 @@ end
         ("MX", fermionic_Δm(semicircular(), β=2.0, Nτ=2, t=0.5, Nt=1, μ=0.2)),
     )
     for (name, corr) in cases
-        T = DenseFermionicIF(corr)
+        T = GrassmannIF(corr)
         n = size(QuAPI._contour_delta(corr), 1)
         chain = QuAPI._if_legorder(corr)             # GTEMPO ordering 链序节点
         nodes = QuAPI._contour_nodes(corr)           # Δ 行序节点（fast 模式指标）
-        @test T isa DenseFermionicIF
+        @test T isa GrassmannIF
         @test length(T.basis) == 2n && length(T.data) == 2^(2n)
         @test norm(T.data) > 0
         # 元素类型由 correlation function 决定（不写死）：虚时为实、实时含虚部
@@ -142,7 +142,7 @@ end
           [(:τ, 2), (:τ, 1), (:+, 1), (:-, 1), (:+, 2), (:-, 2)]  # 虚时降序 ++ 实时升序
     # 阶数上限：n = 16 ⟹ L = 32 > 30 提前报错（不进入 2^32 系数构造）
     big = fermionic_Δτ(semicircular(), β=5.0, N=16, μ=0.0)
-    @test_throws ArgumentError DenseFermionicIF(big)
+    @test_throws ArgumentError GrassmannIF(big)
 end
 
 # ---------------- 稠密费米 IF：BCS bath（2 band） ----------------
@@ -152,9 +152,9 @@ end
     corr = fermionic_Δτ(spec, β=β, N=N, μ=0.0)
     z = corr - corr                                  # 零块
     bcs = BCSCorrelationFunction(; uu=corr, ud=z, du=z, dd=z)
-    B = DenseFermionicIF(bcs)
+    B = GrassmannIF(bcs)
     n = N
-    @test B isa DenseFermionicIF
+    @test B isa GrassmannIF
     # 每节点 4 条腿：band 1/2，每个 band 内 (a, ā) 相邻，链序 τ 降序
     @test length(B.basis) == 4n
     @test length(B.data) == 2^(4n)
@@ -163,7 +163,7 @@ end
         for (b, j) in QuAPI._if_legorder(corr) for band in (1, 2)
         for c in (false, true)]
     # 只有 ↑ 的正常块非零：↓ 腿全偶的系数应与单 flavor 张量逐一相等
-    A = DenseFermionicIF(corr)                       # 单 flavor
+    A = GrassmannIF(corr)                       # 单 flavor
     @test length(A.basis) == 2n
     for i in 0:(2^(2n) - 1)
         mask_b = 0
@@ -178,7 +178,41 @@ end
     bigc = fermionic_Δτ(spec, β=β, N=8, μ=0.0)
     bigbcs = BCSCorrelationFunction(; uu=bigc, ud=bigc - bigc, du=bigc - bigc,
                                     dd=bigc - bigc)
-    @test_throws ArgumentError DenseFermionicIF(bigbcs)
+    @test_throws ArgumentError GrassmannIF(bigbcs)
+end
+
+# ---------------- ContourIndex：腿指标上的 correlation function 访问 ----------------
+@testset "ContourIndex 访问" begin
+    corrτ = fermionic_Δτ(semicircular(), β=5.0, N=4, μ=0.3)
+    i = GrassmannContourIndex(2, :τ, 1, false)
+    j = GrassmannContourIndex(3, :τ, 1, true)
+    @test branch(i) == :τ && branch(j) == :τ
+    @test i isa ContourIndex && BosonicContourIndex(1, :+) isa ContourIndex
+    # 行为与 index 一致
+    @test corrτ[i, j] == index(corrτ, 2, 3; b1=:τ, b2=:τ)
+    @test corrτ[j, i] == index(corrτ, 3, 2; b1=:τ, b2=:τ)
+    # 普通费米 bath：只有带内耦合，band 不等时拒绝
+    @test_throws ArgumentError corrτ[i, GrassmannContourIndex(3, :τ, 2, true)]
+    # 实时 contour：分支由指标携带
+    corrt = fermionic_Δt(semicircular(), β=2.0, t=1.0, N=2, μ=0.2)
+    ip = GrassmannContourIndex(2, :+, 1, false)
+    jm = GrassmannContourIndex(3, :-, 1, true)
+    @test corrt[ip, jm] == index(corrt, 2, 3; b1=:+, b2=:-)
+    @test corrt[jm, ip] == index(corrt, 3, 2; b1=:-, b2=:+)
+    # 玻色（无 band）
+    corrb = bosonic_Δτ(spectrum(ε -> exp(-ε), lb=0.5, ub=8.0), β=2.0, N=3)
+    bi = BosonicContourIndex(1, :τ)
+    bj = BosonicContourIndex(2, :τ)
+    @test corrb[bi, bj] == index(corrb, 1, 2; b1=:τ, b2=:τ)
+    @test corrb[bj, bi] == index(corrb, 2, 1; b1=:τ, b2=:τ)
+    # BCS：band 奇数 = 上自旋，偶数 = 下自旋（允许带间块）
+    bcs = bcs_Δτ(DiscreteSpectrum([1.0], [0.25]), β=2.0, N=3, μ=0.0, Δ=0.5)
+    kup = GrassmannContourIndex(1, :τ, 1, false)
+    kdn = GrassmannContourIndex(2, :τ, 2, true)
+    @test bcs[kup, kdn] == index(bcs[:↑, :↓], 1, 2; b1=:τ, b2=:τ)
+    @test bcs[kdn, kup] == index(bcs[:↓, :↑], 2, 1; b1=:τ, b2=:τ)
+    @test bcs[kup, GrassmannContourIndex(3, :τ, 3, true)] ==
+          index(bcs[:↑, :↑], 1, 3; b1=:τ, b2=:τ)     # band 3 = 上自旋
 end
 
 # ---------------- 稠密玻色 ADT（对角耦合：路径权重） ----------------
@@ -207,10 +241,10 @@ end
     for (name, corr) in (("IM", bosonic_Δτ(f0b, β=2.0, N=4)),
                          ("RT", bosonic_Δt(f0b, β=2.0, t=1.0, N=2)),
                          ("MX", bosonic_Δm(f0b, β=2.0, Nτ=2, t=0.5, Nt=1)))
-        A = DenseBosonicADT(corr, λsbm)
+        A = BosonicIF(corr, λsbm)
         n = length(QuAPI._if_legorder(corr))
         chain = QuAPI._if_legorder(corr)
-        @test A isa DenseBosonicADT
+        @test A isa BosonicIF
         @test A.d == 2 && length(A.data) == 2^n
         @test eltype(A.data) == eltype(QuAPI._contour_delta(corr))
         # basis 逐位置固化
@@ -219,14 +253,14 @@ end
     end
     # 一般本征值矢量（非 ±1；含零）
     λg = [0.3, 1.7, -0.9]
-    A4 = DenseBosonicADT(bosonic_Δτ(f0b, β=2.0, N=3), λg)
+    A4 = BosonicIF(bosonic_Δτ(f0b, β=2.0, N=3), λg)
     @test A4.data ≈ vec(ref_IF(bosonic_Δτ(f0b, β=2.0, N=3), λg)) rtol = 1e-12
     @test A4.d == 3 && length(A4.data) == 27 && length(A4.basis) == 3
     # 负检验：链序（GTEMPO ordering）确实影响结果——升序链的参考与实现不同，
     # 保证上面的逐元素对照不是平凡通过。用实时 corr（虚时 Δ 有 KMS 时间反转
     # 对称 Δ = JΔJ，升降序恰好重合，不能用于此检验）
     corr3 = bosonic_Δt(f0b, β=2.0, t=1.0, N=2)
-    Tdown = DenseBosonicADT(corr3, λsbm)
+    Tdown = BosonicIF(corr3, λsbm)
     function ref_IF_wrong(corr, λ)   # 故意用升序链
         Δ = QuAPI._contour_delta(corr)
         nodes = QuAPI._contour_nodes(corr)
@@ -245,13 +279,13 @@ end
     end
     @test !(Tdown.data ≈ vec(ref_IF_wrong(corr3, λsbm)))
     # 空 λ 报错
-    @test_throws ArgumentError DenseBosonicADT(corr3, Float64[])
+    @test_throws ArgumentError BosonicIF(corr3, Float64[])
     # 元素数上限：d=2, n=31 ⟹ 2^31 > 2^30
     big = bosonic_Δτ(f0b, β=2.0, N=31)
-    @test_throws ArgumentError DenseBosonicADT(big, λsbm)
+    @test_throws ArgumentError BosonicIF(big, λsbm)
     # d=4, n=16 ⟹ 4^16 = 2^32 > 2^30
     big16 = bosonic_Δτ(f0b, β=2.0, N=16)
-    @test_throws ArgumentError DenseBosonicADT(big16, [1.0, 2.0, 3.0, 4.0])
+    @test_throws ArgumentError BosonicIF(big16, [1.0, 2.0, 3.0, 4.0])
 end
 
 # ---------------- 稠密玻色 PT（非对角耦合：IF = exp(H)） ----------------
@@ -264,9 +298,9 @@ end
                  bosonic_Δm(f0b, β=2.0, Nτ=2, t=0.5, Nt=1))
         n = length(QuAPI._if_legorder(corr))
         d = 2
-        A = DenseBosonicADT(corr, λ)
-        P = DenseBosonicPT(corr, Matrix(Diagonal(λ)))
-        @test P isa DenseBosonicPT
+        A = BosonicIF(corr, λ)
+        P = NonDiagonalBosonicIF(corr, Matrix(Diagonal(λ)))
+        @test P isa NonDiagonalBosonicIF
         @test P.d == d && length(P.data) == d^(2n) == 4^n
         @test P.basis == A.basis                       # 同一链序节点
         @test eltype(P.data) == eltype(A.data)
@@ -291,8 +325,8 @@ end
     U = [cos(θ) -sin(θ); sin(θ) cos(θ)]
     λnd = [0.7, -0.3]
     hybU = U * Diagonal(λnd) * U'
-    P = DenseBosonicPT(corr, hybU)
-    w = reshape(DenseBosonicADT(corr, λnd).data, ntuple(_ -> d, n))
+    P = NonDiagonalBosonicIF(corr, hybU)
+    w = reshape(BosonicIF(corr, λnd).data, ntuple(_ -> d, n))
     T = reshape(P.data, ntuple(_ -> d, 2n))
     Texp = Array{eltype(P.data)}(undef, ntuple(_ -> d, 2n))
     for I in CartesianIndices(Texp)
@@ -307,12 +341,12 @@ end
     @test T ≈ Texp atol = 1e-11
     # 复厄米 hyb：H 厄米 ⟹ exp(H) 厄米 ⟹ T[α;β] = conj(T[β;α])
     hybH = [0.5 0.4im; -0.4im -0.2]
-    Pc = DenseBosonicPT(corr, hybH)
+    Pc = NonDiagonalBosonicIF(corr, hybH)
     Tc = reshape(Pc.data, ntuple(_ -> d, 2n))
     swap = vcat([[2p, 2p - 1] for p in 1:n]...)
     @test Tc ≈ conj.(permutedims(Tc, swap)) atol = 1e-11
     # 非方阵 hyb / 规模上限
-    @test_throws ArgumentError DenseBosonicPT(corr, [1.0 2.0 3.0])
+    @test_throws ArgumentError NonDiagonalBosonicIF(corr, [1.0 2.0 3.0])
     big = bosonic_Δτ(f0b, β=2.0, N=16)          # d=2, n=16 ⟹ 2^32
-    @test_throws ArgumentError DenseBosonicPT(big, Matrix(Diagonal(λ)))
+    @test_throws ArgumentError NonDiagonalBosonicIF(big, Matrix(Diagonal(λ)))
 end

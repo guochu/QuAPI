@@ -134,7 +134,7 @@ end
 # Fermionic QuAPI (Toulouse / resonant-level model)
 # ---------------------------------------------------------------------------
 # The dense Grassmann tensor of the influence functional is built by
-# `QuAPI.DenseFermionicIF` / `QuAPI._if_coefficients`; the impurity kinetic
+# `QuAPI.GrassmannIF` / `QuAPI._if_coefficients`; the impurity kinetic
 # terms and the Berezin measures are added to the same bilinear exponent, so
 # the full path weight is again exp(Σ C_ij ξ_i ξ_j) over the legs of
 # `QuAPI._if_legs(corr)`.

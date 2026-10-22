@@ -97,68 +97,44 @@ end
 _if_legorder(x::BCSCorrelationFunction) = _if_legorder(x.uu)
 
 # ------------------------------------------------------------------ #
-# 指标与稠密表示的容器类型
+# 稠密表示的容器类型（腿指标见 contourindex.jl）
 # ------------------------------------------------------------------ #
 
 """
-    GrassmannContourIndex(j, branch, band, conj)
+    GrassmannIF{T<:Number}
 
-费米稠密 IF 的一条 Grassmann 腿：`j` 为实时/虚时步数，`branch` 为
-`:+`、`:-` 或 `:τ`，`band` 为能带（BCS bath 含 2 个 band，其余为 1），
-`conj = false` 为 `a`（湮灭），`true` 为 `ā`（共轭）。
+费米影响泛函的稠密 Grassmann 表示：`basis` 为 `L` 条腿（链序，每节点
+band 逐次展开、每个 band 内 `a`、`ā` 相邻），`data` 为 `2^L` 个
+Grassmann monomial 系数（腿 1 最快）。`T` 由 correlation function 的
+元素类型决定。
 """
-struct GrassmannContourIndex
-    j::Int
-    branch::Symbol
-    band::Int
-    conj::Bool
-end
-
-"""
-    BosonicContourIndex(j, branch)
-
-玻色稠密 IF 的一条 contour 节点：`j` 为实时/虚时步数，`branch` 为
-`:+`、`:-` 或 `:τ`。
-"""
-struct BosonicContourIndex
-    j::Int
-    branch::Symbol
-end
-
-"""
-    DenseFermionicIF{T<:Number}
-
-费米影响泛函的稠密表示：`basis` 为 `L = 2n` 条腿（链序，每节点相邻的
-`a`、`ā` 各一条），`data` 为 `2^L` 个 Grassmann monomial 系数（腿 1
-最快）。`T` 由 correlation function 的元素类型决定。
-"""
-struct DenseFermionicIF{T<:Number}
+struct GrassmannIF{T<:Number}
     basis::Vector{GrassmannContourIndex}
     data::Vector{T}
 end
 
 """
-    DenseBosonicADT{T<:Number}
+    BosonicIF{T<:Number}
 
 玻色影响泛函在对角（ADT）耦合下的稠密表示：`basis` 为 `n` 个 contour
 节点（链序），`d` 为物理维度（耦合算符本征值矢量的长度），`data` 为
 `dⁿ` 个路径权重（节点 1 最快）——指标数与 `basis` 数一致。
 """
-struct DenseBosonicADT{T<:Number}
+struct BosonicIF{T<:Number}
     basis::Vector{BosonicContourIndex}
     d::Int
     data::Vector{T}
 end
 
 """
-    DenseBosonicPT{T<:Number}
+    NonDiagonalBosonicIF{T<:Number}
 
 玻色影响泛函在非对角（PT）耦合下的稠密表示：`basis` 为 `n` 个 contour
 节点（链序），`d` 为系统维度，`data` 为 `d^{2n}` 个矩阵元（指标 2p−1 =
 节点 p 的 ket 路径、2p = 节点 p 的 bra 路径，指标 1 最快）——指标数是
 `basis` 数的两倍。
 """
-struct DenseBosonicPT{T<:Number}
+struct NonDiagonalBosonicIF{T<:Number}
     basis::Vector{BosonicContourIndex}
     d::Int
     data::Vector{T}
@@ -169,7 +145,7 @@ end
 # ------------------------------------------------------------------ #
 
 # ------------------------------------------------------------------ #
-# 费米稠密 Grassmann 表示的三件套（供 DenseFermionicIF 与外部复用）：
+# 费米稠密 Grassmann 表示的三件套（供 GrassmannIF 与外部复用）：
 #   _if_legs(x)         → 链序腿列表（每节点逐 band、a/ā 相邻）
 #   _if_coefficients(x) → 双线性指数矩阵 C（行 = 腿，C[i,j] 配 ξ_i ξ_j）
 #   _fold_grassmann(C)  → exp(Σ C_ij ξ_i ξ_j) 的稠密系数向量
@@ -261,8 +237,8 @@ function _if_coefficients(x::IFSource)
 end
 
 """
-    DenseFermionicIF(x::Union{AbstractCorrelationFunction,BCSCorrelationFunction})
-        -> DenseFermionicIF
+    GrassmannIF(x::Union{AbstractCorrelationFunction,BCSCorrelationFunction})
+        -> GrassmannIF
 
 费米影响泛函 IF 的**稠密 Grassmann 表示**：
 
@@ -290,14 +266,14 @@ bath 每节点 2 条腿 `(a, ā)`，**BCS bath 每节点 4 条腿**（`band = 1,
 验证；节点 `p` 在 Δ 行序（`[:+; :-; :τ]`，分支内时间升序）中的指标即
 GaussianStates 配对态的模式指标。
 """
-function DenseFermionicIF(x::IFSource)
+function GrassmannIF(x::IFSource)
     basis = _if_legs(x)
     L = length(basis)
     L ≤ 30 || throw(ArgumentError(
         "稠密 IF 张量阶数 L = $(L) 超过上限 30（2^L 个系数将耗尽内存）；" *
         "请减小 contour 节点数 n 或 flavor 数（当前 L = $(L)），" *
         "或使用协方差快速算法"))
-    return DenseFermionicIF(basis, _fold_grassmann(_if_coefficients(x)))
+    return GrassmannIF(basis, _fold_grassmann(_if_coefficients(x)))
 end
 
 # ------------------------------------------------------------------ #
@@ -305,8 +281,8 @@ end
 # ------------------------------------------------------------------ #
 
 """
-    DenseBosonicADT(x::AbstractCorrelationFunction, λ::AbstractVector{<:Real})
-        -> DenseBosonicADT
+    BosonicIF(x::AbstractCorrelationFunction, λ::AbstractVector{<:Real})
+        -> BosonicIF
 
 玻色影响泛函在**对角（ADT）耦合**下的稠密表示。耦合形式
 
@@ -328,7 +304,7 @@ ordering，见 `_if_legorder`），`d = length(λ)`。
 
 复杂度 O(n² dⁿ)；`dⁿ > 2³⁰` 时抛 `ArgumentError`（d=2 即 n ≤ 30）。
 """
-function DenseBosonicADT(x::AbstractCorrelationFunction,
+function BosonicIF(x::AbstractCorrelationFunction,
                          λ::AbstractVector{<:Real})
     isempty(λ) && throw(ArgumentError("λ 不能为空"))
     d = length(λ)
@@ -352,12 +328,12 @@ function DenseBosonicADT(x::AbstractCorrelationFunction,
         end
     end
     basis = BosonicContourIndex[BosonicContourIndex(j, b) for (b, j) in chain]
-    return DenseBosonicADT(basis, d, vec(data))
+    return BosonicIF(basis, d, vec(data))
 end
 
 """
-    DenseBosonicPT(x::AbstractCorrelationFunction, hyb::AbstractMatrix)
-        -> DenseBosonicPT
+    NonDiagonalBosonicIF(x::AbstractCorrelationFunction, hyb::AbstractMatrix)
+        -> NonDiagonalBosonicIF
 
 玻色影响泛函在**非对角（PT）耦合**下的稠密表示，`hyb` 为任意方阵
 （`NonDiagonalHyb` 约定：`op*a + op'*a'`，`op = hyb`，不要求厄米）。
@@ -380,7 +356,7 @@ H = Σ_pq [ M1[p,q]·op1_p·op2_q + M2[p,q]·op2_p·op1_q ]
 `d = size(hyb, 1)`。总元素数 `d^{2n} > 2³⁰` 时抛 `ArgumentError`
 （d=2 即 n ≤ 15）。
 """
-function DenseBosonicPT(x::AbstractCorrelationFunction, hyb::AbstractMatrix)
+function NonDiagonalBosonicIF(x::AbstractCorrelationFunction, hyb::AbstractMatrix)
     size(hyb, 1) == size(hyb, 2) || throw(ArgumentError("hyb 必须是方阵"))
     d = size(hyb, 1)
     M1, M2 = _contour_delta_split(x)
@@ -419,7 +395,7 @@ function DenseBosonicPT(x::AbstractCorrelationFunction, hyb::AbstractMatrix)
     Ten = reshape(F, ntuple(_ -> d, 2n))
     perm = vcat([[p, n + p] for p in 1:n]...)
     basis = BosonicContourIndex[BosonicContourIndex(j, b) for (b, j) in chain]
-    return DenseBosonicPT(basis, d, vec(permutedims(Ten, perm)))
+    return NonDiagonalBosonicIF(basis, d, vec(permutedims(Ten, perm)))
 end
 
 # op 作用在 d^n 维空间的第 p 个张量因子上（节点 1 为最快指标，与 data 的

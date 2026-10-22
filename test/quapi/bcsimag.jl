@@ -5,7 +5,7 @@ println("------------------------------------")
 using Test, LinearAlgebra
 
 # The influence functional — both flavors and the anomalous pairing blocks —
-# comes from the shared `QuAPI.DenseFermionicIF` machinery
+# comes from the shared `QuAPI.GrassmannIF` machinery
 # (`QuAPI._if_coefficients` in the GTEMPO 2-flavor leg order); only the
 # impurity kinetic terms and the Berezin measures are added here.
 
