@@ -111,17 +111,19 @@ end
     for (name, corr) in cases
         T = dense_fermionicIF(corr)
         n = size(QuAPI._contour_delta(corr), 1)
+        chain = QuAPI._if_legorder(corr)             # GTEMPO ordering 链序节点
+        nodes = QuAPI._contour_nodes(corr)           # Δ 行序节点（fast 模式指标）
         @test T isa DenseFermionicIF
         @test length(T.basis) == 2n && length(T.data) == 2^(2n)
         @test norm(T.data) > 0
-        # basis：链序节点 × (a, ā)，band=1（BCS 多 band 场景待扩展）
-        b1, j1 = QuAPI._if_legorder(corr)[1]
-        @test T.basis[1:2] == [FermionicLeg(j1, b1, 1, false),
-                               FermionicLeg(j1, b1, 1, true)]
-        @test all(l -> l.band == 1, T.basis)
+        # 元素类型由 correlation function 决定（不写死）：虚时为实、实时含虚部
+        @test eltype(T.data) == eltype(QuAPI._contour_delta(corr))
+        @test name == "IM" ? eltype(T.data) <: Real : eltype(T.data) <: Complex
+        # basis 逐位置固化：链序节点 p 的 (a, ā) 相邻，band=1
+        @test T.basis == GrassmannContourIndex[
+            GrassmannContourIndex(j, b, 1, c) for (b, j) in chain
+                                               for c in (false, true)]
         s = FermionicGaussianState(fermionic_bdg_matrix(corr))
-        chain = QuAPI._if_legorder(corr)             # GTEMPO ordering 链序节点
-        nodes = QuAPI._contour_nodes(corr)           # Δ 行序节点（fast 模式指标）
         v = T.data
         for k in 1:n-1                                # 链前缀 k 个节点块
             modes = [findfirst(==(bi), nodes) for bi in chain[1:k]]
@@ -143,8 +145,8 @@ end
     @test_throws ArgumentError dense_fermionicIF(big)
 end
 
-# ---------------- 稠密玻色 IF（路径张量，hyb·(a†+a) 耦合） ----------------
-@testset "稠密玻色 IF 路径张量" begin
+# ---------------- 稠密玻色 ADT（对角耦合：路径权重） ----------------
+@testset "稠密玻色 ADT 路径权重" begin
     λsbm = eigvals(Symmetric([1.0 0.0; 0.0 -1.0]))   # σ_z 本征值（自旋-玻色）
     # 逐元素对照公式 I[v] = exp(Σ_pq Δ_pq v_p v_q)，v 取 λ（链序）
     # 张量维度 p（链序）的指标 I[p] 选路径值 λ[I[p]]；Δ 按行序节点索引
@@ -169,24 +171,26 @@ end
     for (name, corr) in (("IM", bosonic_Δτ(f0b, β=2.0, N=4)),
                          ("RT", bosonic_Δt(f0b, β=2.0, t=1.0, N=2)),
                          ("MX", bosonic_Δm(f0b, β=2.0, Nτ=2, t=0.5, Nt=1)))
-        T = dense_bosonicIF(corr, λsbm)
-        @test T isa DenseBosonicIF
-        @test T.d == 2 && length(T.data) == 2^length(T.basis)
-        # basis：链序节点，一条路径腿
-        b1, j1 = QuAPI._if_legorder(corr)[1]
-        @test T.basis[1] == BosonicLeg(j1, b1)
-        @test T.data ≈ vec(ref_IF(corr, λsbm)) rtol = 1e-12
+        A = dense_bosonicADT(corr, λsbm)
+        n = length(QuAPI._if_legorder(corr))
+        chain = QuAPI._if_legorder(corr)
+        @test A isa DenseBosonicADT
+        @test A.d == 2 && length(A.data) == 2^n
+        @test eltype(A.data) == eltype(QuAPI._contour_delta(corr))
+        # basis 逐位置固化
+        @test A.basis == BosonicContourIndex[BosonicContourIndex(j, b) for (b, j) in chain]
+        @test A.data ≈ vec(ref_IF(corr, λsbm)) rtol = 1e-12
     end
     # 一般本征值矢量（非 ±1；含零）
     λg = [0.3, 1.7, -0.9]
-    T4 = dense_bosonicIF(bosonic_Δτ(f0b, β=2.0, N=3), λg)
-    @test T4.data ≈ vec(ref_IF(bosonic_Δτ(f0b, β=2.0, N=3), λg)) rtol = 1e-12
-    @test T4.d == 3 && length(T4.data) == 27 && length(T4.basis) == 3
+    A4 = dense_bosonicADT(bosonic_Δτ(f0b, β=2.0, N=3), λg)
+    @test A4.data ≈ vec(ref_IF(bosonic_Δτ(f0b, β=2.0, N=3), λg)) rtol = 1e-12
+    @test A4.d == 3 && length(A4.data) == 27 && length(A4.basis) == 3
     # 负检验：链序（GTEMPO ordering）确实影响结果——升序链的参考与实现不同，
     # 保证上面的逐元素对照不是平凡通过。用实时 corr（虚时 Δ 有 KMS 时间反转
     # 对称 Δ = JΔJ，升降序恰好重合，不能用于此检验）
     corr3 = bosonic_Δt(f0b, β=2.0, t=1.0, N=2)
-    Tdown = dense_bosonicIF(corr3, λsbm)
+    Tdown = dense_bosonicADT(corr3, λsbm)
     function ref_IF_wrong(corr, λ)   # 故意用升序链
         Δ = QuAPI._contour_delta(corr)
         nodes = QuAPI._contour_nodes(corr)
@@ -205,11 +209,74 @@ end
     end
     @test !(Tdown.data ≈ vec(ref_IF_wrong(corr3, λsbm)))
     # 空 λ 报错
-    @test_throws ArgumentError dense_bosonicIF(corr3, Float64[])
+    @test_throws ArgumentError dense_bosonicADT(corr3, Float64[])
     # 元素数上限：d=2, n=31 ⟹ 2^31 > 2^30
     big = bosonic_Δτ(f0b, β=2.0, N=31)
-    @test_throws ArgumentError dense_bosonicIF(big, λsbm)
+    @test_throws ArgumentError dense_bosonicADT(big, λsbm)
     # d=4, n=16 ⟹ 4^16 = 2^32 > 2^30
     big16 = bosonic_Δτ(f0b, β=2.0, N=16)
-    @test_throws ArgumentError dense_bosonicIF(big16, [1.0, 2.0, 3.0, 4.0])
+    @test_throws ArgumentError dense_bosonicADT(big16, [1.0, 2.0, 3.0, 4.0])
+end
+
+# ---------------- 稠密玻色 PT（非对角耦合：IF = exp(H)） ----------------
+@testset "稠密玻色 PT 矩阵元" begin
+    f0b = spectrum(ε -> exp(-ε), lb=0.5, ub=8.0)
+    λ = [1.0, -1.0]
+    # 对角 hyb 极限：PT 退化为 ADT 权重的对角嵌入（exp(H) 在路径基下对角）
+    for corr in (bosonic_Δτ(f0b, β=2.0, N=4),
+                 bosonic_Δt(f0b, β=2.0, t=1.0, N=2),
+                 bosonic_Δm(f0b, β=2.0, Nτ=2, t=0.5, Nt=1))
+        n = length(QuAPI._if_legorder(corr))
+        d = 2
+        A = dense_bosonicADT(corr, λ)
+        P = dense_bosonicPT(corr, Matrix(Diagonal(λ)))
+        @test P isa DenseBosonicPT
+        @test P.d == d && length(P.data) == d^(2n) == 4^n
+        @test P.basis == A.basis                       # 同一链序节点
+        @test eltype(P.data) == eltype(A.data)
+        T = reshape(P.data, ntuple(_ -> d, 2n))
+        # 对角：(α₁,α₁,α₂,α₂,…) = ADT 权重
+        W = Array{eltype(P.data)}(undef, ntuple(_ -> d, n))
+        for I in CartesianIndices(W)
+            W[I] = T[Tuple(vcat([[I[p], I[p]] for p in 1:n]...))...]
+        end
+        @test vec(W) ≈ A.data rtol = 1e-12
+        # 非对角元为 0（纯对角嵌入）
+        offdiag = maximum(abs, T[I] for I in CartesianIndices(T)
+                          if any(I[2p - 1] != I[2p] for p in 1:n))
+        @test offdiag < 1e-12
+    end
+    # 非对角（实对称）hyb：PT = 在本征基 ADT 上逐节点套正交变换 U
+    # hyb = U·diag(λ)·Uᵀ，exp(H) = (⊗U)·exp(H_diag)·(⊗Uᵀ)
+    corr = bosonic_Δτ(f0b, β=2.0, N=4)
+    n = length(QuAPI._if_legorder(corr))
+    d = 2
+    θ = 0.37
+    U = [cos(θ) -sin(θ); sin(θ) cos(θ)]
+    λnd = [0.7, -0.3]
+    hybU = U * Diagonal(λnd) * U'
+    P = dense_bosonicPT(corr, hybU)
+    w = reshape(dense_bosonicADT(corr, λnd).data, ntuple(_ -> d, n))
+    T = reshape(P.data, ntuple(_ -> d, 2n))
+    Texp = Array{eltype(P.data)}(undef, ntuple(_ -> d, 2n))
+    for I in CartesianIndices(Texp)
+        α = [I[2p - 1] for p in 1:n]
+        β = [I[2p] for p in 1:n]
+        s = zero(eltype(Texp))
+        for g in CartesianIndices(w)
+            s += prod(U[α[p], g[p]] * U[β[p], g[p]] for p in 1:n) * w[g]
+        end
+        Texp[I] = s
+    end
+    @test T ≈ Texp atol = 1e-11
+    # 复厄米 hyb：H 厄米 ⟹ exp(H) 厄米 ⟹ T[α;β] = conj(T[β;α])
+    hybH = [0.5 0.4im; -0.4im -0.2]
+    Pc = dense_bosonicPT(corr, hybH)
+    Tc = reshape(Pc.data, ntuple(_ -> d, 2n))
+    swap = vcat([[2p, 2p - 1] for p in 1:n]...)
+    @test Tc ≈ conj.(permutedims(Tc, swap)) atol = 1e-11
+    # 非方阵 hyb / 规模上限
+    @test_throws ArgumentError dense_bosonicPT(corr, [1.0 2.0 3.0])
+    big = bosonic_Δτ(f0b, β=2.0, N=16)          # d=2, n=16 ⟹ 2^32
+    @test_throws ArgumentError dense_bosonicPT(big, Matrix(Diagonal(λ)))
 end
