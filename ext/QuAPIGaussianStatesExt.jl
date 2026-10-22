@@ -28,51 +28,14 @@
 module QuAPIGaussianStatesExt
 
 using QuAPI
-using QuAPI: AbstractCorrelationFunction, ImagCorrelationFunction,
-             RealCorrelationFunction, AbstractMixedCorrelationFunction,
-             rsize, isize
+using QuAPI: AbstractCorrelationFunction, _contour_delta
 using GaussianStates
 using GaussianStates: FermionicGaussianState
 using LinearAlgebra
 
 # ------------------------------------------------------------------ #
-# contour 组装（内部）：整条 contour 的 Δ 为单个矩阵
-#
-# 节点（site）顺序约定：
-#   ImagCorrelationFunction         [:τ]        （N 个节点）
-#   RealCorrelationFunction         [:+, :-]    （各 N+1 个节点）
-#   AbstractMixedCorrelationFunction [:, :-, :τ]（2(Nt+1)+Nτ 个节点）
-# ------------------------------------------------------------------ #
-
-function _contour_delta(x::ImagCorrelationFunction)
-    return Matrix{ComplexF64}(QuAPI.branch(x; b1=:τ, b2=:τ))
-end
-
-function _contour_delta(x::RealCorrelationFunction)
-    N = size(x, 1)
-    Δ = Matrix{ComplexF64}(undef, 2N, 2N)
-    for (i, b1) in enumerate((:+, :-)), (j, b2) in enumerate((:+, :-))
-        Δ[(i-1)*N+1:i*N, (j-1)*N+1:j*N] .= QuAPI.branch(x; b1=b1, b2=b2)
-    end
-    return Δ
-end
-
-function _contour_delta(x::AbstractMixedCorrelationFunction)
-    Nr, Ni = rsize(x), isize(x)
-    branches = (:+, :-, :τ)
-    dims = (Nr, Nr, Ni)
-    offs = (0, Nr, 2Nr)
-    n = 2Nr + Ni
-    Δ = Matrix{ComplexF64}(undef, n, n)
-    for (i, b1) in enumerate(branches), (j, b2) in enumerate(branches)
-        Δ[offs[i]+1:offs[i]+dims[i], offs[j]+1:offs[j]+dims[j]] .=
-            QuAPI.branch(x; b1=b1, b2=b2)
-    end
-    return Δ
-end
-
-# ------------------------------------------------------------------ #
 # fermionic_bdg_matrix 重载：IF 系数态的反对称配对矩阵
+#（contour Δ 组装在 src/utility.jl 的 _contour_delta，两种实现共用）
 # ------------------------------------------------------------------ #
 
 """

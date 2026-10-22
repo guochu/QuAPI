@@ -97,3 +97,42 @@ println("------------------------------------")
     @test osee(sm, [1, 2, 3, 4]) ≈ 0.0 atol = 1e-12
     @test osee(sm, [1, 3]; α=2) ≈ 2log(1 + 2n̄(m)) atol = 1e-12
 end
+
+# ---------------- 稠密 IF 张量 vs 快速 OSEE（GTEMPO 默认 ordering） ----------------
+@testset "稠密 IF 张量 vs 快速 OSEE" begin
+    # 前缀割 SVD 熵（plain SVD：连续前缀割下与 Z₂/协方差约定一致）
+    svent(M) = (sv = svdvals(M); p = abs2.(sv); p ./= sum(p);
+                -sum(x * log(x) for x in p if x > 1e-15))
+    cases = (
+        ("IM", fermionic_Δτ(semicircular(), β=5.0, N=4, μ=0.3)),
+        ("RT", fermionic_Δt(semicircular(), β=2.0, t=1.0, N=2, μ=0.2)),
+        ("MX", fermionic_Δm(semicircular(), β=2.0, Nτ=2, t=0.5, Nt=1, μ=0.2)),
+    )
+    for (name, corr) in cases
+        T = dense_fermionicIF(corr)
+        n = size(QuAPI._contour_delta(corr), 1)
+        @test size(T) == ntuple(_ -> 2, 2n)          # 每节点 (a, ā) 两条腿
+        @test norm(T) > 0
+        s = FermionicGaussianState(fermionic_bdg_matrix(corr))
+        chain = QuAPI._if_legorder(corr)             # GTEMPO ordering 链序节点
+        nodes = QuAPI._contour_nodes(corr)           # Δ 行序节点（fast 模式指标）
+        v = vec(T)
+        for k in 1:n-1                                # 链前缀 k 个节点块
+            modes = [findfirst(==(bi), nodes) for bi in chain[1:k]]
+            S_dense = svent(reshape(v, 2^(2k), 2^(2(n - k))))
+            @test osee(s, vcat(modes, n .+ modes)) ≈ S_dense atol = 1e-10
+        end
+        # 整割 = 0（纯系数向量）
+        @test svent(reshape(v, 2^(2n), 1)) ≈ 0.0 atol = 1e-12
+    end
+    # GTEMPO 默认 ordering 链序（三种 contour）
+    @test QuAPI._if_legorder(fermionic_Δτ(semicircular(), β=5.0, N=3, μ=0.0)) ==
+          [(:τ, 3), (:τ, 2), (:τ, 1)]                 # 虚时降序
+    @test QuAPI._if_legorder(fermionic_Δt(semicircular(), β=2.0, t=1.0, N=2, μ=0.0)) ==
+          [(:+, 3), (:-, 3), (:+, 2), (:-, 2), (:+, 1), (:-, 1)]  # 时间降序，+ 先 − 后
+    @test QuAPI._if_legorder(fermionic_Δm(semicircular(), β=2.0, Nτ=2, t=0.5, Nt=1, μ=0.0)) ==
+          [(:τ, 2), (:τ, 1), (:+, 1), (:-, 1), (:+, 2), (:-, 2)]  # 虚时降序 ++ 实时升序
+    # 阶数上限：n = 16 ⟹ L = 32 > 30 提前报错（不进入 2^32 系数构造）
+    big = fermionic_Δτ(semicircular(), β=5.0, N=16, μ=0.0)
+    @test_throws ArgumentError dense_fermionicIF(big)
+end

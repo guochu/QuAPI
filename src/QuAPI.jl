@@ -16,6 +16,9 @@ export infinite_Δτ, infinite_Δt
 # bcs
 export BCSCorrelationFunction, bcs_Δτ, bcs_Δt, bcs_Δm
 
+# utility
+export dense_fermionicIF
+
 using Base: @boundscheck
 using ImpurityModelBase
 using LinearAlgebra
@@ -34,7 +37,10 @@ include("mixedtime/mixedtime.jl")
 include("infinitetime/imagtime.jl")
 include("infinitetime/realtime.jl")
 
-# BCS 
+# BCS
 include("bcs/bcs.jl")
+
+# utility（contour Δ 组装、稠密 IF 张量）
+include("utility.jl")
 
 end
