@@ -219,63 +219,30 @@ end
     end
 end
 
-### fermionic Toulouse impurity (Grassmann tensor representation) ###
+### fermionic Toulouse impurity (dense Grassmann tensor from src/utility.jl) ###
 
-# Dense rank-L Grassmann tensor: T[mask+1] = coefficient of the monomial whose
-# odd legs are given by the L-bit word `mask` (bit k set ⇔ leg k+1 odd).  This
-# avoids the GrassmannTensors `hadamardproduct` fusion-tree machinery, which is
-# O(3^L) per pairwise factor and was the dominant test-suite cost.
-function _gt_from_coeffs(coeffs::AbstractMatrix, L::Int)
-    T = zeros(ComplexF64, 1 << L)
-    T[1] = 1.0
-    for i in 1:L, j in 1:L
-        c = coeffs[i, j]
-        iszero(c) && continue
-        a, b = minmax(i, j)
-        cc = i < j ? c : -c
-        bita, bitb = 1 << (a - 1), 1 << (b - 1)
-        # in-place fold of the factor 1 + cc·ξₐξ_b; descending target order
-        # keeps the source T[mask] unmodified within this factor (m < m2)
-        for m2 in (1 << L - 1):-1:0
-            (m2 & bita) == 0 || continue
-            (m2 & bitb) == 0 || continue
-            m = m2 | bita | bitb
-            # fermionic exchange sign: move ξₐξ_b past the odd legs below a, b
-            sgn = isodd(count_ones(m2 & (bita - 1)) + count_ones(m2 & (bitb - 1))) ? -1.0 : 1.0
-            T[m + 1] += cc * sgn * T[m2 + 1]
-        end
-    end
-    return T
-end
-
-function _gt_coef(T, L, tup::Tuple)
-    mask = (1 << L) - 1
-    for k in tup
-        mask &= ~(1 << (k - 1))
-    end
-    return T[mask + 1]
-end
+# The influence functional comes from `QuAPI._if_coefficients` in the GTEMPO
+# leg order; the impurity kinetics, measures and contour closure are added to
+# the same bilinear exponent and the tensor is folded once with
+# `_fold_grassmann` (no Grassmann-tensor package needed).
 
 """
 	quapi_rlm_rt_gt(β, ϵ_d, spectrum; Nt, t, μ=0.0)
 
 Real-time (closed Keldysh contour) fermionic QuAPI for the Toulouse impurity,
-represented as a single Grassmann tensor.
+represented as a single dense Grassmann tensor over the legs of
+`QuAPI._if_legs(corr)` (per node: `a`, `ā`; nodes in GTEMPO order, i.e.
+`(+,Nt+1), (-,Nt+1), …, (+,1), (-,1)`).
 
 Contour: nodes 0..Nt on the + branch (t = 0..t) and on the - branch.
-Leg layout of the 4(Nt+1)-leg Grassmann tensor (L = 4(Nt+1)):
-- `lp(i) = 2i+1`   : ā⁺(tᵢ)
-- `ap(i) = 2i+2`   : a⁺(tᵢ)
-- `lm(i) = 2(Nt+1)+2i+1` : ā⁻(tᵢ)
-- `am(i) = 2(Nt+1)+2i+2` : a⁻(tᵢ)
-
-The bilinear exponent e^{āᵀMa} contains:
-- the Berezin measures −ā a at every node (M[āᵢ,aᵢ] = −1),
+The bilinear exponent exp(Σ C_ij ξ_i ξ_j) contains:
+- the Berezin measures −ā a at every node,
 - the free-impurity kinetics: x = e^{−iδtϵ_d} forward / x̄ backward,
 - the contour closure −ā⁻(t)a⁺(t) at the final time,
 - the initial impurity thermal weight e^{−βϵ_d} ā⁺(0)a⁻(0) (quench from
   ρ(0) = ρ_imp(β) ⊗ ρ_bath(β)),
-- the discrete-time influence functional blocks from `fermionic_Δt`.
+- the discrete-time influence functional blocks from `fermionic_Δt`
+  (all four branch blocks, from `_if_coefficients`).
 
 Returns the partition function Z (bath-normalized) and the raw greater/lesser
 expectations `Gg[j] = ⟨d(tⱼ)d†(0)⟩` and `Gl[j] = ⟨d†(0)d(tⱼ)⟩`.
@@ -284,34 +251,35 @@ function quapi_rlm_rt_gt(β, ϵ_d, spectrum; Nt, t, μ=0.0)
     δt = t / Nt
     x = exp(-im * δt * ϵ_d)
     xc = conj(x)
-    L = 4 * (Nt + 1)
-    M = zeros(ComplexF64, L, L)
-    lp(i) = 2i + 1
-    ap(i) = 2i + 2
-    lm(i) = 2(Nt + 1) + 2i + 1
-    am(i) = 2(Nt + 1) + 2i + 2
-    for i in 0:Nt
-        M[lp(i), ap(i)] = -1.0
-        M[lm(i), am(i)] = -1.0
-    end
-    for j in 1:Nt
-        M[lp(j), ap(j - 1)] += x
-        M[lm(j - 1), am(j)] += xc
-    end
-    M[lm(Nt), ap(Nt)] += -1.0
-    M[lp(0), am(0)] += exp(-β * ϵ_d)
     corr = fermionic_Δt(spectrum, β=β, N=Nt, t=t, μ=μ)
-    for (b1, b2) in ((:+, :+), (:+, :-), (:-, :+), (:-, :-))
-        G = Matrix(branch(corr, b1, b2))
-        for i in 0:Nt, j in 0:Nt
-            M[(b1 == :+ ? lp(i) : lm(i)), (b2 == :+ ? ap(j) : am(j))] += G[i + 1, j + 1]
-        end
+
+    C = QuAPI._if_coefficients(corr)
+    basis = QuAPI._if_legs(corr)
+    li = Dict(l => k for (k, l) in enumerate(basis))
+    # 节点 j = i+1（i = 0..Nt），branch = :+ / :-
+    leg(i, b, c) = li[GrassmannContourIndex(i + 1, b, 1, c)]
+    for i in 0:Nt                                  # Berezin measures −āa
+        C[leg(i, :+, true), leg(i, :+, false)] += -1.0
+        C[leg(i, :-, true), leg(i, :-, false)] += -1.0
     end
-    T = _gt_from_coeffs(M, L)
-    ctop = T[1 << L]                            # all-odd coefficient (Berezin integral)
+    for j in 1:Nt                                  # free impurity kinetics
+        C[leg(j, :+, true), leg(j - 1, :+, false)] += x
+        C[leg(j - 1, :-, true), leg(j, :-, false)] += xc
+    end
+    C[leg(Nt, :-, true), leg(Nt, :+, false)] += -1.0          # contour closure
+    C[leg(0, :+, true), leg(0, :-, false)] += exp(-β * ϵ_d)   # initial weight
+
+    data = QuAPI._fold_grassmann(C)
+    L = length(basis)
+    ctop = data[1 << L]                            # all-odd coefficient
     Z = ctop
-    Gg = [-_gt_coef(T, L, (lp(0), ap(j))) / ctop for j in 0:Nt]
-    Gl = [_gt_coef(T, L, (lm(0), ap(j))) / ctop for j in 0:Nt]
+    # Under the GTEMPO leg order (a before ā per node, times descending) the
+    # {ā⁺₀, a⁺_j} numerator changes order relative to the ascending layout
+    # (one minus sign), while {ā⁻₀, a⁺_j} does not.
+    Gg = [QuAPI._grassmann_coefficient(data, leg(0, :+, true), leg(j, :+, false)) / ctop
+          for j in 0:Nt]
+    Gl = [QuAPI._grassmann_coefficient(data, leg(0, :-, true), leg(j, :+, false)) / ctop
+          for j in 0:Nt]
     return Z, Gg, Gl, δt
 end
 

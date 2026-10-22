@@ -14,6 +14,11 @@ _branches(::ImagCorrelationFunction) = [:τ]
 _branches(::RealCorrelationFunction) = [:+, :-]
 _branches(::AbstractMixedCorrelationFunction) = [:+, :-, :τ]
 
+# BCS bath：2 个 flavor（band ↑=1, ↓=2），四个块的 contour 结构相同
+_bands(::AbstractCorrelationFunction) = 1
+_bands(::BCSCorrelationFunction) = 2
+_branches(x::BCSCorrelationFunction) = _branches(x.uu)
+
 # 分支块矩阵 → 整块矩阵（类型自动提升）
 function _assemble(brs::Vector{Symbol}, blocks::Matrix)
     dims = [size(blocks[i, 1], 1) for i in eachindex(brs)]
@@ -70,6 +75,8 @@ _contour_nodes(x::RealCorrelationFunction) =
 _contour_nodes(x::AbstractMixedCorrelationFunction) =
     vcat([(:+, i) for i in 1:rsize(x)], [(:-, i) for i in 1:rsize(x)],
          [(:τ, i) for i in 1:isize(x)])
+# BCS：四个块的节点结构相同，取任一块
+_contour_nodes(x::BCSCorrelationFunction) = _contour_nodes(x.uu)
 
 # ------------------------------------------------------------------ #
 # GTEMPO / TEMPO 默认 ordering（order=1，单 band 单 flavor）下的链序：
@@ -87,6 +94,7 @@ function _if_legorder(x::AbstractMixedCorrelationFunction)
     return vcat([(:τ, i) for i in Nτ:-1:1],
                 [(b, i) for i in 1:kt for b in (:+, :-)])
 end
+_if_legorder(x::BCSCorrelationFunction) = _if_legorder(x.uu)
 
 # ------------------------------------------------------------------ #
 # 指标与稠密表示的容器类型
@@ -160,49 +168,29 @@ end
 # 费米：稠密 Grassmann 张量
 # ------------------------------------------------------------------ #
 
-"""
-    DenseFermionicIF(x::AbstractCorrelationFunction) -> DenseFermionicIF
+# ------------------------------------------------------------------ #
+# 费米稠密 Grassmann 表示的三件套（供 DenseFermionicIF 与外部复用）：
+#   _if_legs(x)         → 链序腿列表（每节点逐 band、a/ā 相邻）
+#   _if_coefficients(x) → 双线性指数矩阵 C（行 = 腿，C[i,j] 配 ξ_i ξ_j）
+#   _fold_grassmann(C)  → exp(Σ C_ij ξ_i ξ_j) 的稠密系数向量
+# ------------------------------------------------------------------ #
 
-费米影响泛函 IF 的**稠密 Grassmann 表示**：
+# 稠密 IF 的输入：普通 correlation function 或 BCS 包装（后者不是
+# AbstractCorrelationFunction 的子类型）
+const IFSource = Union{AbstractCorrelationFunction,BCSCorrelationFunction}
 
-```text
-I[ā, a] = exp(Σ_pq ā_p Δ_pq a_q)
-```
+# 链序腿：节点（链序）× band × (a, ā)
+function _if_legs(x::IFSource)
+    nb = _bands(x)
+    return GrassmannContourIndex[GrassmannContourIndex(j, b, band, c)
+                                 for (b, j) in _if_legorder(x)
+                                 for band in 1:nb for c in (false, true)]
+end
 
-每个 contour 时间节点对应相邻两条物理腿 `(a, ā)`
-（`basis` 元素 `GrassmannContourIndex(j, branch, band=1, conj)`，各维度
-2），`data` 为 `2^L`（`L = 2n`，`n` 为节点数）个 Grassmann monomial
-系数。腿序与 GTEMPO 三种 lattice 的默认 ordering（`order=1`）一致
-（见 `_if_legorder`）：虚时降序、实时时间降序（+ 先 − 后）、混合为虚时
-降序接实时升序；GTEMPO 链上的左边界辅助腿不进入 IF。
-
-元素类型 `T` 取自 correlation function（虚时通常为实）。
-
-腿数 `L ≤ 30`（`2^30` 个系数即内存上限）；超过时抛 `ArgumentError`。
-
-前缀割（链前 `k` 个节点块，即腿 `1..2k`）的 plain SVD 熵等于系数态的
-OSEE（协方差快速算法，`GaussianStates.osee`），可用于交叉验证；节点
-`p` 在 Δ 行序（`[:+; :-; :τ]`，分支内时间升序）中的指标即
-GaussianStates 配对态的模式指标（site `p` = 模式对 `[p, n+p]`）。
-"""
-function DenseFermionicIF(x::AbstractCorrelationFunction)
-    Δ = _contour_delta(x)
-    n = size(Δ, 1)
-    L = 2n
-    L ≤ 30 || throw(ArgumentError(
-        "稠密 IF 张量阶数 L = $(L) 超过上限 30（2^L 个系数将耗尽内存）；" *
-        "请减小 contour 节点数 n（当前 $(n)，上限 15），或使用协方差快速算法"))
-    T = eltype(Δ)
-    # 链腿序下的配对系数：C[leg(ā_p), leg(a_q)] = Δ[p, q]
-    nodes = _contour_nodes(x)
-    chain = _if_legorder(x)
-    pos = Dict(bi => k for (k, bi) in enumerate(chain))
-    C = zeros(T, L, L)
-    for p in 1:n, q in 1:n
-        iszero(Δ[p, q]) && continue
-        C[2pos[nodes[p]], 2pos[nodes[q]]-1] = Δ[p, q]
-    end
-    # 逐对折叠 Π (1 + C_ij ξ_i ξ_j)：data[mask+1] = 该 monomial 的系数
+# GTEMPO 腿序的稠密系数向量 ← 双线性指数矩阵（Grassmann 幂零 ⟹
+# exp(Σ C_ij ξ_i ξ_j) = Π (1 + 项)，逐项折叠；含费米交换符号）
+function _fold_grassmann(C::AbstractMatrix{T}) where {T<:Number}
+    L = size(C, 1)
     data = zeros(T, 1 << L)
     data[1] = one(T)
     for i in 1:L, j in 1:L
@@ -222,9 +210,94 @@ function DenseFermionicIF(x::AbstractCorrelationFunction)
             data[m + 1] += cc * sgn * data[m2 + 1]
         end
     end
-    basis = GrassmannContourIndex[GrassmannContourIndex(j, b, 1, c)
-                                  for (b, j) in chain for c in (false, true)]
-    return DenseFermionicIF(basis, data)
+    return data
+end
+
+# 从稠密系数向量读单项式系数：`legs` 为该 monomial 的（奇数）腿指标
+function _grassmann_coefficient(data::AbstractVector, legs::Integer...)
+    L = round(Int, log2(length(data)))
+    mask = (1 << L) - 1
+    for k in legs
+        mask &= ~(1 << (k - 1))
+    end
+    return data[mask + 1]
+end
+
+# IF 指数中的 Δ 项：((band₁, conj₁), (band₂, conj₂), Δ 块)
+# 普通费米高斯 bath：ā Δ a
+_delta_terms(x::AbstractCorrelationFunction) =
+    [((1, true), (1, false), _contour_delta(x))]
+# BCS：正常 ↑↑ (ā↑Δa↑)、正常 ↓↓ (a↓Δā↓)、反常 ↑↓ (ā↑Δā↓)、反常 ↓↑ (a↓Δa↑)
+_delta_terms(x::BCSCorrelationFunction) =
+    [((1, true), (1, false), _contour_delta(x.uu)),
+     ((2, false), (2, true), _contour_delta(x.dd)),
+     ((1, true), (2, true), _contour_delta(x.ud)),
+     ((2, false), (1, false), _contour_delta(x.du))]
+
+function _if_eltype(x::IFSource)
+    return promote_type(map(t -> eltype(t[3]), _delta_terms(x))...)
+end
+
+# 双线性指数矩阵 C（腿序同 _if_legs），C[i, j] 为 ξ_i ξ_j 的系数
+function _if_coefficients(x::IFSource)
+    legs = _if_legs(x)
+    T = _if_eltype(x)
+    L = length(legs)
+    idx = Dict(l => k for (k, l) in enumerate(legs))
+    chain = _if_legorder(x)
+    nodes = _contour_nodes(x)
+    nodeidx = Dict(bi => k for (k, bi) in enumerate(nodes))
+    C = zeros(T, L, L)
+    for (t1, t2, Δ) in _delta_terms(x)
+        for p in eachindex(chain), q in eachindex(chain)
+            c = Δ[nodeidx[chain[p]], nodeidx[chain[q]]]
+            iszero(c) && continue
+            i = idx[GrassmannContourIndex(chain[p][2], chain[p][1], t1[1], t1[2])]
+            j = idx[GrassmannContourIndex(chain[q][2], chain[q][1], t2[1], t2[2])]
+            C[i, j] += c
+        end
+    end
+    return C
+end
+
+"""
+    DenseFermionicIF(x::Union{AbstractCorrelationFunction,BCSCorrelationFunction})
+        -> DenseFermionicIF
+
+费米影响泛函 IF 的**稠密 Grassmann 表示**：
+
+```text
+I[ā, a] = exp(Σ_pq ā_p Δ_pq a_q)
+```
+
+每个 contour 时间节点对应相邻的物理腿（`basis` 元素
+`GrassmannContourIndex(j, branch, band, conj)`，各维度 2）；单 flavor
+bath 每节点 2 条腿 `(a, ā)`，**BCS bath 每节点 4 条腿**（`band = 1, 2`
+两个 flavor，每个 flavor 的 `(a, ā)` 相邻，加反常配对块）。`data` 为
+`2^L` 个 Grassmann monomial 系数（`L = length(basis)`，腿 1 最快）。
+
+腿序与 GTEMPO 三种 lattice 的默认 ordering（`order=1`，2 flavor 时
+`bands=2` 的 `A1Ā1B1B̄1` 型）一致（见 `_if_legorder`）：虚时降序、实时
+时间降序（+ 先 − 后）、混合为虚时降序接实时升序；GTEMPO 链上的左边界
+辅助腿不进入 IF。
+
+元素类型 `T` 取自 correlation function（虚时通常为实）。
+
+腿数 `L ≤ 30`（`2^30` 个系数即内存上限）；超过时抛 `ArgumentError`。
+
+前缀割（链前 `k` 个节点块，即腿 `1..2k·bands`）的 plain SVD 熵等于
+系数态的 OSEE（协方差快速算法，`GaussianStates.osee`），可用于交叉
+验证；节点 `p` 在 Δ 行序（`[:+; :-; :τ]`，分支内时间升序）中的指标即
+GaussianStates 配对态的模式指标。
+"""
+function DenseFermionicIF(x::IFSource)
+    basis = _if_legs(x)
+    L = length(basis)
+    L ≤ 30 || throw(ArgumentError(
+        "稠密 IF 张量阶数 L = $(L) 超过上限 30（2^L 个系数将耗尽内存）；" *
+        "请减小 contour 节点数 n 或 flavor 数（当前 L = $(L)），" *
+        "或使用协方差快速算法"))
+    return DenseFermionicIF(basis, _fold_grassmann(_if_coefficients(x)))
 end
 
 # ------------------------------------------------------------------ #

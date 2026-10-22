@@ -30,9 +30,7 @@ QuAPI 依赖 [ImpurityModelBase](https://github.com/guochu/ImpurityModelBase)
 ```
 Missile/
 ├── QuAPI/
-├── ImpurityModelBase/
-├── GrassmannTensors/     # 测试间接依赖（可选）
-└── HadamardProduct/      # 测试间接依赖（可选）
+└── ImpurityModelBase/
 ```
 
 `Project.toml` / `Manifest.toml` 中的本地依赖用**相对路径**记录

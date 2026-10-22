@@ -131,42 +131,13 @@ function quapi_ibm(β, ε, ωs, λs; N)
 end
 
 # ---------------------------------------------------------------------------
-# Fermionic QuAPI (Toulouse / resonant-level model) with a Grassmann-tensor ADT
+# Fermionic QuAPI (Toulouse / resonant-level model)
 # ---------------------------------------------------------------------------
-# Dense rank-L Grassmann tensor: T[mask+1] = coefficient of the monomial whose
-# odd legs are given by the L-bit word `mask` (bit k set ⇔ leg k+1 odd).  This
-# avoids the GrassmannTensors `hadamardproduct` fusion-tree machinery, which is
-# O(3^L) per pairwise factor and was the dominant test-suite cost.
-function _gt_from_coeffs(coeffs::AbstractMatrix, L::Int)
-    T = zeros(ComplexF64, 1 << L)
-    T[1] = 1.0
-    for i in 1:L, j in 1:L
-        c = coeffs[i, j]
-        iszero(c) && continue
-        a, b = minmax(i, j)
-        cc = i < j ? c : -c
-        bita, bitb = 1 << (a - 1), 1 << (b - 1)
-        # in-place fold of the factor 1 + cc·ξₐξ_b; descending target order
-        # keeps the source T[mask] unmodified within this factor (m < m2)
-        for m2 in (1 << L - 1):-1:0
-            (m2 & bita) == 0 || continue
-            (m2 & bitb) == 0 || continue
-            m = m2 | bita | bitb
-            # fermionic exchange sign: move ξₐξ_b past the odd legs below a, b
-            sgn = isodd(count_ones(m2 & (bita - 1)) + count_ones(m2 & (bitb - 1))) ? -1.0 : 1.0
-            T[m + 1] += cc * sgn * T[m2 + 1]
-        end
-    end
-    return T
-end
-
-function _gt_coef(T, L, tup::Tuple)
-    mask = (1 << L) - 1
-    for k in tup
-        mask &= ~(1 << (k - 1))
-    end
-    return T[mask + 1]
-end
+# The dense Grassmann tensor of the influence functional is built by
+# `QuAPI.DenseFermionicIF` / `QuAPI._if_coefficients`; the impurity kinetic
+# terms and the Berezin measures are added to the same bilinear exponent, so
+# the full path weight is again exp(Σ C_ij ξ_i ξ_j) over the legs of
+# `QuAPI._if_legs(corr)`.
 
 """
     quapi_rlm_gt(β, ϵ_d, spectrum::AbstractBoundedFunction; N, μ=0.0)
@@ -177,50 +148,51 @@ Imaginary-time QuAPI for the Toulouse (resonant-level) model
 
 with the discretized path weight exp[Σᵢⱼ āᵢ (M_imp + Δ)ᵢⱼ aⱼ] (M_imp the
 anti-periodic kinetic matrix with x = e^{-δτϵ_d}, Δ the fermionic influence-
-functional matrix from `fermionic_Δτ`) built as a Grassmann tensor: each
-pairwise factor 1 + c·āᵢaⱼ is multiplied with the `hadamardproduct` (@hadamard)
-interface of the GrassmannTensors package.  Z and the Matsubara Green's function
-in the standard convention G(τ_m) = -⟨d(τ_m)d†(0)⟩ are the Berezin integrals
-read off the Grassmann tensor coefficients
+functional matrix from `fermionic_Δτ`).  The Δ part is taken from the shared
+dense Grassmann machinery in `src/utility.jl` (`_if_coefficients` in the
+GTEMPO leg order), the impurity kinetic terms and the measures −āᵢaᵢ are
+added to the same exponent matrix, and the tensor is folded once with
+`_fold_grassmann`.  Z and the Matsubara Green's function in the standard
+convention G(τ_m) = -⟨d(τ_m)d†(0)⟩ are the Berezin integrals read off the
+coefficients
 
     Z      = (-1)^N · (all-odd top coefficient)
     G(τ_m) = (coefficient with legs ā₀, a_m even) / (top coefficient).
 
-Returns (Z, G, δτ) with τ_m = m·δτ.  Note that `toulouse_Gτ` from
-ImpurityModelBase uses the raw-expectation convention G = +⟨d(τ)d†(0)⟩, i.e.
-the negative of the convention returned here.
+Returns (Z, G, δτ) with τ_m = m·δτ.  Note that the analytic solution from
+ImpurityModelBase uses the raw-expectation convention G = +⟨d(τ)d†(0)⟩,
+i.e. the negative of the convention returned here.
 """
 function quapi_rlm_gt(β, ϵ_d, spectrum::AbstractBoundedFunction; N, μ=0.0)
     δτ = β / N
     x = exp(-δτ * ϵ_d)
     corr = fermionic_Δτ(spectrum, β=β, N=N, μ=μ)
-    Δ = Matrix(corr.data)
 
-    # coefficient matrix of the bilinear exponent: e^{Σ āᵢ Mᵢⱼ aⱼ}
-    # = Πᵢⱼ (1 + Mᵢⱼ āᵢaⱼ) by Grassmann nilpotency; legs āᵢ = 2i-1, aⱼ = 2j.
-    # Coincident pairs (e.g. ā₁aₙ from the anti-periodic wrap and from the
-    # influence functional) accumulate with +=, matching the multiplicative
-    # merge of the individual factors in the original tensor formulation.
-    L = 2N
-    M = zeros(ComplexF64, L, L)
-    for i in 1:N                                  # diagonal: (M_imp)ᵢᵢ + Δᵢᵢ
-        M[2i - 1, 2i] += Δ[i, i] - 1.0
+    # influence functional: coefficient matrix in the GTEMPO leg order
+    C = QuAPI._if_coefficients(corr)
+    basis = QuAPI._if_legs(corr)
+    li = Dict(l => k for (k, l) in enumerate(basis))
+    leg(j, c) = li[GrassmannContourIndex(j, :τ, 1, c)]
+    for i in 1:N                                  # Berezin measure −āᵢaᵢ
+        C[leg(i, true), leg(i, false)] += -1.0
     end
-    for i in 2:N                                  # forward kinetic: x āᵢ aᵢ₋₁
-        M[2i - 1, 2i - 2] += x
+    for i in 2:N                                  # forward kinetic x āᵢaᵢ₋₁
+        C[leg(i, true), leg(i - 1, false)] += x
     end
-    M[1, 2N] += -x                                # anti-periodic wrap: -x ā₁ aₙ
-    for i in 1:N, j in 1:N                        # influence functional off-diagonal
-        i != j && (M[2i - 1, 2j] += Δ[i, j])
-    end
+    C[leg(1, true), leg(N, false)] += -x          # anti-periodic wrap
 
-    T = _gt_from_coeffs(M, L)
-    ctop = T[1 << L]                              # all-odd top coefficient
-    c = zeros(Float64, N)
-    for m in 0:N-1
-        c[m+1] = _gt_coef(T, L, (1, 2m + 2))
-    end
-    return (-1)^N * ctop, c ./ ctop, δτ
+    data = QuAPI._fold_grassmann(C)
+    L = length(basis)
+    ctop = data[1 << L]                           # all-odd top coefficient
+    # The measure contributes (-1)^N, but the GTEMPO leg order here is
+    # τ-descending (and a before ā within a node) while the derivation above
+    # used τ-ascending ā before a; the leg reversal carries (-1)^{N(2N-1)}
+    # and the a/ā swap another (-1)^N, so these cancel and Z = +ctop.
+    # The numerator monomial {ā₁, a_{m+1}} changes order under the same
+    # relabelling, hence the extra minus sign in G.
+    c = [QuAPI._grassmann_coefficient(data, leg(1, true), leg(m + 1, false))
+         for m in 0:N-1]
+    return ctop, -c ./ ctop, δτ
 end
 
 # Convenience wrapper for a discrete bath spectrum Σ_k λ_k² δ(ε-ω_k).
@@ -336,16 +308,21 @@ end
 
             Z, G, δτ = quapi_rlm_gt(β, ϵ_d, spec; N=Nfine, μ=μ)
             τs = [(m) * δτ for m in 0:Nfine-1]
-            # ImpurityModelBase's toulouse_Gτ uses the raw-expectation convention
-            # G = +⟨d(τ)d†(0)⟩, the negative of the standard convention returned
-            # by quapi_rlm_gt, so compare with the sign flipped.
-            Gan = [-real(toulouse_Gτ(spec, τ; β=β, ϵ_d=ϵ_d, μ=μ, n=nref)) for τ in τs]
+            # ImpurityModelBase's analytic solution uses the raw-expectation
+            # convention G = +⟨d(τ)d†(0)⟩, the negative of the standard
+            # convention returned by quapi_rlm_gt, so compare with the sign
+            # flipped.  The impurity is fermionic, and the spectrum-based
+            # routine is `fermionic_toulouse_Gτ` (the exported `toulouse_Gτ`
+            # only dispatches on bath objects, which carry β and μ).
+            Gan = [-real(ImpurityModelBase.fermionic_toulouse_Gτ(
+                       spec, τ; β=β, ϵ_d=ϵ_d, μ=μ, n=nref)) for τ in τs]
             @test maximum(abs.(G .- Gan)) < 0.05
 
             # convergence: finer discretization (smaller δτ) ⇒ smaller error
             _, Gc, _ = quapi_rlm_gt(β, ϵ_d, spec; N=Ncoarse, μ=μ)
             τsc = [(m) * β / Ncoarse for m in 0:Ncoarse-1]
-            Ganc = [-real(toulouse_Gτ(spec, τ; β=β, ϵ_d=ϵ_d, μ=μ, n=nref)) for τ in τsc]
+            Ganc = [-real(ImpurityModelBase.fermionic_toulouse_Gτ(
+                        spec, τ; β=β, ϵ_d=ϵ_d, μ=μ, n=nref)) for τ in τsc]
             @test maximum(abs.(G .- Gan)) < maximum(abs.(Gc .- Ganc))
         end
     end

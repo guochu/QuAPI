@@ -145,6 +145,42 @@ end
     @test_throws ArgumentError DenseFermionicIF(big)
 end
 
+# ---------------- 稠密费米 IF：BCS bath（2 band） ----------------
+@testset "稠密费米 IF（BCS：2 band）" begin
+    β, N = 2.0, 3
+    spec = DiscreteSpectrum([1.0], [0.25])
+    corr = fermionic_Δτ(spec, β=β, N=N, μ=0.0)
+    z = corr - corr                                  # 零块
+    bcs = BCSCorrelationFunction(; uu=corr, ud=z, du=z, dd=z)
+    B = DenseFermionicIF(bcs)
+    n = N
+    @test B isa DenseFermionicIF
+    # 每节点 4 条腿：band 1/2，每个 band 内 (a, ā) 相邻，链序 τ 降序
+    @test length(B.basis) == 4n
+    @test length(B.data) == 2^(4n)
+    @test B.basis == GrassmannContourIndex[
+        GrassmannContourIndex(j, b, band, c)
+        for (b, j) in QuAPI._if_legorder(corr) for band in (1, 2)
+        for c in (false, true)]
+    # 只有 ↑ 的正常块非零：↓ 腿全偶的系数应与单 flavor 张量逐一相等
+    A = DenseFermionicIF(corr)                       # 单 flavor
+    @test length(A.basis) == 2n
+    for i in 0:(2^(2n) - 1)
+        mask_b = 0
+        for (k, l) in enumerate(A.basis)
+            isodd(i >> (k - 1)) || continue
+            lb = GrassmannContourIndex(l.j, l.branch, 1, l.conj)
+            mask_b |= 1 << (findfirst(==(lb), B.basis) - 1)
+        end
+        @test B.data[mask_b + 1] ≈ A.data[i + 1] atol = 1e-14
+    end
+    # 规模上限：BCS 每节点 4 条腿 ⟹ n = 8 即 L = 32 > 30
+    bigc = fermionic_Δτ(spec, β=β, N=8, μ=0.0)
+    bigbcs = BCSCorrelationFunction(; uu=bigc, ud=bigc - bigc, du=bigc - bigc,
+                                    dd=bigc - bigc)
+    @test_throws ArgumentError DenseFermionicIF(bigbcs)
+end
+
 # ---------------- 稠密玻色 ADT（对角耦合：路径权重） ----------------
 @testset "稠密玻色 ADT 路径权重" begin
     λsbm = eigvals(Symmetric([1.0 0.0; 0.0 -1.0]))   # σ_z 本征值（自旋-玻色）
