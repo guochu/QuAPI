@@ -109,7 +109,7 @@ end
         ("MX", fermionic_Δm(semicircular(), β=2.0, Nτ=2, t=0.5, Nt=1, μ=0.2)),
     )
     for (name, corr) in cases
-        T = dense_fermionicIF(corr)
+        T = DenseFermionicIF(corr)
         n = size(QuAPI._contour_delta(corr), 1)
         chain = QuAPI._if_legorder(corr)             # GTEMPO ordering 链序节点
         nodes = QuAPI._contour_nodes(corr)           # Δ 行序节点（fast 模式指标）
@@ -142,7 +142,7 @@ end
           [(:τ, 2), (:τ, 1), (:+, 1), (:-, 1), (:+, 2), (:-, 2)]  # 虚时降序 ++ 实时升序
     # 阶数上限：n = 16 ⟹ L = 32 > 30 提前报错（不进入 2^32 系数构造）
     big = fermionic_Δτ(semicircular(), β=5.0, N=16, μ=0.0)
-    @test_throws ArgumentError dense_fermionicIF(big)
+    @test_throws ArgumentError DenseFermionicIF(big)
 end
 
 # ---------------- 稠密玻色 ADT（对角耦合：路径权重） ----------------
@@ -171,7 +171,7 @@ end
     for (name, corr) in (("IM", bosonic_Δτ(f0b, β=2.0, N=4)),
                          ("RT", bosonic_Δt(f0b, β=2.0, t=1.0, N=2)),
                          ("MX", bosonic_Δm(f0b, β=2.0, Nτ=2, t=0.5, Nt=1)))
-        A = dense_bosonicADT(corr, λsbm)
+        A = DenseBosonicADT(corr, λsbm)
         n = length(QuAPI._if_legorder(corr))
         chain = QuAPI._if_legorder(corr)
         @test A isa DenseBosonicADT
@@ -183,14 +183,14 @@ end
     end
     # 一般本征值矢量（非 ±1；含零）
     λg = [0.3, 1.7, -0.9]
-    A4 = dense_bosonicADT(bosonic_Δτ(f0b, β=2.0, N=3), λg)
+    A4 = DenseBosonicADT(bosonic_Δτ(f0b, β=2.0, N=3), λg)
     @test A4.data ≈ vec(ref_IF(bosonic_Δτ(f0b, β=2.0, N=3), λg)) rtol = 1e-12
     @test A4.d == 3 && length(A4.data) == 27 && length(A4.basis) == 3
     # 负检验：链序（GTEMPO ordering）确实影响结果——升序链的参考与实现不同，
     # 保证上面的逐元素对照不是平凡通过。用实时 corr（虚时 Δ 有 KMS 时间反转
     # 对称 Δ = JΔJ，升降序恰好重合，不能用于此检验）
     corr3 = bosonic_Δt(f0b, β=2.0, t=1.0, N=2)
-    Tdown = dense_bosonicADT(corr3, λsbm)
+    Tdown = DenseBosonicADT(corr3, λsbm)
     function ref_IF_wrong(corr, λ)   # 故意用升序链
         Δ = QuAPI._contour_delta(corr)
         nodes = QuAPI._contour_nodes(corr)
@@ -209,13 +209,13 @@ end
     end
     @test !(Tdown.data ≈ vec(ref_IF_wrong(corr3, λsbm)))
     # 空 λ 报错
-    @test_throws ArgumentError dense_bosonicADT(corr3, Float64[])
+    @test_throws ArgumentError DenseBosonicADT(corr3, Float64[])
     # 元素数上限：d=2, n=31 ⟹ 2^31 > 2^30
     big = bosonic_Δτ(f0b, β=2.0, N=31)
-    @test_throws ArgumentError dense_bosonicADT(big, λsbm)
+    @test_throws ArgumentError DenseBosonicADT(big, λsbm)
     # d=4, n=16 ⟹ 4^16 = 2^32 > 2^30
     big16 = bosonic_Δτ(f0b, β=2.0, N=16)
-    @test_throws ArgumentError dense_bosonicADT(big16, [1.0, 2.0, 3.0, 4.0])
+    @test_throws ArgumentError DenseBosonicADT(big16, [1.0, 2.0, 3.0, 4.0])
 end
 
 # ---------------- 稠密玻色 PT（非对角耦合：IF = exp(H)） ----------------
@@ -228,8 +228,8 @@ end
                  bosonic_Δm(f0b, β=2.0, Nτ=2, t=0.5, Nt=1))
         n = length(QuAPI._if_legorder(corr))
         d = 2
-        A = dense_bosonicADT(corr, λ)
-        P = dense_bosonicPT(corr, Matrix(Diagonal(λ)))
+        A = DenseBosonicADT(corr, λ)
+        P = DenseBosonicPT(corr, Matrix(Diagonal(λ)))
         @test P isa DenseBosonicPT
         @test P.d == d && length(P.data) == d^(2n) == 4^n
         @test P.basis == A.basis                       # 同一链序节点
@@ -255,8 +255,8 @@ end
     U = [cos(θ) -sin(θ); sin(θ) cos(θ)]
     λnd = [0.7, -0.3]
     hybU = U * Diagonal(λnd) * U'
-    P = dense_bosonicPT(corr, hybU)
-    w = reshape(dense_bosonicADT(corr, λnd).data, ntuple(_ -> d, n))
+    P = DenseBosonicPT(corr, hybU)
+    w = reshape(DenseBosonicADT(corr, λnd).data, ntuple(_ -> d, n))
     T = reshape(P.data, ntuple(_ -> d, 2n))
     Texp = Array{eltype(P.data)}(undef, ntuple(_ -> d, 2n))
     for I in CartesianIndices(Texp)
@@ -271,12 +271,12 @@ end
     @test T ≈ Texp atol = 1e-11
     # 复厄米 hyb：H 厄米 ⟹ exp(H) 厄米 ⟹ T[α;β] = conj(T[β;α])
     hybH = [0.5 0.4im; -0.4im -0.2]
-    Pc = dense_bosonicPT(corr, hybH)
+    Pc = DenseBosonicPT(corr, hybH)
     Tc = reshape(Pc.data, ntuple(_ -> d, 2n))
     swap = vcat([[2p, 2p - 1] for p in 1:n]...)
     @test Tc ≈ conj.(permutedims(Tc, swap)) atol = 1e-11
     # 非方阵 hyb / 规模上限
-    @test_throws ArgumentError dense_bosonicPT(corr, [1.0 2.0 3.0])
+    @test_throws ArgumentError DenseBosonicPT(corr, [1.0 2.0 3.0])
     big = bosonic_Δτ(f0b, β=2.0, N=16)          # d=2, n=16 ⟹ 2^32
-    @test_throws ArgumentError dense_bosonicPT(big, Matrix(Diagonal(λ)))
+    @test_throws ArgumentError DenseBosonicPT(big, Matrix(Diagonal(λ)))
 end

@@ -161,7 +161,7 @@ end
 # ------------------------------------------------------------------ #
 
 """
-    dense_fermionicIF(x::AbstractCorrelationFunction) -> DenseFermionicIF
+    DenseFermionicIF(x::AbstractCorrelationFunction) -> DenseFermionicIF
 
 费米影响泛函 IF 的**稠密 Grassmann 表示**：
 
@@ -185,7 +185,7 @@ OSEE（协方差快速算法，`GaussianStates.osee`），可用于交叉验证�
 `p` 在 Δ 行序（`[:+; :-; :τ]`，分支内时间升序）中的指标即
 GaussianStates 配对态的模式指标（site `p` = 模式对 `[p, n+p]`）。
 """
-function dense_fermionicIF(x::AbstractCorrelationFunction)
+function DenseFermionicIF(x::AbstractCorrelationFunction)
     Δ = _contour_delta(x)
     n = size(Δ, 1)
     L = 2n
@@ -232,7 +232,7 @@ end
 # ------------------------------------------------------------------ #
 
 """
-    dense_bosonicADT(x::AbstractCorrelationFunction, λ::AbstractVector{<:Real})
+    DenseBosonicADT(x::AbstractCorrelationFunction, λ::AbstractVector{<:Real})
         -> DenseBosonicADT
 
 玻色影响泛函在**对角（ADT）耦合**下的稠密表示。耦合形式
@@ -255,8 +255,8 @@ ordering，见 `_if_legorder`），`d = length(λ)`。
 
 复杂度 O(n² dⁿ)；`dⁿ > 2³⁰` 时抛 `ArgumentError`（d=2 即 n ≤ 30）。
 """
-function dense_bosonicADT(x::AbstractCorrelationFunction,
-                          λ::AbstractVector{<:Real})
+function DenseBosonicADT(x::AbstractCorrelationFunction,
+                         λ::AbstractVector{<:Real})
     isempty(λ) && throw(ArgumentError("λ 不能为空"))
     d = length(λ)
     Δ = _contour_delta(x)
@@ -283,7 +283,7 @@ function dense_bosonicADT(x::AbstractCorrelationFunction,
 end
 
 """
-    dense_bosonicPT(x::AbstractCorrelationFunction, hyb::AbstractMatrix)
+    DenseBosonicPT(x::AbstractCorrelationFunction, hyb::AbstractMatrix)
         -> DenseBosonicPT
 
 玻色影响泛函在**非对角（PT）耦合**下的稠密表示，`hyb` 为任意方阵
@@ -307,7 +307,7 @@ H = Σ_pq [ M1[p,q]·op1_p·op2_q + M2[p,q]·op2_p·op1_q ]
 `d = size(hyb, 1)`。总元素数 `d^{2n} > 2³⁰` 时抛 `ArgumentError`
 （d=2 即 n ≤ 15）。
 """
-function dense_bosonicPT(x::AbstractCorrelationFunction, hyb::AbstractMatrix)
+function DenseBosonicPT(x::AbstractCorrelationFunction, hyb::AbstractMatrix)
     size(hyb, 1) == size(hyb, 2) || throw(ArgumentError("hyb 必须是方阵"))
     d = size(hyb, 1)
     M1, M2 = _contour_delta_split(x)

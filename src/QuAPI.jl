@@ -17,8 +17,7 @@ export infinite_Δτ, infinite_Δt
 export BCSCorrelationFunction, bcs_Δτ, bcs_Δt, bcs_Δm
 
 # utility
-export dense_fermionicIF, dense_bosonicADT, dense_bosonicPT,
-       DenseFermionicIF, DenseBosonicADT, DenseBosonicPT,
+export DenseFermionicIF, DenseBosonicADT, DenseBosonicPT,
        GrassmannContourIndex, BosonicContourIndex
 
 using Base: @boundscheck
