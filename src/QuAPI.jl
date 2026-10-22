@@ -18,6 +18,7 @@ export BCSCorrelationFunction, bcs_Δτ, bcs_Δt, bcs_Δm
 
 using Base: @boundscheck
 using ImpurityModelBase
+using LinearAlgebra
 
 
 

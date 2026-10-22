@@ -1,4 +1,5 @@
 [deps]
+GaussianStates = "c6fbc00c-0338-486e-aba6-3d08f9f2b798"
 ImpurityModelBase = "a5817ebb-6d84-46c1-a17a-d25f868e249e"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 QuAPI = "49288508-9298-4753-b2e7-d320e8956d6c"
