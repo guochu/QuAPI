@@ -17,7 +17,7 @@ export infinite_Δτ, infinite_Δt
 export BCSCorrelationFunction, bcs_Δτ, bcs_Δt, bcs_Δm
 
 # utility
-export dense_fermionicIF
+export dense_fermionicIF, dense_bosonicIF
 
 using Base: @boundscheck
 using ImpurityModelBase

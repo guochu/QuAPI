@@ -136,3 +136,74 @@ end
     big = fermionic_Δτ(semicircular(), β=5.0, N=16, μ=0.0)
     @test_throws ArgumentError dense_fermionicIF(big)
 end
+
+# ---------------- 稠密玻色 IF（路径张量，hyb·(a†+a) 耦合） ----------------
+@testset "稠密玻色 IF 路径张量" begin
+    σz = [1.0 0.0; 0.0 -1.0]
+    # 逐元素对照公式 I[v] = exp(Σ_pq Δ_pq v_p v_q)，v 取 hyb 本征值（链序）
+    # 张量维度 p（链序）的指标 I[p] 选本征值 λ[I[p]]；Δ 按行序节点索引
+    function ref_IF(corr, hyb)
+        Δ = QuAPI._contour_delta(corr)
+        nodes = QuAPI._contour_nodes(corr)
+        chain = QuAPI._if_legorder(corr)
+        λ = eltype(hyb) <: Real ? eigvals(Symmetric(hyb)) :
+            real.(eigvals(Hermitian(Matrix{ComplexF64}(hyb))))
+        d, n = length(λ), length(chain)
+        rowof = [findfirst(==(bi), nodes) for bi in chain]   # 链位置 → Δ 行号
+        T = ones(ComplexF64, ntuple(_ -> d, n))
+        for I in CartesianIndices(T)
+            v = zeros(n)
+            for p in 1:n
+                v[rowof[p]] = λ[I[p]]
+            end
+            T[I] = exp(dot(v, Δ, v))
+        end
+        return T
+    end
+    # 自旋-玻色（hyb = σ_z）：三种 contour 全体元素对照
+    f0b = spectrum(ε -> exp(-ε), lb=0.5, ub=8.0)
+    for (name, corr) in (("IM", bosonic_Δτ(f0b, β=2.0, N=4)),
+                         ("RT", bosonic_Δt(f0b, β=2.0, t=1.0, N=2)),
+                         ("MX", bosonic_Δm(f0b, β=2.0, Nτ=2, t=0.5, Nt=1)))
+        T = dense_bosonicIF(corr, σz)
+        @test T ≈ ref_IF(corr, σz) rtol = 1e-12
+    end
+    # 一般厄米 hyb（非 ±1 本征值；复厄米）
+    hyb4 = [1.0 0.3im; -0.3im 2.5]
+    T4 = dense_bosonicIF(bosonic_Δτ(f0b, β=2.0, N=3), hyb4)
+    @test T4 ≈ ref_IF(bosonic_Δτ(f0b, β=2.0, N=3), hyb4) rtol = 1e-12
+    @test size(T4) == (2, 2, 2)
+    # 负检验：链序（GTEMPO ordering）确实影响结果——升序链的参考与实现不同，
+    # 保证上面的逐元素对照不是平凡通过。用实时 corr（虚时 Δ 有 KMS 时间反转
+    # 对称 Δ = JΔJ，升降序恰好重合，不能用于此检验）
+    corr3 = bosonic_Δt(f0b, β=2.0, t=1.0, N=2)
+    Tdown = dense_bosonicIF(corr3, σz)
+    function ref_IF_wrong(corr, hyb)   # 故意用升序链
+        Δ = QuAPI._contour_delta(corr)
+        nodes = QuAPI._contour_nodes(corr)
+        chain = reverse(QuAPI._if_legorder(corr))
+        λ = eigvals(Symmetric(hyb))
+        d, n = length(λ), length(chain)
+        rowof = [findfirst(==(bi), nodes) for bi in chain]
+        T = ones(ComplexF64, ntuple(_ -> d, n))
+        for I in CartesianIndices(T)
+            v = zeros(n)
+            for p in 1:n
+                v[rowof[p]] = λ[I[p]]
+            end
+            T[I] = exp(dot(v, Δ, v))
+        end
+        return T
+    end
+    @test !(Tdown ≈ ref_IF_wrong(corr3, σz))
+    # 非厄米 hyb 报错
+    @test_throws ArgumentError dense_bosonicIF(corr3, [1.0 0.5; 0.0 -1.0])
+    @test_throws ArgumentError dense_bosonicIF(corr3, [1.0 0.5im; 0.5im -1.0])
+    # 元素数上限：d=2, n=31 ⟹ 2^31 > 2^30
+    big = bosonic_Δτ(f0b, β=2.0, N=31)
+    @test_throws ArgumentError dense_bosonicIF(big, σz)
+    # d=4, n=16 ⟹ 4^16 = 2^32 > 2^30
+    hyb4d = Matrix{Float64}(I, 4, 4)
+    big16 = bosonic_Δτ(f0b, β=2.0, N=16)
+    @test_throws ArgumentError dense_bosonicIF(big16, hyb4d)
+end
