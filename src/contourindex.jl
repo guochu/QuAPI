@@ -3,12 +3,12 @@
 # ============================================================================
 
 """
-    ContourIndex
+    AbstractContourIndex
 
 稠密影响泛函的腿指标抽象类型：定位一条 Grassmann / 路径腿在 contour 上的
 位置（时间步 `j` 与分支 `branch`）。
 """
-abstract type ContourIndex end
+abstract type AbstractContourIndex end
 
 """
     GrassmannContourIndex(j, branch, band, conj)
@@ -18,7 +18,7 @@ abstract type ContourIndex end
 BCS 下 band 奇数 = 上自旋，偶数 = 下自旋），`conj = false` 为 `a`
 （湮灭），`true` 为 `ā`（共轭）。
 """
-struct GrassmannContourIndex <: ContourIndex
+struct GrassmannContourIndex <: AbstractContourIndex
     j::Int
     branch::Symbol
     band::Int
@@ -31,17 +31,17 @@ end
 玻色稠密 IF 的一条路径腿：`j` 为实时/虚时步数，`branch` 为
 `:+`、`:-` 或 `:τ`。
 """
-struct BosonicContourIndex <: ContourIndex
+struct BosonicContourIndex <: AbstractContourIndex
     j::Int
     branch::Symbol
 end
 
 "腿指标所在的分支（`:+`、`:-` 或 `:τ`）。"
-branch(x::ContourIndex) = x.branch
+branch(x::AbstractContourIndex) = x.branch
 
 # ------------------------------------------------------------------ #
 # 用腿指标访问 hybridization function：
-#     x[i::ContourIndex, j::ContourIndex] ==
+#     x[i::AbstractContourIndex, j::AbstractContourIndex] ==
 #         index(x, i.j, j.j; b1 = branch(i), b2 = branch(j))
 # ------------------------------------------------------------------ #
 

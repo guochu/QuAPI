@@ -18,7 +18,7 @@ export BCSCorrelationFunction, bcs_Δτ, bcs_Δt, bcs_Δm
 
 # utility
 export GrassmannIF, BosonicIF, NonDiagonalBosonicIF,
-       ContourIndex, GrassmannContourIndex, BosonicContourIndex
+       AbstractContourIndex, GrassmannContourIndex, BosonicContourIndex
 
 using Base: @boundscheck
 using ImpurityModelBase
@@ -41,7 +41,7 @@ include("infinitetime/realtime.jl")
 # BCS
 include("bcs/bcs.jl")
 
-# 腿指标（ContourIndex）与稠密 IF
+# 腿指标（AbstractContourIndex）与稠密 IF
 include("contourindex.jl")
 include("utility.jl")
 

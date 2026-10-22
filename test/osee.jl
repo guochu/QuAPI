@@ -181,13 +181,13 @@ end
     @test_throws ArgumentError GrassmannIF(bigbcs)
 end
 
-# ---------------- ContourIndex：腿指标上的 correlation function 访问 ----------------
-@testset "ContourIndex 访问" begin
+# ---------------- AbstractContourIndex：腿指标上的 correlation function 访问 ----------------
+@testset "AbstractContourIndex 访问" begin
     corrτ = fermionic_Δτ(semicircular(), β=5.0, N=4, μ=0.3)
     i = GrassmannContourIndex(2, :τ, 1, false)
     j = GrassmannContourIndex(3, :τ, 1, true)
     @test branch(i) == :τ && branch(j) == :τ
-    @test i isa ContourIndex && BosonicContourIndex(1, :+) isa ContourIndex
+    @test i isa AbstractContourIndex && BosonicContourIndex(1, :+) isa AbstractContourIndex
     # 行为与 index 一致
     @test corrτ[i, j] == index(corrτ, 2, 3; b1=:τ, b2=:τ)
     @test corrτ[j, i] == index(corrτ, 3, 2; b1=:τ, b2=:τ)
