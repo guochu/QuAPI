@@ -68,8 +68,7 @@ function quapi_bcs_gt(β, ϵ_d, spectrum::AbstractBoundedFunction; N, Δ, μ=0.0
     # τ-descending leg reversal cancel); the G numerator is the coefficient of
     # the top monomial with {ā↑₁, a↑_{m+1}} removed (the complement is passed
     # in basis order, so gif[...] adds no extra sign).
-    c = [gif[[l for l in gif.basis
-              if l != leg(1, 1, true) && l != leg(m + 1, 1, false)]...]
+    c = [gif[complementindex(gif.basis, leg(1, 1, true), leg(m + 1, 1, false))...]
          for m in 0:N-1]
     return ctop, -c ./ ctop, δτ
 end

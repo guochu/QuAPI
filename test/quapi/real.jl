@@ -221,17 +221,18 @@ end
 
 ### fermionic Toulouse impurity (dense Grassmann tensor from src/models.jl) ###
 
-# The influence functional comes from `QuAPI.Dense._if_coefficients` in the
+# The influence functional comes from `GrassmannHybridizationMatrix` in the
 # GTEMPO leg order; the impurity kinetics, measures and contour closure are
-# added to the same bilinear exponent and the tensor is folded once with
-# `_fold_grassmann` (no Grassmann-tensor package needed).
+# added to the same bilinear exponent and folded once by `GrassmannIF` (no
+# Grassmann-tensor package needed).
 
 """
 	quapi_rlm_rt_gt(β, ϵ_d, spectrum; Nt, t, μ=0.0)
 
 Real-time (closed Keldysh contour) fermionic QuAPI for the Toulouse impurity,
 represented as a single dense Grassmann tensor over the legs of
-`QuAPI.Dense._if_legs(corr)` (per node: `a`, `ā`; nodes in GTEMPO order, i.e.
+`GrassmannHybridizationMatrix(corr).basis` (per node: `a`, `ā`; nodes in
+GTEMPO order, i.e.
 `(+,Nt+1), (-,Nt+1), …, (+,1), (-,1)`).
 
 Contour: nodes 0..Nt on the + branch (t = 0..t) and on the - branch.
@@ -242,7 +243,7 @@ The bilinear exponent exp(Σ C_ij ξ_i ξ_j) contains:
 - the initial impurity thermal weight e^{−βϵ_d} ā⁺(0)a⁻(0) (quench from
   ρ(0) = ρ_imp(β) ⊗ ρ_bath(β)),
 - the discrete-time influence functional blocks from `fermionic_Δt`
-  (all four branch blocks, from `_if_coefficients`).
+  (all four branch blocks, from the hybridization matrix).
 
 Returns the partition function Z (bath-normalized) and the raw greater/lesser
 expectations `Gg[j] = ⟨d(tⱼ)d†(0)⟩` and `Gl[j] = ⟨d†(0)d(tⱼ)⟩`.
@@ -253,9 +254,10 @@ function quapi_rlm_rt_gt(β, ϵ_d, spectrum; Nt, t, μ=0.0)
     xc = conj(x)
     corr = fermionic_Δt(spectrum, β=β, N=Nt, t=t, μ=μ)
 
-    C = QuAPI.Dense._if_coefficients(corr)
-    legs = basis(corr)
+    h = GrassmannHybridizationMatrix(corr)
+    legs = h.basis
     li = Dict(l => k for (k, l) in enumerate(legs))
+    C = copy(h.Δ)
     # 节点 j = i+1（i = 0..Nt），branch = :+ / :-
     leg(i, b, c) = li[GrassmannContourIndex(i + 1, b, 1, c)]
     for i in 0:Nt                                  # Berezin measures −āa
@@ -269,16 +271,15 @@ function quapi_rlm_rt_gt(β, ϵ_d, spectrum; Nt, t, μ=0.0)
     C[leg(Nt, :-, true), leg(Nt, :+, false)] += -1.0          # contour closure
     C[leg(0, :+, true), leg(0, :-, false)] += exp(-β * ϵ_d)   # initial weight
 
-    data = QuAPI.Dense._fold_grassmann(C)
-    L = length(legs)
-    ctop = data[1 << L]                            # all-odd coefficient
+    gif = GrassmannIF(GrassmannHybridizationMatrix(legs, C))
+    ctop = Zvalue(gif)                             # all-odd coefficient
     Z = ctop
     # Under the GTEMPO leg order (a before ā per node, times descending) the
     # {ā⁺₀, a⁺_j} numerator changes order relative to the ascending layout
     # (one minus sign), while {ā⁻₀, a⁺_j} does not.
-    Gg = [QuAPI.Dense._grassmann_coefficient(data, leg(0, :+, true), leg(j, :+, false)) / ctop
+    Gg = [gif[complementindex(gif.basis, legs[leg(0, :+, true)], legs[leg(j, :+, false)])...] / ctop
           for j in 0:Nt]
-    Gl = [QuAPI.Dense._grassmann_coefficient(data, leg(0, :-, true), leg(j, :+, false)) / ctop
+    Gl = [gif[complementindex(gif.basis, legs[leg(0, :-, true)], legs[leg(j, :+, false)])...] / ctop
           for j in 0:Nt]
     return Z, Gg, Gl, δt
 end

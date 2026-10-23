@@ -7,13 +7,13 @@ module Dense
 using ..QuAPI: AbstractCorrelationFunction, BCSCorrelationFunction,
                ImagCorrelationFunction, RealCorrelationFunction,
                AbstractMixedCorrelationFunction, CorrelationMatrix,
-               GrassmannContourIndex, BosonicContourIndex, branch, branches,
-               isize, rsize
+               AbstractContourIndex, GrassmannContourIndex, BosonicContourIndex,
+               branch, branches, isize, rsize
 using LinearAlgebra: I, kron, triu, tril
 
 export GrassmannADT, BosonicADT, BosonicPT,
        GrassmannHybridizationMatrix, BosonicHybridizationMatrix,
-       GrassmannIF, BosonicIF, Zvalue, margin, basis
+       GrassmannIF, BosonicIF, Zvalue, margin, basis, complementindex
 
 "稠密 IF 张量的最大元素数（2³⁰）。"
 const MAXTENSORDIM = 2^30
@@ -241,16 +241,6 @@ function _fold_grassmann(C::AbstractMatrix{T}) where {T<:Number}
     return data
 end
 
-# 从稠密系数向量读单项式系数：`legs` 为该 monomial 的（奇数）腿指标
-function _grassmann_coefficient(data::AbstractVector, legs::Integer...)
-    L = round(Int, log2(length(data)))
-    mask = (1 << L) - 1
-    for k in legs
-        mask &= ~(1 << (k - 1))
-    end
-    return data[mask + 1]
-end
-
 """
     x[legs::GrassmannContourIndex...]
 
@@ -297,6 +287,23 @@ function _leg_positions(basis, legs)
     end
     allunique(pos) || throw(ArgumentError("legs 不能重复"))
     return pos
+end
+
+"""
+    complementindex(basis::AbstractVector{<:AbstractContourIndex},
+                    legs::AbstractContourIndex...)
+
+返回 `basis` 中不在 `legs` 里的腿（保持 `basis` 顺序），费米和玻色腿都适用。
+与 `getindex` 配合可读取带插入的互补单项式系数：
+
+    x[complementindex(x.basis, ξ₁, ξ₃)...]
+
+`legs` 重复或不在 `basis` 中时报错。
+"""
+function complementindex(basis::AbstractVector{<:AbstractContourIndex},
+                         legs::AbstractContourIndex...)
+    _leg_positions(basis, legs)
+    return filter(l -> !(l in legs), basis)
 end
 
 """

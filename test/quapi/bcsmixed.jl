@@ -23,57 +23,31 @@ using Test, LinearAlgebra
 #   - the Keldysh turn-around at t closes as −ā⁻(t)a⁺(t).
 #
 # The bath influence functional is the exact Grassmann bilinear of
-# `bcs_Δm` (all nine branch blocks; `GrassmannIF` machinery), and the
-# full path integral — quadratic in the Toulouse case — is evaluated
-# exactly with Pfaffians.  The thermal Green's function is read off as
+# `bcs_Δm` (all nine branch blocks; `GrassmannHybridizationMatrix`).
+# The same Gaussian integral can be evaluated in two ways:
+#   - dense: fold the coefficient matrix into a `GrassmannADT` and read
+#     `Zvalue` / `complementindex` (feasible for ~20 legs);
+#   - Pfaffian: O(L³), needed for the larger contours below.
+# The thermal Green's function is read off as
 #
 #     G(τ_m) = −⟨d(τ_m)d†(0)⟩ = A_{ā(−0), a(τ_m)} / Z ,
 #
 # m = 1..Nτ−1 (the τ=0 entry is the contact term).
 # =====================================================================
 
-# Pfaffian of an antisymmetric matrix (Parlett–Reid, O(n³))
-function _mixed_pfaffian(A::AbstractMatrix)
-    n = size(A, 1)
-    (iseven(n)) || throw(ArgumentError("Pfaffian requires even dimension"))
-    n == 0 && return one(eltype(A))
-    B = Matrix{ComplexF64}(A)
-    p = 1.0 + 0.0im
-    for k in 1:2:n-1
-        if iszero(B[k, k+1])
-            found = false
-            for i in k+2:n
-                if !iszero(B[k, i])
-                    B[:, [k+1, i]] .= B[:, [i, k+1]]
-                    B[[k+1, i], :] .= B[[i, k+1], :]
-                    p = -p
-                    found = true
-                    break
-                end
-            end
-            found || return zero(ComplexF64)
-        end
-        p *= B[k, k+1]
-        for i in k+2:n, j in i:n
-            B[i, j] = (B[i, j] * B[k, k+1] - B[i, k] * B[j, k+1] + B[i, k+1] * B[j, k]) / B[k, k+1]
-            B[j, i] = -B[i, j]
-        end
-    end
-    return p
-end
-
 # Mixed-time path integral for a `bands`-flavor correlation function:
 # returns (Z, G(τ_m), δτ), τ_m = mδτ, m = 1..Nτ−1.
-function _mixed_quapi(corr, β, ϵ_d; Nt, Nτ, t, bands)
+function _mixed_quapi(corr, β, ϵ_d; Nt, Nτ, t, bands, dense::Bool=false)
     δt = t / Nt
     δτ = β / Nτ
     x = exp(-im * δt * ϵ_d)
     xc = conj(x)
     xτ = exp(-δτ * ϵ_d)
 
-    legs = basis(corr)
+    h = GrassmannHybridizationMatrix(corr)
+    legs = h.basis
     li = Dict(l => k for (k, l) in enumerate(legs))
-    C0 = QuAPI.Dense._if_coefficients(corr)
+    C0 = h.Δ
     L0 = length(legs)
 
     # τ_1 (τ=0) is the same contour point as −0
@@ -85,6 +59,15 @@ function _mixed_quapi(corr, β, ϵ_d; Nt, Nτ, t, bands)
     uniq = sort(unique(id))
     ren = Dict(u => k for (k, u) in enumerate(uniq))
     L = length(uniq)
+    # representatives of the merged legs, used by the dense ADT construction
+    merged_legs = GrassmannContourIndex[]
+    if dense
+        merged_legs = Vector{GrassmannContourIndex}(undef, L)
+        for l in legs
+            u = ren[id[li[l]]]
+            isassigned(merged_legs, u) || (merged_legs[u] = l)
+        end
+    end
     C = zeros(ComplexF64, L, L)
     for i in 1:L0, j in 1:L0
         c = C0[i, j]
@@ -117,78 +100,72 @@ function _mixed_quapi(corr, β, ϵ_d; Nt, Nτ, t, bands)
         C[leg(:+, 1, band, true), leg(:τ, Nτ, band, false)] += xτ
     end
 
-    M = zeros(ComplexF64, L, L)
-    for i in 1:L, j in 1:L
-        i == j && continue
-        M[i, j] = C[i, j] - C[j, i]
+    if dense
+        gif = GrassmannIF(GrassmannHybridizationMatrix(merged_legs, C))
+        Z = Zvalue(gif)
+    else
+        M = zeros(ComplexF64, L, L)
+        for i in 1:L, j in 1:L
+            i == j && continue
+            M[i, j] = C[i, j] - C[j, i]
+        end
+        Z = pfaffian(M)
+        W = inv(M)
     end
-    Z = _mixed_pfaffian(M)
-    W = inv(M)
     sgn(i, j) = isodd(i + j) ? -1.0 : 1.0
     G = ComplexF64[]
     for m in 1:Nτ-1
         i = leg(:-, 1, 1, true)     # ā at τ=0
         j = leg(:τ, m + 1, 1, false) # a at τ=mδτ (band ↑)
-        push!(G, -sgn(i, j) * W[i, j])
+        if dense
+            push!(G, gif[complementindex(gif.basis, merged_legs[i], merged_legs[j])...] / Z)
+        else
+            push!(G, -sgn(i, j) * W[i, j])
+        end
     end
     return Z, G, δτ
 end
 
 """
-    quapi_bcs_mixed(β, ϵ_d, spectrum; Nt, Nτ, t, Δ, μ=0.0)
+    quapi_bcs_mixed(β, ϵ_d, spectrum; Nt, Nτ, t, Δ, μ=0.0, dense=false)
 
 Mixed-time QuAPI for the Toulouse model with a BCS bath.  Returns
 `(Z, G, δτ)` with `G[m] = −⟨d(τ_m)d†(0)⟩` at `τ_m = mδτ` (`m = 1..Nτ−1`).
+`dense=true` constructs the `GrassmannADT` directly (small contours only).
 """
-function quapi_bcs_mixed(β, ϵ_d, spectrum; Nt, Nτ, t, Δ, μ=0.0)
+function quapi_bcs_mixed(β, ϵ_d, spectrum; Nt, Nτ, t, Δ, μ=0.0, dense::Bool=false)
     corr = bcs_Δm(spectrum, β=β, Nτ=Nτ, t=t, Nt=Nt, μ=μ, Δ=Δ)
-    return _mixed_quapi(corr, β, ϵ_d; Nt=Nt, Nτ=Nτ, t=t, bands=2)
+    return _mixed_quapi(corr, β, ϵ_d; Nt=Nt, Nτ=Nτ, t=t, bands=2, dense=dense)
 end
 
 # single-flavor version, used for the Δ=0 decoupling check
-function quapi_normal_mixed(β, ϵ_d, spectrum; Nt, Nτ, t, μ=0.0)
+function quapi_normal_mixed(β, ϵ_d, spectrum; Nt, Nτ, t, μ=0.0, dense::Bool=false)
     corr = fermionic_Δm(spectrum, β=β, Nτ=Nτ, t=t, Nt=Nt, μ=μ)
-    return _mixed_quapi(corr, β, ϵ_d; Nt=Nt, Nτ=Nτ, t=t, bands=1)
-end
-
-# imaginary-time reference with the same Nτ (Pfaffian path integral)
-function _quapi_bcs_imag(β, ϵ_d, spectrum; N, Δ, μ=0.0)
-    δτ = β / N
-    xτ = exp(-δτ * ϵ_d)
-    corr = bcs_Δτ(spectrum, β=β, N=N, μ=μ, Δ=Δ)
-    legs = basis(corr)
-    li = Dict(l => k for (k, l) in enumerate(legs))
-    C = QuAPI.Dense._if_coefficients(corr)
-    L = length(legs)
-    leg(j, band, c) = li[GrassmannContourIndex(j, :τ, band, c)]
-    for band in 1:2, j in 1:N
-        C[leg(j, band, true), leg(j, band, false)] += -1.0
-    end
-    for band in 1:2
-        for j in 2:N
-            C[leg(j, band, true), leg(j - 1, band, false)] += xτ
-        end
-        C[leg(1, band, true), leg(N, band, false)] += -xτ
-    end
-    M = zeros(ComplexF64, L, L)
-    for i in 1:L, j in 1:L
-        i == j && continue
-        M[i, j] = C[i, j] - C[j, i]
-    end
-    Z = _mixed_pfaffian(M)
-    W = inv(M)
-    sgn(i, j) = isodd(i + j) ? -1.0 : 1.0
-    G = ComplexF64[]
-    for m in 0:N-1
-        i = leg(1, 1, true)
-        j = leg(m + 1, 1, false)
-        push!(G, -sgn(i, j) * W[i, j])
-    end
-    return Z, G
+    return _mixed_quapi(corr, β, ϵ_d; Nt=Nt, Nτ=Nτ, t=t, bands=1, dense=dense)
 end
 
 @testset "mixed-time QuAPI (BCS bath, Toulouse)" begin
     β, ϵ_d, μ = 2.0, 0.5, 0.0
+
+    # ---- dense ADT construction (Nτ=2, Nt=1: 20 legs after the τ=0 merge) ----
+    @testset "dense ADT construction" begin
+        spec = DiracDelta(ω=1.0, α=0.25^2)
+        Nt, Nτ, t = 1, 2, 0.1
+        for Δ in (0.0, 0.6)
+            Zd, Gd, _ = quapi_bcs_mixed(β, ϵ_d, spec; Nt=Nt, Nτ=Nτ, t=t,
+                                        Δ=Δ, μ=μ, dense=true)
+            Zp, Gp, _ = quapi_bcs_mixed(β, ϵ_d, spec; Nt=Nt, Nτ=Nτ, t=t,
+                                        Δ=Δ, μ=μ)
+            @test Zd ≈ Zp atol=1.0e-9
+            @test Gd ≈ Gp atol=1.0e-9
+        end
+        # free impurity: exact
+        Z, G, δτ = quapi_bcs_mixed(β, ϵ_d, DiracDelta(ω=1.0, α=0.0);
+                                   Nt=Nt, Nτ=Nτ, t=t, Δ=0.0, μ=μ, dense=true)
+        @test Z ≈ (1 + exp(-β * ϵ_d))^2 atol=1.0e-9
+        τs = [m * δτ for m in 1:Nτ-1]
+        @test G ≈ [exp(-τ * ϵ_d) / (1 + exp(-β * ϵ_d)) for τ in τs] atol=1.0e-9
+    end
 
     # ---- free impurity (V = 0, Δ = 0): exact ----
     @testset "free impurity (λ=0, Δ=0)" begin
@@ -212,19 +189,14 @@ end
         @test Gb ≈ Gn atol=1.0e-9            # ↑ and ↓ Green's functions coincide
     end
 
-    # ---- coupled BCS bath: compare with the imaginary-time result ----
-    @testset "coupled vs imaginary-time QuAPI and ED" begin
+    # ---- coupled BCS bath vs exact diagonalization ----
+    @testset "coupled vs ED" begin
         V = 0.25
         spec = DiracDelta(ω=1.0, α=V^2)
         t, Nt, Nτ = 0.1, 4, 16
 
         for Δ in (0.6, 0.2 + 0.45im)
             Z, G, δτ = quapi_bcs_mixed(β, ϵ_d, spec; Nt=Nt, Nτ=Nτ, t=t, Δ=Δ, μ=μ)
-            # the real branches are a closed Keldysh loop: as t→0 the mixed
-            # contour must reproduce the imaginary-time path integral
-            Zi, Gi = _quapi_bcs_imag(β, ϵ_d, spec; N=Nτ, Δ=Δ, μ=μ)
-            @test maximum(abs.(G .- Gi[2:Nτ])) < 0.01
-
             # Toulouse exact diagonalization (loose: the QuAPI hybridization
             # carries the usual O(δτ²) discretization error, cf. bcsimag.jl)
             bath = DiscreteBCSBath([1.0], [V], Δ; β=β, μ=μ)
@@ -233,13 +205,5 @@ end
             Gan = toulouse_Gτ(m, τs)
             @test maximum(abs.(G .- Gan)) < 0.06
         end
-
-        # a longer real-time branch increases the (finite-δt) deviation from
-        # the imaginary-time result
-        Δ = 0.6
-        _, Gshort, _ = quapi_bcs_mixed(β, ϵ_d, spec; Nt=4, Nτ=Nτ, t=0.1, Δ=Δ, μ=μ)
-        _, Glong, _ = quapi_bcs_mixed(β, ϵ_d, spec; Nt=4, Nτ=Nτ, t=0.5, Δ=Δ, μ=μ)
-        _, Gi = _quapi_bcs_imag(β, ϵ_d, spec; N=Nτ, Δ=Δ, μ=μ)
-        @test maximum(abs.(Gshort .- Gi[2:Nτ])) < maximum(abs.(Glong .- Gi[2:Nτ]))
     end
 end

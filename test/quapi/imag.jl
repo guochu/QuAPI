@@ -134,10 +134,10 @@ end
 # Fermionic QuAPI (Toulouse / resonant-level model)
 # ---------------------------------------------------------------------------
 # The dense Grassmann tensor of the influence functional is built by
-# `QuAPI.Dense.GrassmannADT` / `QuAPI.Dense._if_coefficients`; the impurity
-# kinetic terms and the Berezin measures are added to the same bilinear
-# exponent, so the full path weight is again exp(Σ C_ij ξ_i ξ_j) over the legs
-# of `QuAPI.Dense._if_legs(corr)`.
+# `QuAPI.Dense.GrassmannHybridizationMatrix` / `QuAPI.Dense.GrassmannIF`; ...
+# (the impurity kinetic terms and the Berezin measures are added to the same
+# bilinear exponent, so the full path weight is again exp(Σ C_ij ξ_i ξ_j) over
+# the legs of `GrassmannHybridizationMatrix(corr).basis`).
 
 """
     quapi_rlm_gt(β, ϵ_d, spectrum::AbstractBoundedFunction; N, μ=0.0)
@@ -149,10 +149,10 @@ Imaginary-time QuAPI for the Toulouse (resonant-level) model
 with the discretized path weight exp[Σᵢⱼ āᵢ (M_imp + Δ)ᵢⱼ aⱼ] (M_imp the
 anti-periodic kinetic matrix with x = e^{-δτϵ_d}, Δ the fermionic influence-
 functional matrix from `fermionic_Δτ`).  The Δ part is taken from the shared
-dense Grassmann machinery in `src/models.jl` (`_if_coefficients` in the
-GTEMPO leg order), the impurity kinetic terms and the measures −āᵢaᵢ are
+dense Grassmann machinery in `src/models.jl` (`GrassmannHybridizationMatrix`
+in the GTEMPO leg order), the impurity kinetic terms and the measures −āᵢaᵢ are
 added to the same exponent matrix, and the tensor is folded once with
-`_fold_grassmann`.  Z and the Matsubara Green's function in the standard
+`GrassmannIF`.  Z and the Matsubara Green's function in the standard
 convention G(τ_m) = -⟨d(τ_m)d†(0)⟩ are the Berezin integrals read off the
 coefficients
 
@@ -169,9 +169,10 @@ function quapi_rlm_gt(β, ϵ_d, spectrum::AbstractBoundedFunction; N, μ=0.0)
     corr = fermionic_Δτ(spectrum, β=β, N=N, μ=μ)
 
     # influence functional: coefficient matrix in the GTEMPO leg order
-    C = QuAPI.Dense._if_coefficients(corr)
-    legs = basis(corr)
+    h = GrassmannHybridizationMatrix(corr)
+    legs = h.basis
     li = Dict(l => k for (k, l) in enumerate(legs))
+    C = copy(h.Δ)
     leg(j, c) = li[GrassmannContourIndex(j, :τ, 1, c)]
     for i in 1:N                                  # Berezin measure −āᵢaᵢ
         C[leg(i, true), leg(i, false)] += -1.0
@@ -181,16 +182,15 @@ function quapi_rlm_gt(β, ϵ_d, spectrum::AbstractBoundedFunction; N, μ=0.0)
     end
     C[leg(1, true), leg(N, false)] += -x          # anti-periodic wrap
 
-    data = QuAPI.Dense._fold_grassmann(C)
-    L = length(legs)
-    ctop = data[1 << L]                           # all-odd top coefficient
+    gif = GrassmannIF(GrassmannHybridizationMatrix(legs, C))
+    ctop = Zvalue(gif)                            # all-odd top coefficient
     # The measure contributes (-1)^N, but the GTEMPO leg order here is
     # τ-descending (and a before ā within a node) while the derivation above
     # used τ-ascending ā before a; the leg reversal carries (-1)^{N(2N-1)}
     # and the a/ā swap another (-1)^N, so these cancel and Z = +ctop.
     # The numerator monomial {ā₁, a_{m+1}} changes order under the same
     # relabelling, hence the extra minus sign in G.
-    c = [QuAPI.Dense._grassmann_coefficient(data, leg(1, true), leg(m + 1, false))
+    c = [gif[complementindex(gif.basis, legs[leg(1, true)], legs[leg(m + 1, false)])...]
          for m in 0:N-1]
     return ctop, -c ./ ctop, δτ
 end

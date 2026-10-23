@@ -229,6 +229,29 @@ end
     @test bcs[kdn, kup] == index(bcs[:↓, :↑], 2, 1; b1=:τ, b2=:τ)
     @test bcs[kup, GrassmannContourIndex(3, :τ, 3, true)] ==
           index(bcs[:↑, :↑], 1, 3; b1=:τ, b2=:τ)     # band 3 = 上自旋
+
+    # contour 次序：分支 :+ < :- < :τ；:+ / :τ 内 j 升序，:- 内 j 降序
+    @test GrassmannContourIndex(1, :+, 1, false) < GrassmannContourIndex(2, :+, 1, false)
+    @test GrassmannContourIndex(2, :+, 1, false) < GrassmannContourIndex(1, :-, 1, false)
+    @test GrassmannContourIndex(2, :-, 1, false) < GrassmannContourIndex(1, :-, 1, false)
+    @test GrassmannContourIndex(1, :-, 1, false) < GrassmannContourIndex(1, :τ, 1, false)
+    @test GrassmannContourIndex(1, :τ, 1, false) < GrassmannContourIndex(2, :τ, 1, false)
+    # 同一节点：band 升序，ā 在 a 之前
+    @test GrassmannContourIndex(1, :τ, 1, false) < GrassmannContourIndex(1, :τ, 2, false)
+    @test GrassmannContourIndex(1, :τ, 1, true) < GrassmannContourIndex(1, :τ, 1, false)
+    @test GrassmannContourIndex(1, :τ, 1, false) <= GrassmannContourIndex(1, :τ, 1, false)
+    @test GrassmannContourIndex(1, :τ, 1, false) >= GrassmannContourIndex(1, :τ, 1, false)
+    @test GrassmannContourIndex(2, :τ, 1, false) > GrassmannContourIndex(1, :τ, 1, false)
+    @test GrassmannContourIndex(1, :τ, 1, false) == GrassmannContourIndex(1, :τ, 1, false)
+    @test GrassmannContourIndex(1, :τ, 1, false) != GrassmannContourIndex(1, :τ, 2, false)
+
+    @test BosonicContourIndex(1, :+) < BosonicContourIndex(2, :+)
+    @test BosonicContourIndex(2, :+) < BosonicContourIndex(1, :-)
+    @test BosonicContourIndex(2, :-) < BosonicContourIndex(1, :-)
+    @test BosonicContourIndex(1, :-) < BosonicContourIndex(1, :τ)
+    @test BosonicContourIndex(1, :τ) < BosonicContourIndex(2, :τ)
+    @test BosonicContourIndex(1, :τ) <= BosonicContourIndex(1, :τ)
+    @test BosonicContourIndex(1, :τ) == BosonicContourIndex(1, :τ)
 end
 
 # ---------------- 稠密 IF 乘法（两个 basis 可以不同） ----------------
@@ -299,6 +322,8 @@ end
     @test mA.basis == [A.basis[2]]
     @test mA.data ≈ vec(sum(reshape(A.data, 2, 2, 2), dims=(1, 3)))
     @test margin(A).data ≈ [Zvalue(A)]
+    # 玻色腿的补集索引
+    @test complementindex(A.basis, A.basis[2]) == [A.basis[1], A.basis[3]]
 end
 
 # ---------------- 稠密玻色 ADT（对角耦合：路径权重） ----------------

@@ -134,3 +134,61 @@ branches(::ImagCorrelationFunction) = (:τ,)
 branches(::RealCorrelationFunction) = (:+, :-)
 branches(::AbstractMixedCorrelationFunction) = (:+, :-, :τ)
 branches(x::BCSCorrelationFunction) = branches(x.uu)
+
+# ------------------------------------------------------------------ #
+# contour 比较算符：沿用 GTEMPO / TEMPO 旧本地 ContourIndex 的次序
+#   分支 :+ < :- < :τ；
+#   :+ / :τ 内 j 升序，:- 内 j 降序；
+#   同一节点内 band 升序，ā (conj=true) 在 a (conj=false) 之前。
+# ------------------------------------------------------------------ #
+
+Base.:(==)(a::GrassmannContourIndex, b::GrassmannContourIndex) =
+    a.j == b.j && a.branch == b.branch && a.band == b.band && a.conj == b.conj
+
+Base.:(==)(a::BosonicContourIndex, b::BosonicContourIndex) =
+    a.j == b.j && a.branch == b.branch
+
+function Base.isless(a::GrassmannContourIndex, b::GrassmannContourIndex)
+    ((a.j == 0) || (b.j == 0)) &&
+        throw(ArgumentError("boundary index are not contour-ordered"))
+    if a.branch == b.branch && a.j == b.j
+        a.band == b.band || return a.band < b.band
+        a.conj == b.conj && return false
+        return a.conj
+    end
+    if a.branch == :+
+        return b.branch == :+ ? a.j < b.j : true
+    elseif a.branch == :-
+        if b.branch == :+
+            return false
+        elseif b.branch == :-
+            return a.j > b.j
+        else
+            return true
+        end
+    else
+        return b.branch == :τ ? a.j < b.j : false
+    end
+end
+
+function Base.isless(a::BosonicContourIndex, b::BosonicContourIndex)
+    a == b && return false
+    if a.branch == :+
+        return b.branch == :+ ? a.j < b.j : true
+    elseif a.branch == :-
+        if b.branch == :+
+            return false
+        elseif b.branch == :-
+            return a.j > b.j
+        else
+            return true
+        end
+    else
+        return b.branch == :τ ? a.j < b.j : false
+    end
+end
+
+Base.:(<)(a::AbstractContourIndex, b::AbstractContourIndex) = isless(a, b)
+Base.:(<=)(a::AbstractContourIndex, b::AbstractContourIndex) = a == b || isless(a, b)
+Base.:(>)(a::AbstractContourIndex, b::AbstractContourIndex) = !(a <= b)
+Base.:(>=)(a::AbstractContourIndex, b::AbstractContourIndex) = !(a < b)
