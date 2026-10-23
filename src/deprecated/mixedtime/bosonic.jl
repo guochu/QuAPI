@@ -8,7 +8,7 @@ cross-validation of the current implementation in the test suite.
 """
 function bosonic_Δm_deprecated(f::AbstractBoundedFunction; β::Real, Nτ::Int, t::Real, Nt::Int, μ::Real=0, δτ::Real=β/Nτ)
     δt = t / Nt
-    g₁(ε) = _g₁(β, μ, ε); g₂(ε) = _g₂(β, μ, ε)
+    g₁(ε) = 1 + boseeinstein(β, μ, ε); g₂(ε) = boseeinstein(β, μ, ε)
     # real time
     fⱼₖ(Δk) = _fⱼₖ_r(f, Δk, δt)
     fⱼⱼ = _fⱼⱼ_r(f, δt)

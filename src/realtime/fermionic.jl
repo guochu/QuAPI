@@ -118,7 +118,7 @@ function fermionic_Δt(f::AbstractBoundedFunction, disperse::Function, β::Real,
     β = convert(Float64, β)
     μ = convert(Float64, μ)
     δt = t / N
-    g₁(ε) = _f₁(β, μ, disperse(ε)); g₂(ε) = _f₂(β, μ, disperse(ε))
+    g₁(ε) = fermidirac(β, μ - disperse(ε)); g₂(ε) = fermidirac(β, disperse(ε) - μ)
     fⱼₖ(Δk) = _fⱼₖ_r_disperse(f, disperse, Δk, δt)
     fⱼⱼ = _fⱼⱼ_r_disperse(f, disperse, δt)
 

@@ -119,7 +119,7 @@ function compute_next!(x::InfiniteRealCorrelationCache{<:AbstractFermionicNormal
 	# f, lb, ub = f0.f, lowerbound(f0), upperbound(f0)
 	β, μ, δt = x.bath.β, x.bath.μ, x.δt
 
-    g₁(ε) = _f₁(β, μ, ε); g₂(ε) = _f₂(β, μ, ε)
+    g₁(ε) = fermidirac(β, μ - ε); g₂(ε) = fermidirac(β, ε - μ)
     # real time
     fⱼₖ(Δk) = _fⱼₖ_r(f, Δk, δt)
     fⱼⱼ = _fⱼⱼ_r(f, δt)

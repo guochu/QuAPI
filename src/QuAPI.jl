@@ -19,13 +19,16 @@ export BCSCorrelationFunction, bcs_Δτ, bcs_Δt, bcs_Δm
 # contour indices
 export AbstractContourIndex, GrassmannContourIndex, BosonicContourIndex
 
+# numerical tolerance
+export get_quapi_tol, set_quapi_tol!
+
 using Base: @boundscheck
 using ImpurityModelBase
 using LinearAlgebra
 
 
 
-include("util.jl")
+include("utility.jl")
 include("corrmat.jl")
 
 include("abstractcorr.jl")
@@ -39,18 +42,6 @@ include("infinitetime/realtime.jl")
 
 # BCS
 include("bcs/bcs.jl")
-
-# contour branches present in a correlation function
-"""
-    branches(x::AbstractCorrelationFunction) -> Tuple{Vararg{Symbol}}
-
-correlation function `x` 所在的 contour 分支（按 Δ 行序）：
-虚时 `(:τ,)`、实时 `(:+, :)`、混合 `(:+, :-, :τ)`；BCS 取正常块的分支。
-"""
-branches(::ImagCorrelationFunction) = (:τ,)
-branches(::RealCorrelationFunction) = (:+, :-)
-branches(::AbstractMixedCorrelationFunction) = (:+, :-, :τ)
-branches(x::BCSCorrelationFunction) = branches(x.uu)
 
 # 腿指标（AbstractContourIndex）与稠密 IF（QuAPI.Dense）
 include("contourindex.jl")

@@ -24,7 +24,7 @@ such that we have δt = t/Nt, δτ = β/Nτ
 """
 function fermionic_Δm_deprecated(f::AbstractBoundedFunction; β::Real, Nτ::Int, t::Real, Nt::Int, μ::Real=0, δτ::Real=β/Nτ)
     δt = t / Nt
-    g₁(ε) = _f₁(β, μ, ε); g₂(ε) = _f₂(β, μ, ε)
+    g₁(ε) = fermidirac(β, μ - ε); g₂(ε) = fermidirac(β, ε - μ)
     # real time
     fⱼₖ(Δk) = _fⱼₖ_r(f, Δk, δt)
     fⱼⱼ = _fⱼⱼ_r(f, δt)

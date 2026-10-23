@@ -26,6 +26,14 @@ struct GrassmannContourIndex <: AbstractContourIndex
 end
 
 """
+    GrassmannContourIndex(j; branch=:τ, band=1, conj=false)
+
+关键字构造器；默认对应虚时 `:τ` 分支、band 1、湮灭算符 `a`。
+"""
+GrassmannContourIndex(j::Int; branch::Symbol=:τ, band::Int=1, conj::Bool=false) =
+    GrassmannContourIndex(j, branch, band, conj)
+
+"""
     BosonicContourIndex(j, branch)
 
 玻色稠密 IF 的一条路径腿：`j` 为实时/虚时步数，`branch` 为
@@ -35,6 +43,13 @@ struct BosonicContourIndex <: AbstractContourIndex
     j::Int
     branch::Symbol
 end
+
+"""
+    BosonicContourIndex(j; branch=:τ)
+
+关键字构造器；默认对应虚时 `:τ` 分支。
+"""
+BosonicContourIndex(j::Int; branch::Symbol=:τ) = BosonicContourIndex(j, branch)
 
 "腿指标所在的分支（`:+`、`:-` 或 `:τ`）。"
 branch(x::AbstractContourIndex) = x.branch
@@ -104,3 +119,18 @@ function Base.getindex(x::AbstractCorrelationFunction,
                        i::BosonicContourIndex, j::BosonicContourIndex)
     return index(x, i.j, j.j; b1=branch(i), b2=branch(j))
 end
+
+# ------------------------------------------------------------------ #
+# correlation function 的 contour 分支
+# ------------------------------------------------------------------ #
+
+"""
+    branches(x::AbstractCorrelationFunction) -> Tuple{Vararg{Symbol}}
+
+correlation function `x` 所在的 contour 分支（按 Δ 行序）：
+虚时 `(:τ,)`、实时 `(:+, :)`、混合 `(:+, :-, :τ)`；BCS 取正常块的分支。
+"""
+branches(::ImagCorrelationFunction) = (:τ,)
+branches(::RealCorrelationFunction) = (:+, :-)
+branches(::AbstractMixedCorrelationFunction) = (:+, :-, :τ)
+branches(x::BCSCorrelationFunction) = branches(x.uu)

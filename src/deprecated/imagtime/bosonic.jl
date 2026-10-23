@@ -16,8 +16,8 @@ function bosonic_Δτ_deprecated(f0::AbstractBoundedFunction, β::Real, N::Int, 
     f = spectrumshift(f0, μ)
     # δτ = β / N
     
-    g₁(ϵ) = _g₁(β, 0., ϵ)
-    g₂(ϵ) = _g₂(β, 0., ϵ)
+    g₁(ϵ) = 1 + boseeinstein(β, ϵ)
+    g₂(ϵ) = boseeinstein(β, ϵ)
     fⱼₖ(Δk::Int) = _fⱼₖ_i(f, Δk, δτ)
     fₖⱼ(Δk::Int) = _fₖⱼ_i(f, Δk, δτ)
     fⱼⱼ = _fⱼⱼ_i(f, δτ)

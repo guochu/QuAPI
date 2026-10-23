@@ -26,8 +26,8 @@ function fermionic_Δτ_deprecated(f0::AbstractBoundedFunction, β::Real, N::Int
     f = spectrumshift(f0, μ)
     # δτ = β / N
     
-    g₁(ϵ) = _f₁(β, 0., ϵ)
-    g₂(ϵ) = _f₂(β, 0., ϵ)
+    g₁(ϵ) = fermidirac(β, -ϵ)
+    g₂(ϵ) = fermidirac(β, ϵ)
     fⱼₖ(Δk::Int) = _fⱼₖ_i(f, Δk, δτ)
     fₖⱼ(Δk::Int) = _fₖⱼ_i(f, Δk, δτ)
     fⱼⱼ = _fⱼⱼ_i(f, δτ)

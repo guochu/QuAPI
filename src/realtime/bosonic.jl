@@ -113,8 +113,8 @@ function bosonic_Δt(f::AbstractBoundedFunction, disperse::Function, β::Real, N
     # the equal-time entries of G₊₋/G₋₊ are stored as the two ordering pieces
     # (conjugate pair of the gⱼⱼ/gₖₖ kernels), matching the legacy `bosonic_Δt_deprecated`
     # storage convention; only for diagonal coupling do the two parts add
-    fⱼⱼg₂ = f * (ε -> _g₂(β, μ, disperse(ε)) * _gⱼⱼ_r(δt)(disperse(ε)))
-    fₖₖg₁ = f * (ε -> _g₁(β, μ, disperse(ε)) * _gₖₖ_r(δt)(disperse(ε)))
+    fⱼⱼg₂ = f * (ε -> boseeinstein(β, μ, disperse(ε)) * _gⱼⱼ_r(δt)(disperse(ε)))
+    fₖₖg₁ = f * (ε -> (1 + boseeinstein(β, μ, disperse(ε))) * _gₖₖ_r(δt)(disperse(ε)))
 
     ### G₊₊
     ηⱼₖ = zeros(ComplexF64, N+1)
@@ -182,13 +182,13 @@ end
 _bosonic_fⱼₖ_r(f::AbstractBoundedFunction, β, μ, Δk::Int, δt) = f * _bosonic_gⱼₖ_r(β, μ, Δk, δt)
 function _bosonic_gⱼₖ_r(β, μ, Δk::Int, δt)
     return ε -> begin
-        if abs(ε) > QuAPI_tol
-            return 2*_g₁(β, μ, ε)*exp(-im*ε*Δk*δt)*(1-cos(ε*δt))/ε^2
+        if abs(ε) > QuAPI_tol[]
+            return 2*(1 + boseeinstein(β, μ, ε))*exp(-im*ε*Δk*δt)*(1-cos(ε*δt))/ε^2
         else
             if μ == zero(μ)
                 return exp(-im*ε*Δk*δt)*δt^2/(β*ε)
             else
-                return _g₁(β, μ, ε)*exp(-im*ε*Δk*δt)*δt^2
+                return (1 + boseeinstein(β, μ, ε))*exp(-im*ε*Δk*δt)*δt^2
             end
         end
     end
@@ -202,13 +202,13 @@ end
 _bosonic_fₖⱼ_r(f::AbstractBoundedFunction, β, μ, Δk::Int, δt) = f * _bosonic_gₖⱼ_r(β, μ, Δk, δt)
 function _bosonic_gₖⱼ_r(β, μ, Δk::Int, δt)
     return ε -> begin
-        if abs(ε) > QuAPI_tol
-            return 2*_g₂(β, μ, ε)*exp(-im*ε*Δk*δt)*(1-cos(ε*δt))/ε^2
+        if abs(ε) > QuAPI_tol[]
+            return 2*boseeinstein(β, μ, ε)*exp(-im*ε*Δk*δt)*(1-cos(ε*δt))/ε^2
         else
             if μ == zero(μ)
                 return exp(-im*ε*Δk*δt)*δt^2/(β*ε)
             else
-                return _g₂(β, μ, ε) * exp(-im*ε*Δk*δt)*δt^2
+                return boseeinstein(β, μ, ε) * exp(-im*ε*Δk*δt)*δt^2
             end
         end
     end
@@ -222,13 +222,13 @@ end
 _bosonic_fⱼⱼ_r(f::AbstractBoundedFunction, β, μ, δt) = f * _bosonic_gⱼⱼ_r(β, μ, δt)
 function _bosonic_gⱼⱼ_r(β, μ, δt)
     return ε -> begin
-        if abs(ε) > QuAPI_tol
-            return _g₁(β, μ, ε)*((1-im*ε*δt)-exp(-im*ε*δt))/ε^2
+        if abs(ε) > QuAPI_tol[]
+            return (1 + boseeinstein(β, μ, ε))*((1-im*ε*δt)-exp(-im*ε*δt))/ε^2
         else
             if μ == zero(μ)
                 return 0.5*δt^2/(β*ε)
             else
-                return _g₁(β, μ, ε)*0.5*δt^2
+                return (1 + boseeinstein(β, μ, ε))*0.5*δt^2
             end
         end
     end
@@ -242,13 +242,13 @@ end
 _bosonic_fₖₖ_r(f::AbstractBoundedFunction, β, μ, δt) = f * _bosonic_gₖₖ_r(β, μ, δt)
 function _bosonic_gₖₖ_r(β, μ, δt)
     return ε -> begin
-        if abs(ε) > QuAPI_tol
-            return _g₂(β, μ, ε)*((1+im*ε*δt)-exp(im*ε*δt))/ε^2
+        if abs(ε) > QuAPI_tol[]
+            return boseeinstein(β, μ, ε)*((1+im*ε*δt)-exp(im*ε*δt))/ε^2
         else
             if μ == zero(μ)
                 return 0.5*δt^2/(β*ε)
             else
-                return _g₂(β, μ, ε)*0.5*δt^2
+                return boseeinstein(β, μ, ε)*0.5*δt^2
             end
         end
     end

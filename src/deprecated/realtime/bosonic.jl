@@ -79,7 +79,7 @@ bosonic_Δt_deprecated(f::AbstractBoundedFunction, β::Real, N::Int, δt::Real, 
 function bosonic_Δt_deprecated(f::AbstractBoundedFunction, disperse::Function, β::Real, N::Int, δt::Real, μ::Real)
     β = convert(Float64, β)
     μ = convert(Float64, μ)
-    g₁(ε) = _g₁(β, μ, disperse(ε)); g₂(ε) = _g₂(β, μ, disperse(ε))
+    g₁(ε) = 1 + boseeinstein(β, μ, disperse(ε)); g₂(ε) = boseeinstein(β, μ, disperse(ε))
     fⱼₖ(Δk) = _fⱼₖ_r_disperse(f, disperse, Δk, δt)
     fⱼⱼ = _fⱼⱼ_r_disperse(f, disperse, δt)
 
