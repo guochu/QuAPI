@@ -1,7 +1,7 @@
 function _fⱼₖ_i(f::AbstractBoundedFunction, Δk::Int, δτ)
     # g(ε) = ifelse(abs(ε) > QuAPI_tol, -2exp(-Δk*δτ*ε)*(1-cosh(δτ*ε))/ε^2, exp(-Δk*δτ*ε)*δτ^2)
     function g(ε)
-        if abs(ε) > QuAPI_tol[]
+        if abs(ε) > get_quapi_tol()
             -2exp(-Δk*δτ*ε)*(1-cosh(δτ*ε))/ε^2
         else
             exp(-Δk*δτ*ε)*δτ^2
@@ -15,7 +15,7 @@ end
 function _fₖⱼ_i(f::AbstractBoundedFunction, Δk::Int, δτ)
     # g(ε) = ifelse(abs(ε) > QuAPI_tol, -2exp(Δk*δτ*ε)*(1-cosh(δτ*ε))/ε^2, exp(Δk*δτ*ε)*δτ^2)
     function g(ε)
-        if abs(ε) > QuAPI_tol[]
+        if abs(ε) > get_quapi_tol()
             -2exp(Δk*δτ*ε)*(1-cosh(δτ*ε))/ε^2
         else
             exp(Δk*δτ*ε)*δτ^2
@@ -27,7 +27,7 @@ end
 function _fⱼⱼ_i(f::AbstractBoundedFunction, δτ)
     # g(ε) = ifelse(abs(ε) > QuAPI_tol, (exp(-δτ*ε)-(1-δτ*ε))/ε^2, 0.5*δτ^2)
     function g(ε)
-        if abs(ε) > QuAPI_tol[]
+        if abs(ε) > get_quapi_tol()
             (exp(-δτ*ε)-(1-δτ*ε))/ε^2
         else
             0.5*δτ^2
@@ -39,7 +39,7 @@ end
 function _fₖₖ_i(f::AbstractBoundedFunction, δτ)
     # g(ε) = ifelse(abs(ε) > QuAPI_tol, (exp(δτ*ε)-(1+δτ*ε))/ε^2, 0.5*δτ^2/2)
     function g(ε)
-        if abs(ε) > QuAPI_tol[]
+        if abs(ε) > get_quapi_tol()
             (exp(δτ*ε)-(1+δτ*ε))/ε^2
         else
             0.5*δτ^2/2

@@ -14,7 +14,7 @@ println("------------------------------------")
 
 			corr3 = transpose(corr1)
 			for i in 1:size(corr3, 1), j in 1:size(corr3, 2)
-				@test index(corr1, i, j) == index(corr3, j, i)
+				@test branch(corr1)[i, j] == branch(corr3)[j, i]
 			end
 		end
 	end
@@ -25,7 +25,7 @@ println("------------------------------------")
 
 		corr3 = corr1 + corr2
 		for i in 1:size(corr3, 1), j in 1:size(corr3, 2)
-			@test index(corr3, i, j) ≈ index(corr1, i, j) + index(corr2, i, j)  
+			@test branch(corr3)[i, j] ≈ branch(corr1)[i, j] + branch(corr2)[i, j]  
 		end
 	end	
 end
@@ -61,7 +61,7 @@ end
 
 			corr3 = transpose(corr1)
 			for i in 1:size(corr3, 1), j in 1:size(corr3, 2)
-				@test index(corr1, i, j) == index(corr3, j, i)
+				@test branch(corr1)[i, j] == branch(corr3)[j, i]
 			end
 		end
 	end
@@ -73,7 +73,7 @@ end
 
 		corr3 = corr1 - corr2
 		for i in 1:size(corr3, 1), j in 1:size(corr3, 2)
-			@test index(corr3, i, j) ≈ index(corr1, i, j) - index(corr2, i, j) 
+			@test branch(corr3)[i, j] ≈ branch(corr1)[i, j] - branch(corr2)[i, j] 
 		end
 	end	
 end
@@ -144,7 +144,7 @@ end
 	c1 = Δiw_to_Δτ(3 .* Δiw, β=β, N=N)
 	c2 = Δiw_to_Δτ(Δiw, β=β, N=N)
 	for i in 1:N, j in 1:N
-		@test index(c1, i, j) ≈ 3*index(c2, i, j)
+		@test branch(c1)[i, j] ≈ 3*branch(c2)[i, j]
 	end
 
 	# a real, even hybridization gives a symmetric Toeplitz matrix

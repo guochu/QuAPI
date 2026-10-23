@@ -153,7 +153,7 @@ _bosonic_fⱼₖ_i(f::AbstractBoundedFunction, β, μ, Δk::Int, δτ) = f * _bo
 function _bosonic_gⱼₖ_i(β, μ, Δk::Int, δτ)
     return ε -> begin
         # x = 1-exp(-safe_mult(β, ε-μ))
-        if abs(ε) > QuAPI_tol[]
+        if abs(ε) > get_quapi_tol()
             return -2*(1 + boseeinstein(β, μ, ε))*exp(-Δk*δτ*ε)*(1-cosh(δτ*ε))/ε^2
         else
             if μ == zero(μ)
@@ -174,7 +174,7 @@ _bosonic_fⱼⱼ_i(f::AbstractBoundedFunction, β, μ, δτ) = f * _bosonic_gⱼ
 function _bosonic_gⱼⱼ_i(β, μ, δτ)
     return ε -> begin
         x = 1-exp(-safe_mult(β, ε-μ))
-        if abs(ε) > QuAPI_tol[]
+        if abs(ε) > get_quapi_tol()
             return (1 + boseeinstein(β, μ, ε)) * (exp(-δτ*ε)-(1-δτ*ε))/ε^2 
         else
             if μ == zero(μ)
@@ -194,7 +194,7 @@ end
 _bosonic_fₖⱼ_i(f::AbstractBoundedFunction, β, μ, Δk::Int, δτ) = f * _bosonic_gₖⱼ_i(β, μ, Δk, δτ)
 function _bosonic_gₖⱼ_i(β, μ, Δk::Int, δτ)
     return ε -> begin
-        if abs(ε) > QuAPI_tol[]
+        if abs(ε) > get_quapi_tol()
             # -expm1(-x) avoids the catastrophic cancellation of 1-exp(-x) for small x
             x = -expm1(-safe_mult(β, ε-μ))
             y = exp(-safe_mult(β - Δk*δτ, ε-μ)) * exp(Δk*δτ*μ)
@@ -220,7 +220,7 @@ _bosonic_fₖₖ_i(f::AbstractBoundedFunction, β, μ, δτ) = f * _bosonic_gₖ
 function _bosonic_gₖₖ_i(β, μ, δτ)
     return ε -> begin
         # x = exp(-safe_mult(β, ε-μ))
-        if abs(ε) > QuAPI_tol[]
+        if abs(ε) > get_quapi_tol()
             return boseeinstein(β, μ, ε)*(exp(δτ*ε)-(1+δτ*ε))  / ε^2 
         else
             if μ == zero(μ)

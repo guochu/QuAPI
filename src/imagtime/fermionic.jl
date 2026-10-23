@@ -207,7 +207,7 @@ function _fermionic_gⱼₖ_i(β, μ, Δk::Int, δτ)
     return ε -> begin
         if ε >= μ
             x = exp(-safe_mult(β, ε-μ))+1
-            if abs(ε) > QuAPI_tol[]
+            if abs(ε) > get_quapi_tol()
                 -2exp(-Δk*δτ*ε)*(1-cosh(δτ*ε))/(ε^2 * x)
             else
                 exp(-Δk*δτ*ε)*δτ^2 / x
@@ -215,7 +215,7 @@ function _fermionic_gⱼₖ_i(β, μ, Δk::Int, δτ)
         else 
             x = exp(safe_mult(β, ε-μ)) + 1
             y = exp(safe_mult(β-Δk*δτ, ε-μ)) * exp(-Δk*δτ*μ)
-            if abs(ε) > QuAPI_tol[]
+            if abs(ε) > get_quapi_tol()
                 -2y*(1-cosh(δτ*ε))/(ε^2 * x)
             else
                 y*δτ^2 / x
@@ -234,14 +234,14 @@ function _fermionic_gⱼⱼ_i(β, μ, δτ)
     return ε -> begin
         if ε >= μ
             x = exp(-safe_mult(β, ε-μ))+1
-            if abs(ε) > QuAPI_tol[]
+            if abs(ε) > get_quapi_tol()
                 (exp(-δτ*ε)-(1-δτ*ε))/(ε^2 * x)
             else
                 0.5*δτ^2 / x
             end 
         else
             x = exp(safe_mult(β, ε-μ))
-            if abs(ε) > QuAPI_tol[]
+            if abs(ε) > get_quapi_tol()
                 x*(exp(-δτ*ε)-(1-δτ*ε))/(ε^2 * (x+1))
             else
                 0.5*δτ^2*x / (x+1)
@@ -261,7 +261,7 @@ function _fermionic_gₖⱼ_i(β, μ, Δk::Int, δτ)
         if ε >= μ
             x = exp(-safe_mult(β, ε-μ))+1
             y = exp(-safe_mult(β - Δk*δτ, ε-μ)) * exp(Δk*δτ*μ)
-            if abs(ε) > QuAPI_tol[]
+            if abs(ε) > get_quapi_tol()
                 2y*(1-cosh(δτ*ε))/(ε^2 * x)
             else
                 -y*δτ^2 / x
@@ -269,7 +269,7 @@ function _fermionic_gₖⱼ_i(β, μ, Δk::Int, δτ)
         else
             x = exp(safe_mult(β, ε-μ))+1
             y = exp(Δk*δτ * ε)
-            if abs(ε) > QuAPI_tol[]
+            if abs(ε) > get_quapi_tol()
                 2y*(1-cosh(δτ*ε))/(ε^2 * x)
             else
                 -y*δτ^2 / x
@@ -289,14 +289,14 @@ function _fermionic_gₖₖ_i(β, μ, δτ)
     return ε -> begin
         if ε >= μ
             x = exp(-safe_mult(β, ε-μ))
-            if abs(ε) > QuAPI_tol[]
+            if abs(ε) > get_quapi_tol()
                 -(exp(δτ*ε)-(1+δτ*ε)) * x / (ε^2 * (x+1))
             else
                 -0.5*δτ^2 * x / (x+1)
             end 
         else
             x = exp(safe_mult(β, ε-μ))
-            if abs(ε) > QuAPI_tol[]
+            if abs(ε) > get_quapi_tol()
                 -(exp(δτ*ε)-(1+δτ*ε)) / (ε^2 * (x+1))
             else
                 -0.5*δτ^2 / (x+1)

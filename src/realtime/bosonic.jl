@@ -182,7 +182,7 @@ end
 _bosonic_fⱼₖ_r(f::AbstractBoundedFunction, β, μ, Δk::Int, δt) = f * _bosonic_gⱼₖ_r(β, μ, Δk, δt)
 function _bosonic_gⱼₖ_r(β, μ, Δk::Int, δt)
     return ε -> begin
-        if abs(ε) > QuAPI_tol[]
+        if abs(ε) > get_quapi_tol()
             return 2*(1 + boseeinstein(β, μ, ε))*exp(-im*ε*Δk*δt)*(1-cos(ε*δt))/ε^2
         else
             if μ == zero(μ)
@@ -202,7 +202,7 @@ end
 _bosonic_fₖⱼ_r(f::AbstractBoundedFunction, β, μ, Δk::Int, δt) = f * _bosonic_gₖⱼ_r(β, μ, Δk, δt)
 function _bosonic_gₖⱼ_r(β, μ, Δk::Int, δt)
     return ε -> begin
-        if abs(ε) > QuAPI_tol[]
+        if abs(ε) > get_quapi_tol()
             return 2*boseeinstein(β, μ, ε)*exp(-im*ε*Δk*δt)*(1-cos(ε*δt))/ε^2
         else
             if μ == zero(μ)
@@ -222,7 +222,7 @@ end
 _bosonic_fⱼⱼ_r(f::AbstractBoundedFunction, β, μ, δt) = f * _bosonic_gⱼⱼ_r(β, μ, δt)
 function _bosonic_gⱼⱼ_r(β, μ, δt)
     return ε -> begin
-        if abs(ε) > QuAPI_tol[]
+        if abs(ε) > get_quapi_tol()
             return (1 + boseeinstein(β, μ, ε))*((1-im*ε*δt)-exp(-im*ε*δt))/ε^2
         else
             if μ == zero(μ)
@@ -242,7 +242,7 @@ end
 _bosonic_fₖₖ_r(f::AbstractBoundedFunction, β, μ, δt) = f * _bosonic_gₖₖ_r(β, μ, δt)
 function _bosonic_gₖₖ_r(β, μ, δt)
     return ε -> begin
-        if abs(ε) > QuAPI_tol[]
+        if abs(ε) > get_quapi_tol()
             return boseeinstein(β, μ, ε)*((1+im*ε*δt)-exp(im*ε*δt))/ε^2
         else
             if μ == zero(μ)

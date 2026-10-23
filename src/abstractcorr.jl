@@ -11,10 +11,9 @@ into Δ, i.e. the discretized influence functional reads
 
     I[ψ̄, ψ] = exp[Σᵢⱼ ψ̄ᵢ Δᵢⱼ ψⱼ].
 
-All subtypes must implement `size`, `index` and `branch`:
+All subtypes must implement `size` and `branch`:
 
 - `size(x)`:  the number of contour nodes along each branch;
-- `index(x, i, j; b1, b2)`:  the matrix element Δ[b1,b2][i, j];
 - `branch(x; b1, b2)`:  the branch sub-block as an `AbstractMatrix`.
 """
 abstract type AbstractCorrelationFunction end
@@ -23,26 +22,10 @@ abstract type AbstractCorrelationFunction end
 Base.size(x::AbstractCorrelationFunction, i::Int...) = error("size not defined for correlation type $(typeof(x))")
 
 """
-    index(x::AbstractCorrelationFunction, i::Int, j::Int; b1::Symbol, b2::Symbol)
-
-Matrix element Δᵢⱼ of the discretized hybridization function on the branch
-pair `(b1, b2)`, i.e. `branch(x; b1, b2)[i, j]`.
-
-Branch labels depend on the concrete contour:
-- imaginary time:  only `:τ`;
-- real time (closed Keldysh):  `:+` (forward) and `:-` (backward);
-- mixed time (L-shaped Kadanoff-Baym):  `:+`, `:-` and `:τ`.
-
-`i` and `j` are 1-based discrete contour node indices along their respective
-branches.  Unknown branch labels raise an `ArgumentError`.
-"""
-index(x::AbstractCorrelationFunction, i::Int, j::Int) = error("index not defined for correlation type $(typeof(x))")
-
-"""
     branch(x::AbstractCorrelationFunction; b1::Symbol, b2::Symbol)
 
 Return the branch sub-block Δ[b1,b2] of the hybridization function as an
-`AbstractMatrix` whose `(i, j)` element is `index(x, i, j; b1, b2)`.
+`AbstractMatrix`; its `(i, j)` element is the matrix element Δᵢⱼ.
 
 Valid branch labels are `:τ` for imaginary time, `:+`/`:-` for real time and
 all three for mixed time; unknown labels raise an `ArgumentError`.

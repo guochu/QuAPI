@@ -210,7 +210,7 @@ _bosonic_lⱼₖ(f::AbstractBoundedFunction, β, μ, j::Int, k::Int, δt, δτ) 
 function _bosonic_gⱼₖ(β, μ, j::Int, k::Int, δt, δτ)
     return ε -> begin
         # x = 1-exp(-safe_mult(β, ε-μ))
-        if abs(ε) > QuAPI_tol[]
+        if abs(ε) > get_quapi_tol()
             return -im*(1 + boseeinstein(β, μ, ε))*exp(-ε*j*δτ)*exp(im*ε*k*δt)*(exp(-ε*δτ)-1)*(exp(im*ε*δt)-1)/ε^2 
         else
             if μ == zero(μ)
@@ -232,7 +232,7 @@ function _bosonic_gₖⱼ(β, μ, k::Int, j::Int, δt, δτ)
     return ε -> begin
         # x = 1 - exp(-safe_mult(β, ε-μ))
         # y = exp(-safe_mult(β - j*δτ, ε-μ)) * exp(j*δτ*μ)
-        if abs(ε) > QuAPI_tol[]
+        if abs(ε) > get_quapi_tol()
             x = 1 - exp(-safe_mult(β, ε-μ))
             y = exp(-safe_mult(β - j*δτ, ε-μ)) * exp(j*δτ*μ)
             return -im*y*exp(-im*ε*k*δt)*(exp(ε*δτ)-1)*(exp(-im*ε*δt)-1)/(ε^2 * x)

@@ -98,7 +98,7 @@ end
 
 BCS bath 的 `band` 按 flavor 解释：奇数 = 上自旋（`band = 1`），偶数 =
 下自旋（`band = 2`），允许带间（反常）块。行为等价于
-`index(x[σᵢ, σⱼ], i.j, j.j; b1=branch(i), b2=branch(j))`。
+`branch(x[σᵢ, σⱼ]; b1=branch(i), b2=branch(j))[i.j, j.j]`。
 """
 function Base.getindex(x::BCSCorrelationFunction,
                        i::GrassmannContourIndex, j::GrassmannContourIndex)
@@ -106,18 +106,18 @@ function Base.getindex(x::BCSCorrelationFunction,
     (j.band ≥ 1) || throw(ArgumentError("band 必须 ≥ 1（当前 $(j.band)）"))
     σᵢ = isodd(i.band) ? :↑ : :↓
     σⱼ = isodd(j.band) ? :↑ : :↓
-    return index(x[σᵢ, σⱼ], i.j, j.j; b1=branch(i), b2=branch(j))
+    return branch(x[σᵢ, σⱼ]; b1=branch(i), b2=branch(j))[i.j, j.j]
 end
 
 """
     x[i::BosonicContourIndex, j::BosonicContourIndex]
 
 读取玻色 hybridization function 的矩阵元，等价于
-`index(x, i.j, j.j; b1=branch(i), b2=branch(j))`（玻色 bath 无 band）。
+`branch(x; b1=branch(i), b2=branch(j))[i.j, j.j]`（玻色 bath 无 band）。
 """
 function Base.getindex(x::AbstractCorrelationFunction,
                        i::BosonicContourIndex, j::BosonicContourIndex)
-    return index(x, i.j, j.j; b1=branch(i), b2=branch(j))
+    return branch(x; b1=branch(i), b2=branch(j))[i.j, j.j]
 end
 
 # ------------------------------------------------------------------ #

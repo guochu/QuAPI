@@ -12,7 +12,7 @@ println("------------------------------------")
 			z = transpose(x)
 			for i in 1:size(z, 1), b1 in (:+, :-)
 				for j in 1:size(z, 2), b2 in (:+, :-)
-					@test index(x, i, j, b1=b1, b2=b2) == index(z, j, i, b1=b2, b2=b1)
+					@test branch(x; b1=b1, b2=b2)[i, j] == branch(z; b1=b2, b2=b1)[j, i]
 				end
 			end
 		end
@@ -27,7 +27,7 @@ println("------------------------------------")
 		z = x + y
 		for i in 1:size(z, 1), b1 in (:+, :-)
 			for j in 1:size(z, 2), b2 in (:+, :-)
-				@test index(z, i, j, b1=b1, b2=b2) ≈ index(x, i, j, b1=b1, b2=b2) + index(y, i, j, b1=b1, b2=b2) 
+				@test branch(z; b1=b1, b2=b2)[i, j] ≈ branch(x; b1=b1, b2=b2)[i, j] + branch(y; b1=b1, b2=b2)[i, j] 
 			end
 		end
 	end	
@@ -66,7 +66,7 @@ end
 			z = transpose(x)
 			for i in 1:size(z, 1), b1 in (:+, :-)
 				for j in 1:size(z, 2), b2 in (:+, :-)
-					@test index(x, i, j, b1=b1, b2=b2) == index(z, j, i, b1=b2, b2=b1)
+					@test branch(x; b1=b1, b2=b2)[i, j] == branch(z; b1=b2, b2=b1)[j, i]
 				end
 			end
 		end
@@ -81,7 +81,7 @@ end
 		z = x - y
 		for i in 1:size(z, 1), b1 in (:+, :-)
 			for j in 1:size(z, 2), b2 in (:+, :-)
-				@test index(z, i, j, b1=b1, b2=b2) ≈ index(x, i, j, b1=b1, b2=b2) - index(y, i, j, b1=b1, b2=b2)
+				@test branch(z; b1=b1, b2=b2)[i, j] ≈ branch(x; b1=b1, b2=b2)[i, j] - branch(y; b1=b1, b2=b2)[i, j]
 			end
 		end
 	end	

@@ -5,13 +5,13 @@ println("------------------------------------")
 @testset "GaussianStates extension" begin
     # ---------------- contour Δ 组装（经 bdg 重载间接验证） ----------------
     corrτ = fermionic_Δτ(semicircular(), β=5.0, N=8, μ=0.3)
-    Δτ_ref = [index(corrτ, i, j; b1=:τ, b2=:τ) for i in 1:8, j in 1:8]
+    Δτ_ref = [branch(corrτ; b1=:τ, b2=:τ)[i, j] for i in 1:8, j in 1:8]
 
     corrt = fermionic_Δt(semicircular(), β=2.0, t=1.0, N=3, μ=0.2)
     Δt_ref = Matrix{ComplexF64}(undef, 8, 8)
     for (i, b1) in enumerate((:+, :-)), (j, b2) in enumerate((:+, :-))
         Δt_ref[(i-1)*4+1:i*4, (j-1)*4+1:j*4] =
-            [index(corrt, i2, j2; b1=b1, b2=b2) for i2 in 1:4, j2 in 1:4]
+            [branch(corrt; b1=b1, b2=b2)[i2, j2] for i2 in 1:4, j2 in 1:4]
     end
 
     corrm = fermionic_Δm(semicircular(), β=2.0, Nτ=4, t=1.0, Nt=3, μ=0.2)
@@ -22,7 +22,7 @@ println("------------------------------------")
         oi = (i - 1) * 4
         oj = (j - 1) * 4
         Δm_ref[oi+1:oi+ni, oj+1:oj+nj] =
-            [index(corrm, i2, j2; b1=b1, b2=b2) for i2 in 1:ni, j2 in 1:nj]
+            [branch(corrm; b1=b1, b2=b2)[i2, j2] for i2 in 1:ni, j2 in 1:nj]
     end
 
     # ---------------- 费米：fermionic_bdg_matrix(corr) → 系数态 OSEE ----------
@@ -65,7 +65,7 @@ println("------------------------------------")
     f0b = spectrum(ε -> exp(-ε), lb=0.5, ub=8.0)
     corr_b = bosonic_Δτ(f0b, β=2.0, N=4)
     Wb = bosonic_bdg_matrix(corr_b)
-    Δb = real.([index(corr_b, i, j; b1=:τ, b2=:τ) for i in 1:4, j in 1:4])
+    Δb = real.([branch(corr_b; b1=:τ, b2=:τ)[i, j] for i in 1:4, j in 1:4])
     @test Wb == [zeros(4, 4) exp(-Δb); transpose(exp(-Δb)) zeros(4, 4)]
     @test Wb == transpose(Wb) && Wb isa Matrix{Float64}
     @test maximum(abs, eigvals(Symmetric(Wb))) < 1        # 谱 ⊂ (−1,1)
@@ -202,33 +202,33 @@ end
     @test branch(i) == :τ && branch(j) == :τ
     @test i isa AbstractContourIndex && BosonicContourIndex(1, :+) isa AbstractContourIndex
     # a-ā 取 Δ，ā-a 取 -Δ，a-a / ā-ā 为零
-    @test corrτ[i, j] == index(corrτ, 2, 3; b1=:τ, b2=:τ)
-    @test corrτ[j, i] == -index(corrτ, 3, 2; b1=:τ, b2=:τ)
+    @test corrτ[i, j] == branch(corrτ; b1=:τ, b2=:τ)[2, 3]
+    @test corrτ[j, i] == -branch(corrτ; b1=:τ, b2=:τ)[3, 2]
     @test iszero(corrτ[i, GrassmannContourIndex(3, :τ, 1, false)])
     @test iszero(corrτ[j, GrassmannContourIndex(3, :τ, 1, true)])
     # 普通费米 bath：不再要求两个 band 相等
     @test corrτ[i, GrassmannContourIndex(3, :τ, 2, true)] ==
-          index(corrτ, 2, 3; b1=:τ, b2=:τ)
+          branch(corrτ; b1=:τ, b2=:τ)[2, 3]
     # 实时 contour：分支由指标携带
     corrt = fermionic_Δt(semicircular(), β=2.0, t=1.0, N=2, μ=0.2)
     ip = GrassmannContourIndex(2, :+, 1, false)
     jm = GrassmannContourIndex(3, :-, 1, true)
-    @test corrt[ip, jm] == index(corrt, 2, 3; b1=:+, b2=:-)
-    @test corrt[jm, ip] == -index(corrt, 3, 2; b1=:-, b2=:+)
+    @test corrt[ip, jm] == branch(corrt; b1=:+, b2=:-)[2, 3]
+    @test corrt[jm, ip] == -branch(corrt; b1=:-, b2=:+)[3, 2]
     # 玻色（无 band）
     corrb = bosonic_Δτ(spectrum(ε -> exp(-ε), lb=0.5, ub=8.0), β=2.0, N=3)
     bi = BosonicContourIndex(1, :τ)
     bj = BosonicContourIndex(2, :τ)
-    @test corrb[bi, bj] == index(corrb, 1, 2; b1=:τ, b2=:τ)
-    @test corrb[bj, bi] == index(corrb, 2, 1; b1=:τ, b2=:τ)
+    @test corrb[bi, bj] == branch(corrb; b1=:τ, b2=:τ)[1, 2]
+    @test corrb[bj, bi] == branch(corrb; b1=:τ, b2=:τ)[2, 1]
     # BCS：band 奇数 = 上自旋，偶数 = 下自旋（允许带间块）
     bcs = bcs_Δτ(DiscreteSpectrum([1.0], [0.25]), β=2.0, N=3, μ=0.0, Δ=0.5)
     kup = GrassmannContourIndex(1, :τ, 1, false)
     kdn = GrassmannContourIndex(2, :τ, 2, true)
-    @test bcs[kup, kdn] == index(bcs[:↑, :↓], 1, 2; b1=:τ, b2=:τ)
-    @test bcs[kdn, kup] == index(bcs[:↓, :↑], 2, 1; b1=:τ, b2=:τ)
+    @test bcs[kup, kdn] == branch(bcs[:↑, :↓]; b1=:τ, b2=:τ)[1, 2]
+    @test bcs[kdn, kup] == branch(bcs[:↓, :↑]; b1=:τ, b2=:τ)[2, 1]
     @test bcs[kup, GrassmannContourIndex(3, :τ, 3, true)] ==
-          index(bcs[:↑, :↑], 1, 3; b1=:τ, b2=:τ)     # band 3 = 上自旋
+          branch(bcs[:↑, :↑]; b1=:τ, b2=:τ)[1, 3]     # band 3 = 上自旋
 
     # contour 次序：分支 :+ < :- < :τ；:+ / :τ 内 j 升序，:- 内 j 降序
     @test GrassmannContourIndex(1, :+, 1, false) < GrassmannContourIndex(2, :+, 1, false)

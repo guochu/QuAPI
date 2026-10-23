@@ -43,7 +43,7 @@ end
 _fⱼₖ_r(f::AbstractBoundedFunction, Δk::Int, δt) = f * _gⱼₖ_r(Δk, δt)
 function _gⱼₖ_r(Δk::Int, δt)
     return ε -> begin
-        if abs(ε) > QuAPI_tol[]
+        if abs(ε) > get_quapi_tol()
             2exp(-im*ε*Δk*δt)*(1-cos(ε*δt))/ε^2
         else
             exp(-im*ε*Δk*δt)*δt^2
@@ -59,7 +59,7 @@ end
 _fⱼⱼ_r(f::AbstractBoundedFunction, δt) = f * _gⱼⱼ_r(δt)
 function _gⱼⱼ_r(δt)
     return ε -> begin
-        if abs(ε) > QuAPI_tol[]
+        if abs(ε) > get_quapi_tol()
             ((1-im*ε*δt)-exp(-im*ε*δt))/ε^2
         else
             0.5*δt^2
@@ -75,7 +75,7 @@ end
 _fₖₖ_r(f::AbstractBoundedFunction, δt) = f * _gₖₖ_r(δt)
 function _gₖₖ_r(δt)
     return ε -> begin
-        if abs(ε) > QuAPI_tol[]
+        if abs(ε) > get_quapi_tol()
             ((1+im*ε*δt)-exp(im*ε*δt))/ε^2
         else
             0.5*δt^2

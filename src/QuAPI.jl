@@ -2,7 +2,7 @@ module QuAPI
 
 # Our convention is to absorb the negative sign in the exponent of the IF into the hybridization matrix!!!
 export CorrelationMatrix
-export AbstractCorrelationFunction, index, branch, branches
+export AbstractCorrelationFunction, branch, branches
 # imaginary time
 export ImagCorrelationFunction, Δτ, fermionic_Δτ, bosonic_Δτ, Δiw_to_Δτ
 # real time

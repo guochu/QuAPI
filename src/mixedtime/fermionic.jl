@@ -235,7 +235,7 @@ function _fermionic_gⱼₖ(β, μ, j::Int, k::Int, δt, δτ)
     return ε -> begin
         if β >= μ
             x = exp(-safe_mult(β, ε-μ))+1
-            if abs(ε) > QuAPI_tol[]
+            if abs(ε) > get_quapi_tol()
                 -im*exp(-ε*j*δτ)*exp(im*ε*k*δt)*(exp(-ε*δτ)-1)*(exp(im*ε*δt)-1)/(ε^2 * x)
             else
                 -exp(-ε*j*δτ)*exp(im*ε*k*δt)*δτ*δt / x
@@ -243,7 +243,7 @@ function _fermionic_gⱼₖ(β, μ, j::Int, k::Int, δt, δτ)
         else 
             x = exp(safe_mult(β, ε-μ)) + 1
             y = exp(safe_mult(β-j*δτ, ε-μ)) * exp(-j*δτ*μ)
-            if abs(ε) > QuAPI_tol[]
+            if abs(ε) > get_quapi_tol()
                 -im*y*exp(im*ε*k*δt)*(exp(-ε*δτ)-1)*(exp(im*ε*δt)-1)/(ε^2 * x)
             else
                 -y*exp(im*ε*k*δt)*δτ*δt / x
@@ -263,7 +263,7 @@ function _fermionic_gₖⱼ(β, μ, k::Int, j::Int, δt, δτ)
         if β >= μ
             x = exp(-safe_mult(β, ε-μ))+1
             y = exp(-safe_mult(β - j*δτ, ε-μ)) * exp(j*δτ*μ)
-            if abs(ε) > QuAPI_tol[]
+            if abs(ε) > get_quapi_tol()
                 im*y*exp(-im*ε*k*δt)*(exp(ε*δτ)-1)*(exp(-im*ε*δt)-1)/(ε^2 * x)
             else
                 y*exp(-im*ε*k*δt)*δτ*δt / x
@@ -272,7 +272,7 @@ function _fermionic_gₖⱼ(β, μ, k::Int, j::Int, δt, δτ)
             x = exp(safe_mult(β, ε-μ))+1
             y = exp(j*δτ * ε)
 
-            if abs(ε) > QuAPI_tol[]
+            if abs(ε) > get_quapi_tol()
                 im*y*exp(-im*ε*k*δt)*(exp(ε*δτ)-1)*(exp(-im*ε*δt)-1)/(ε^2 * x)
             else
                 y*exp(-im*ε*k*δt)*δτ*δt / x

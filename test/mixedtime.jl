@@ -21,7 +21,7 @@ println("------------------------------------")
 				for b2 in (:+, :-, :τ)
 					k2 = ifelse(b2 == :τ, isize(z), rsize(z))
 					for i in 1:k1, j in 1:k2
-						@test index(x, i, j, b1=b1, b2=b2) == index(z, j, i, b1=b2, b2=b1)
+						@test branch(x; b1=b1, b2=b2)[i, j] == branch(z; b1=b2, b2=b1)[j, i]
 					end
 				end
 			end
@@ -40,7 +40,7 @@ println("------------------------------------")
 		for b2 in (:+, :-, :τ)
 			k2 = ifelse(b2 == :τ, isize(z), rsize(z))
 			for i in 1:k1, j in 1:k2
-				@test index(z, i, j, b1=b1, b2=b2) ≈ index(x, i, j, b1=b1, b2=b2) - index(y, i, j, b1=b1, b2=b2)
+				@test branch(z; b1=b1, b2=b2)[i, j] ≈ branch(x; b1=b1, b2=b2)[i, j] - branch(y; b1=b1, b2=b2)[i, j]
 			end
 		end
 	end
@@ -64,7 +64,7 @@ end
 				for b2 in (:+, :-, :τ)
 					k2 = ifelse(b2 == :τ, isize(z), rsize(z))
 					for i in 1:k1, j in 1:k2
-						@test index(x, i, j, b1=b1, b2=b2) == index(z, j, i, b1=b2, b2=b1)
+						@test branch(x; b1=b1, b2=b2)[i, j] == branch(z; b1=b2, b2=b1)[j, i]
 					end
 				end
 			end
@@ -81,7 +81,7 @@ end
 		for b2 in (:+, :-, :τ)
 			k2 = ifelse(b2 == :τ, isize(z), rsize(z))
 			for i in 1:k1, j in 1:k2
-				@test index(z, i, j, b1=b1, b2=b2) ≈ index(x, i, j, b1=b1, b2=b2) + index(y, i, j, b1=b1, b2=b2) 
+				@test branch(z; b1=b1, b2=b2)[i, j] ≈ branch(x; b1=b1, b2=b2)[i, j] + branch(y; b1=b1, b2=b2)[i, j] 
 			end
 		end
 	end
