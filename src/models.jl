@@ -12,7 +12,7 @@ using ..QuAPI: AbstractCorrelationFunction, BCSCorrelationFunction,
 using LinearAlgebra: I, kron, triu, tril
 
 export GrassmannADT, BosonicADT, BosonicPT,
-       GrassmannADTIF, BosonicIF, Zvalue
+       GrassmannIF, BosonicIF, Zvalue, margin
 
 "稠密 IF 张量的最大元素数（2³⁰）。"
 const MAXTENSORDIM = 2^30
@@ -116,7 +116,7 @@ _if_legorder(x::BCSCorrelationFunction) = _if_legorder(x.uu)
 费米影响泛函的稠密 Grassmann 表示：`basis` 为 `L` 条腿（链序，每节点
 band 逐次展开、每个 band 内 `a`、`ā` 相邻），`data` 为 `2^L` 个
 Grassmann monomial 系数（腿 1 最快）。`T` 由 correlation function 的
-元素类型决定。用 [`GrassmannADTIF`](@ref) 从 correlation function 构造。
+元素类型决定。用 [`GrassmannIF`](@ref) 从 correlation function 构造。
 """
 struct GrassmannADT{T<:Number}
     basis::Vector{GrassmannContourIndex}
@@ -156,7 +156,7 @@ end
 # ------------------------------------------------------------------ #
 
 # ------------------------------------------------------------------ #
-# 费米稠密 Grassmann 表示的三件套（供 GrassmannADTIF 与外部复用）：
+# 费米稠密 Grassmann 表示的三件套（供 GrassmannIF 与外部复用）：
 #   _if_legs(x)         → 链序腿列表（每节点逐 band、a/ā 相邻）
 #   _if_coefficients(x) → 双线性指数矩阵 C（行 = 腿，C[i,j] 配 ξ_i ξ_j）
 #   _fold_grassmann(C)  → exp(Σ C_ij ξ_i ξ_j) 的稠密系数向量
@@ -166,9 +166,23 @@ end
 # AbstractCorrelationFunction 的子类型）
 const IFSource = Union{AbstractCorrelationFunction,BCSCorrelationFunction}
 
-# 链序腿：节点（链序）× band × (a, ā)
+# 链序腿：节点（链序）× band × (a, ā)。混合 contour 的实时支与 GTEMPO 默认
+# ordering `A1Ā1B1B̄1_a1ā1A1Ā1b1b̄1B1B̄1a2ā2A2Ā2b2b̄2B2B̄2` 一致：
+# 每个时刻内按 band、branch（− 先 + 后）、(a, ā) 排列。
 function _if_legs(x::IFSource)
     nb = _bands(x)
+    if branches(x) == (:+, :-, :τ)
+        u = x isa BCSCorrelationFunction ? x.uu : x
+        kt, Nτ = rsize(u), isize(u)
+        legs = GrassmannContourIndex[]
+        for j in Nτ:-1:1, band in 1:nb, c in (false, true)
+            push!(legs, GrassmannContourIndex(j, :τ, band, c))
+        end
+        for j in 1:kt, band in 1:nb, b in (:-, :+), c in (false, true)
+            push!(legs, GrassmannContourIndex(j, b, band, c))
+        end
+        return legs
+    end
     return GrassmannContourIndex[GrassmannContourIndex(j, b, band, c)
                                  for (b, j) in _if_legorder(x)
                                  for band in 1:nb for c in (false, true)]
@@ -210,6 +224,75 @@ function _grassmann_coefficient(data::AbstractVector, legs::Integer...)
     return data[mask + 1]
 end
 
+"""
+    x[legs::GrassmannContourIndex...]
+
+稠密 Grassmann IF 的单项式系数。`x.data` 是
+`ψ = Σ_m x.data[m+1] ξ^m`（`ξ^m = ∏_{k∈m} ξ_k`，腿序同 `basis`）的系数
+向量；本方法按 contour 腿在 `basis` 中定位后，返回单项式
+`ξ_leg₁⋯ξ_legᵣ` 的系数：
+
+    x[ξ₁]        → ξ₁ 的系数
+    x[ξ₁, ξ₂]    → ξ₁ξ₂ 的系数
+    x[]          → 常数项（1 的系数）
+
+参数顺序与 `basis` 顺序不一致时按 Grassmann 反对易计入重排符号，例如
+`x[ξ₂, ξ₁] == -x[ξ₁, ξ₂]`；腿重复（`ξ² = 0`）时返回零。腿不在 `basis`
+中时抛 `ArgumentError`。
+"""
+function Base.getindex(x::GrassmannADT, legs::GrassmannContourIndex...)
+    pos = Vector{Int}(undef, length(legs))
+    for (q, leg) in enumerate(legs)
+        k = findfirst(==(leg), x.basis)
+        k === nothing && throw(ArgumentError("leg $leg 不在 IF 的 basis 中"))
+        pos[q] = k
+    end
+    allunique(pos) || return zero(eltype(x.data))
+    mask = 0
+    for k in pos
+        mask |= 1 << (k - 1)
+    end
+    inv = 0
+    for a in 1:length(pos), b in (a + 1):length(pos)
+        inv += pos[a] > pos[b]
+    end
+    c = x.data[mask + 1]
+    return isodd(inv) ? -c : c
+end
+
+# 把 contour 腿映射为 basis 中的位置；缺失/重复时报错
+function _leg_positions(basis, legs)
+    pos = Vector{Int}(undef, length(legs))
+    for (q, leg) in enumerate(legs)
+        k = findfirst(==(leg), basis)
+        k === nothing && throw(ArgumentError("leg $leg 不在 basis 中"))
+        pos[q] = k
+    end
+    allunique(pos) || throw(ArgumentError("legs 不能重复"))
+    return pos
+end
+
+"""
+    margin(x::GrassmannADT, legs::GrassmannContourIndex...) -> GrassmannADT
+
+对未列出的腿的占据状态求和（Grassmann 版边缘化），返回只含 `legs` 的
+[`GrassmannADT`](@ref)；`legs` 的顺序即结果 `basis` 的顺序，`margin(x)`
+返回只含常数项的 IF。重复/不在 `basis` 中的腿报错。
+"""
+function margin(x::GrassmannADT, legs::GrassmannContourIndex...)
+    pos = _leg_positions(x.basis, legs)
+    L, r = length(x.basis), length(pos)
+    out = zeros(eltype(x.data), 1 << r)
+    for m in 0:(1 << L) - 1
+        mr = 0
+        for (q, k) in enumerate(pos)
+            mr |= ((m >> (k - 1)) & 1) << (q - 1)
+        end
+        out[mr + 1] += x.data[m + 1]
+    end
+    return GrassmannADT(GrassmannContourIndex[legs...], out)
+end
+
 # IF 指数中的 Δ 项：((band₁, conj₁), (band₂, conj₂), Δ 块)
 # 普通费米高斯 bath：ā Δ a
 _delta_terms(x::AbstractCorrelationFunction) =
@@ -248,7 +331,7 @@ function _if_coefficients(x::IFSource)
 end
 
 """
-    GrassmannADTIF(x::Union{AbstractCorrelationFunction,BCSCorrelationFunction})
+    GrassmannIF(x::Union{AbstractCorrelationFunction,BCSCorrelationFunction})
         -> GrassmannADT
 
 费米影响泛函 IF 的**稠密 Grassmann 表示**：
@@ -278,7 +361,7 @@ bath 每节点 2 条腿 `(a, ā)`，**BCS bath 每节点 4 条腿**（`band = 1,
 验证；节点 `p` 在 Δ 行序（`[:+; :-; :τ]`，分支内时间升序）中的指标即
 GaussianStates 配对态的模式指标。
 """
-function GrassmannADTIF(x::IFSource)
+function GrassmannIF(x::IFSource)
     basis = _if_legs(x)
     L = length(basis)
     L ≤ log2(MAXTENSORDIM) || throw(ArgumentError(
@@ -530,6 +613,25 @@ function Base.:*(A::BosonicADT, B::BosonicADT)
     return BosonicADT(ubasis, A.d, vec(data))
 end
 
+"""
+    margin(A::BosonicADT, legs::BosonicContourIndex...) -> BosonicADT
+
+对未列出的节点求和（边缘化），返回只含 `legs` 的 ADT；`legs` 的顺序即
+结果 `basis` 的顺序。`margin(A)` 返回不含节点的 IF，其唯一元素为
+`Zvalue(A)`。
+"""
+function margin(A::BosonicADT, legs::BosonicContourIndex...)
+    pos = _leg_positions(A.basis, legs)
+    d, n, r = A.d, length(A.basis), length(pos)
+    T = reshape(A.data, ntuple(_ -> d, n))
+    out = zeros(eltype(A.data), ntuple(_ -> d, r))
+    for I in CartesianIndices(T)
+        J = CartesianIndex(ntuple(q -> I[pos[q]], r))
+        out[J] += T[I]
+    end
+    return BosonicADT(BosonicContourIndex[legs...], d, vec(out))
+end
+
 # PT 的矩阵视图：行 = 各节点 ket（节点 1 最快），列 = 各节点 bra
 function _pt_matrix(P::BosonicPT)
     d, n = P.d, length(P.basis)
@@ -596,16 +698,72 @@ Zvalue(x::BosonicADT) = sum(x.data)
 """
     Zvalue(x::BosonicPT)
 
-PT 表示下的迹：每个节点取 ket 指标等于 bra 指标后求和。
+PT 的闭合收缩：每个时间点的 ket（输出）与下一个时间点的 bra（输入）
+收缩，边界按 contour 类别闭合（与 TEMPO 的 `integrate` 一致）：
+
+- 虚时：`bra_p = ket_{p+1}`，首尾 cyclic（`bra_n = ket_1`）；
+- 实时：最早时刻 `bra₊ = bra₋`，相邻时刻 `bra_{±,i} = ket_{±,i-1}`，
+  最晚时刻 `ket₊ = ket₋`；
+- 混合：τ 支 `bra_p = ket_{p+1}` 链式收缩，再与实时支按 Kadanoff
+  轮廓的端点连接，实时支同实时情形。
+
+`basis` 的分支/时间标签决定收缩方式（与 `basis` 的内部顺序无关）。
 """
 function Zvalue(x::BosonicPT)
     d, n = x.d, length(x.basis)
     data = reshape(x.data, ntuple(_ -> d, 2n))
+    cons = _pt_constraints(x)
     s = zero(eltype(x.data))
     for I in CartesianIndices(data)
-        all(I[2p-1] == I[2p] for p in 1:n) && (s += data[I])
+        ok = true
+        for (a, b) in cons
+            I[a] == I[b] || (ok = false; break)
+        end
+        ok && (s += data[I])
     end
     return s
+end
+
+# PT 闭合收缩的指标等式约束（指标 2p−1 = ket/输出，2p = bra/输入）
+function _pt_constraints(x::BosonicPT)
+    pos = Dict(b => k for (k, b) in enumerate(x.basis))
+    ket(p) = 2p - 1
+    bra(p) = 2p
+    cons = Tuple{Int,Int}[]
+    brs = unique(b.branch for b in x.basis)
+    if brs == [:τ]                                  # 虚时
+        n = length(x.basis)
+        for p in 1:n-1
+            push!(cons, (bra(p), ket(p + 1)))
+        end
+        push!(cons, (bra(n), ket(1)))
+    else
+        js = sort(unique(b.j for b in x.basis if b.branch != :τ))
+        jmin, jmax = first(js), last(js)
+        pplus, pminus = pos[BosonicContourIndex(jmin, :+)],
+                        pos[BosonicContourIndex(jmin, :-)]
+        if :τ ∉ brs                                 # 实时
+            push!(cons, (bra(pplus), bra(pminus)))
+        else                                        # 混合
+            τs = [pos[b] for b in x.basis if b.branch == :τ]
+            for k in 1:length(τs)-1
+                push!(cons, (bra(τs[k]), ket(τs[k + 1])))
+            end
+            push!(cons, (bra(τs[end]), bra(pminus)))
+            push!(cons, (bra(pplus), ket(τs[1])))
+        end
+        for (k, j) in enumerate(js)
+            p1, p2 = pos[BosonicContourIndex(j, :+)],
+                      pos[BosonicContourIndex(j, :-)]
+            if k > 1
+                jp = js[k - 1]
+                push!(cons, (bra(p1), ket(pos[BosonicContourIndex(jp, :+)])))
+                push!(cons, (bra(p2), ket(pos[BosonicContourIndex(jp, :-)])))
+            end
+            k == length(js) && push!(cons, (ket(p1), ket(p2)))
+        end
+    end
+    return cons
 end
 
 end # module Dense

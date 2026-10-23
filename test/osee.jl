@@ -109,7 +109,7 @@ end
         ("MX", fermionic_Δm(semicircular(), β=2.0, Nτ=2, t=0.5, Nt=1, μ=0.2)),
     )
     for (name, corr) in cases
-        T = GrassmannADTIF(corr)
+        T = GrassmannIF(corr)
         n = size(QuAPI.Dense._contour_delta(corr), 1)
         chain = QuAPI.Dense._if_legorder(corr)       # GTEMPO ordering 链序节点
         nodes = QuAPI.Dense._contour_nodes(corr)     # Δ 行序节点（fast 模式指标）
@@ -119,14 +119,27 @@ end
         # 元素类型由 correlation function 决定（不写死）：虚时为实、实时含虚部
         @test eltype(T.data) == eltype(QuAPI.Dense._contour_delta(corr))
         @test name == "IM" ? eltype(T.data) <: Real : eltype(T.data) <: Complex
-        # basis 逐位置固化：链序节点 p 的 (a, ā) 相邻，band=1
-        @test T.basis == GrassmannContourIndex[
-            GrassmannContourIndex(j, b, 1, c) for (b, j) in chain
-                                               for c in (false, true)]
+        # basis 逐位置固化：非混合为链序节点 × (a, ā)；混合的实时支按
+        # band、branch（− 先 + 后）、(a, ā)（与 GTEMPO 默认 ordering 一致）
+        expected = GrassmannContourIndex[]
+        if name == "MX"
+            for j in isize(corr):-1:1, c in (false, true)
+                push!(expected, GrassmannContourIndex(j, :τ, 1, c))
+            end
+            for j in 1:rsize(corr), b in (:-, :+), c in (false, true)
+                push!(expected, GrassmannContourIndex(j, b, 1, c))
+            end
+        else
+            append!(expected, [GrassmannContourIndex(j, b, 1, c) for (b, j) in chain
+                                                         for c in (false, true)])
+        end
+        @test T.basis == expected
         s = FermionicGaussianState(fermionic_bdg_matrix(corr))
         v = T.data
         for k in 1:n-1                                # 链前缀 k 个节点块
-            modes = [findfirst(==(bi), nodes) for bi in chain[1:k]]
+            pref = unique([(bi.branch, bi.j) for bi in T.basis[1:2k]])  # 前 k 个节点
+            @test length(pref) == k
+            modes = [findfirst(==(bi), nodes) for bi in pref]
             S_dense = svent(reshape(v, 2^(2k), 2^(2(n - k))))
             @test osee(s, vcat(modes, n .+ modes)) ≈ S_dense atol = 1e-10
         end
@@ -142,7 +155,7 @@ end
           [(:τ, 2), (:τ, 1), (:+, 1), (:-, 1), (:+, 2), (:-, 2)]  # 虚时降序 ++ 实时升序
     # 阶数上限：n = 16 ⟹ L = 32 > 30 提前报错（不进入 2^32 系数构造）
     big = fermionic_Δτ(semicircular(), β=5.0, N=16, μ=0.0)
-    @test_throws ArgumentError GrassmannADTIF(big)
+    @test_throws ArgumentError GrassmannIF(big)
 end
 
 # ---------------- 稠密费米 IF：BCS bath（2 band） ----------------
@@ -152,7 +165,7 @@ end
     corr = fermionic_Δτ(spec, β=β, N=N, μ=0.0)
     z = corr - corr                                  # 零块
     bcs = BCSCorrelationFunction(; uu=corr, ud=z, du=z, dd=z)
-    B = GrassmannADTIF(bcs)
+    B = GrassmannIF(bcs)
     n = N
     @test B isa GrassmannADT
     # 每节点 4 条腿：band 1/2，每个 band 内 (a, ā) 相邻，链序 τ 降序
@@ -163,7 +176,7 @@ end
         for (b, j) in QuAPI.Dense._if_legorder(corr) for band in (1, 2)
         for c in (false, true)]
     # 只有 ↑ 的正常块非零：↓ 腿全偶的系数应与单 flavor 张量逐一相等
-    A = GrassmannADTIF(corr)                    # 单 flavor
+    A = GrassmannIF(corr)                    # 单 flavor
     @test length(A.basis) == 2n
     for i in 0:(2^(2n) - 1)
         mask_b = 0
@@ -178,7 +191,7 @@ end
     bigc = fermionic_Δτ(spec, β=β, N=8, μ=0.0)
     bigbcs = BCSCorrelationFunction(; uu=bigc, ud=bigc - bigc, du=bigc - bigc,
                                     dd=bigc - bigc)
-    @test_throws ArgumentError GrassmannADTIF(bigbcs)
+    @test_throws ArgumentError GrassmannIF(bigbcs)
 end
 
 # ---------------- AbstractContourIndex：腿指标上的 correlation function 访问 ----------------
@@ -222,7 +235,7 @@ end
 @testset "稠密 IF 乘法" begin
     # Grassmann：两腿因子 exp(c ξᵢξⱼ) = 1 + c ξᵢξⱼ 乘进大的 IF
     corr = fermionic_Δτ(semicircular(), β=2.0, N=2)
-    gif = GrassmannADTIF(corr)
+    gif = GrassmannIF(corr)
     oneif = GrassmannADT(GrassmannContourIndex[], [1.0])
     @test (gif * oneif).data ≈ gif.data
     @test (oneif * gif).data ≈ gif.data
@@ -255,6 +268,37 @@ end
     Cpt = P1 * P2
     @test Cpt.basis == P1.basis
     @test Mp(Cpt) ≈ Mp(P1) * Mp(P2)
+end
+
+# ---------------- 稠密 IF 索引与边缘化 ----------------
+@testset "稠密 IF 索引与 margin" begin
+    # Grassmann：x[legs...] 是这些腿组成的单项式系数，换位带反对易符号
+    corr = fermionic_Δτ(semicircular(), β=2.0, N=2)
+    gif = GrassmannIF(corr)
+    b = gif.basis
+    L = length(b)
+    @test gif[] ≈ gif.data[1]                     # 常数项
+    @test gif[b[1]] ≈ gif.data[2]                 # ξ₁
+    @test gif[b[1], b[2]] ≈ gif.data[4]           # ξ₁ξ₂
+    @test gif[b[2], b[1]] ≈ -gif.data[4]          # 反对易
+    @test gif[b[1], b[1]] == 0                    # ξ² = 0
+    # Grassmann margin：对未列出的腿的占据状态求和
+    @test margin(gif).data[1] ≈ sum(gif.data)
+    M = margin(gif, b[1], b[3])
+    @test M.basis == [b[1], b[3]]
+    @test sum(M.data) ≈ sum(gif.data)
+    @test M.data[1] ≈ sum(gif.data[m + 1] for m in 0:(2^L - 1)
+                           if (m & 1) == 0 && (m & 4) == 0)
+    @test M.data[end] ≈ sum(gif.data[m + 1] for m in 0:(2^L - 1)
+                             if (m & 1) == 1 && (m & 4) == 4)
+
+    # 玻色 ADT：未列出的节点求和
+    bcorr = bosonic_Δτ(spectrum(ε -> exp(-ε), lb=0.5, ub=8.0), β=2.0, N=3)
+    A = BosonicIF(bcorr, [0.5, -0.5])
+    mA = margin(A, A.basis[2])
+    @test mA.basis == [A.basis[2]]
+    @test mA.data ≈ vec(sum(reshape(A.data, 2, 2, 2), dims=(1, 3)))
+    @test margin(A).data ≈ [Zvalue(A)]
 end
 
 # ---------------- 稠密玻色 ADT（对角耦合：路径权重） ----------------

@@ -25,7 +25,7 @@ src/bcs/bcscorr.jl the discretized path weight is
 
 with M_imp the anti-periodic kinetic matrix (x = e^{-δτϵ_d}) and Δ↑↑/Δ↓↓ the
 normal, Δ↑↓/Δ↓↑ the anomalous influence-functional blocks from `bcs_Δτ`.  The
-bath part is assembled by `GrassmannADTIF` in the GTEMPO 2-flavor leg order
+bath part is assembled by `GrassmannIF` in the GTEMPO 2-flavor leg order
 (per node: a↑, ā↑, a↓, ā↓ with band = 1, 2), and the impurity terms are
 multiplied in as two-leg `GrassmannADT` factors; Z and the Matsubara Green's
 function in the standard convention G(τ_m) = -⟨d↑(τ_m)d↑†(0)⟩ are then read
@@ -46,13 +46,11 @@ function quapi_bcs_gt(β, ϵ_d, spectrum::AbstractBoundedFunction; N, Δ, μ=0.0
     corr = bcs_Δτ(spectrum, β=β, N=N, μ=μ, Δ=Δ)
 
     # influence functional (normal + anomalous blocks, both flavors)
-    gif = GrassmannADTIF(corr)
-    basis = gif.basis
-    li = Dict(l => k for (k, l) in enumerate(basis))
-    leg(j, band, c) = li[GrassmannContourIndex(j, :τ, band, c)]
+    gif = GrassmannIF(corr)
+    leg(j, band, c) = GrassmannContourIndex(j, :τ, band, c)
     # exp(c ξᵢξⱼ) = 1 + c ξᵢξⱼ as a two-leg GrassmannADT
     function term(i, j, c)
-        return GrassmannADT([basis[i], basis[j]],
+        return GrassmannADT([i, j],
                             promote_type(eltype(gif.data), typeof(c))[1, 0, 0, c])
     end
     for band in (1, 2)
@@ -65,22 +63,14 @@ function quapi_bcs_gt(β, ϵ_d, spectrum::AbstractBoundedFunction; N, Δ, μ=0.0
         gif = gif * term(leg(1, band, true), leg(N, band, false), -x)   # anti-periodic wrap
     end
 
-    data = gif.data
-    L = length(basis)
     ctop = Zvalue(gif)                            # all-odd top coefficient
-    # coefficient with the given legs removed from the all-odd top monomial
-    function coeff(legs...)
-        mask = (1 << L) - 1
-        for k in legs
-            mask &= ~(1 << (k - 1))
-        end
-        return data[mask + 1]
-    end
     # Z = +ctop in this ordering (the (-1)^(2N) measure sign and the
-    # τ-descending leg reversal cancel); the G numerator monomial
-    # {ā↑₁, a↑_{m+1}} changes order under the same relabelling, hence the
-    # extra minus sign.
-    c = [coeff(leg(1, 1, true), leg(m + 1, 1, false)) for m in 0:N-1]
+    # τ-descending leg reversal cancel); the G numerator is the coefficient of
+    # the top monomial with {ā↑₁, a↑_{m+1}} removed (the complement is passed
+    # in basis order, so gif[...] adds no extra sign).
+    c = [gif[[l for l in gif.basis
+              if l != leg(1, 1, true) && l != leg(m + 1, 1, false)]...]
+         for m in 0:N-1]
     return ctop, -c ./ ctop, δτ
 end
 
