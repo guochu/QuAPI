@@ -32,6 +32,7 @@ include("quapi/bcsimag.jl")
 
 include("quapi/real.jl")
 include("quapi/bcsreal.jl")
+include("quapi/bcsmixed.jl")
 
 ### mixed-time (Kadanoff contour) QuAPI
 

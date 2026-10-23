@@ -12,7 +12,8 @@ using ..QuAPI: AbstractCorrelationFunction, BCSCorrelationFunction,
 using LinearAlgebra: I, kron, triu, tril
 
 export GrassmannADT, BosonicADT, BosonicPT,
-       GrassmannIF, BosonicIF, Zvalue, margin
+       GrassmannHybridizationMatrix, BosonicHybridizationMatrix,
+       GrassmannIF, BosonicIF, Zvalue, margin, basis
 
 "稠密 IF 张量的最大元素数（2³⁰）。"
 const MAXTENSORDIM = 2^30
@@ -24,10 +25,6 @@ const MAXTENSORDIM = 2^30
 # 是分支块的块矩阵。元素类型由 correlation function 决定（虚时通常为实，
 # 实/混合含虚部），这里不写死为复数。
 # ------------------------------------------------------------------ #
-
-# BCS bath：2 个 flavor（band ↑=1, ↓=2），四个块的 contour 结构相同
-_bands(::AbstractCorrelationFunction) = 1
-_bands(::BCSCorrelationFunction) = 2
 
 # 分支块矩阵 → 整块矩阵（类型自动提升）
 function _assemble(brs, blocks::Matrix)
@@ -89,12 +86,21 @@ _contour_nodes(x::AbstractMixedCorrelationFunction) =
 _contour_nodes(x::BCSCorrelationFunction) = _contour_nodes(x.uu)
 
 # ------------------------------------------------------------------ #
+# 稠密 IF 的腿基
+# ------------------------------------------------------------------ #
+
+# 稠密 IF 的输入：普通 correlation function 或 BCS 包装（后者不是
+# AbstractCorrelationFunction 的子类型）
+const IFSource = Union{AbstractCorrelationFunction,BCSCorrelationFunction}
+
+# flavor（band）个数：BCS bath 有 2 个
+_bands(::AbstractCorrelationFunction) = 1
+_bands(::BCSCorrelationFunction) = 2
+
 # GTEMPO / TEMPO 默认 ordering（order=1，单 band 单 flavor）下的链序：
 #   IM  : τ_N .. τ_1                        （虚时降序）
 #   RT  : (+,k) (-,k) .. (+,1) (-,1)        （时间降序，+ 先 − 后）
 #   MX  : τ_Nτ .. τ_1  ++  (+,1) (-,1) .. (+,kt) (-,kt)
-# ------------------------------------------------------------------ #
-
 _if_legorder(x::ImagCorrelationFunction) =
     [(:τ, i) for i in size(x, 1):-1:1]
 _if_legorder(x::RealCorrelationFunction) =
@@ -105,6 +111,38 @@ function _if_legorder(x::AbstractMixedCorrelationFunction)
                 [(b, i) for i in 1:kt for b in (:+, :-)])
 end
 _if_legorder(x::BCSCorrelationFunction) = _if_legorder(x.uu)
+
+"""
+    basis(x::Union{AbstractCorrelationFunction,BCSCorrelationFunction})
+        -> Vector{GrassmannContourIndex}
+
+稠密 Grassmann 影响泛函的腿基（链序）：每个 contour 节点逐 band 展开，
+每个 band 内 `a`、`ā` 相邻。虚时/实时的节点按 `_if_legorder` 排列；
+混合时间的实时支与 GTEMPO 默认 ordering
+`A1Ā1B1B̄1_a1ā1A1Ā1b1b̄1B1B̄1a2ā2A2Ā2b2b̄2B2B̄2` 一致：每个时刻内按
+band、branch（− 先 + 后）、`(a, ā)` 排列。BCS bath 每节点 4 条腿
+（两个 band）。
+
+单 flavor 的腿数为 `2n`（n 为 contour 节点数），BCS 为 `4n`。
+"""
+function basis(x::IFSource)
+    nb = _bands(x)
+    if branches(x) == (:+, :-, :τ)
+        u = x isa BCSCorrelationFunction ? x.uu : x
+        kt, Nτ = rsize(u), isize(u)
+        legs = GrassmannContourIndex[]
+        for j in Nτ:-1:1, band in 1:nb, c in (false, true)
+            push!(legs, GrassmannContourIndex(j, :τ, band, c))
+        end
+        for j in 1:kt, band in 1:nb, b in (:-, :+), c in (false, true)
+            push!(legs, GrassmannContourIndex(j, b, band, c))
+        end
+        return legs
+    end
+    return GrassmannContourIndex[GrassmannContourIndex(j, b, band, c)
+                                 for (b, j) in _if_legorder(x)
+                                 for band in 1:nb for c in (false, true)]
+end
 
 # ------------------------------------------------------------------ #
 # 稠密表示的容器类型（腿指标见 contourindex.jl）
@@ -156,37 +194,26 @@ end
 # ------------------------------------------------------------------ #
 
 # ------------------------------------------------------------------ #
-# 费米稠密 Grassmann 表示的三件套（供 GrassmannIF 与外部复用）：
-#   _if_legs(x)         → 链序腿列表（每节点逐 band、a/ā 相邻）
-#   _if_coefficients(x) → 双线性指数矩阵 C（行 = 腿，C[i,j] 配 ξ_i ξ_j）
-#   _fold_grassmann(C)  → exp(Σ C_ij ξ_i ξ_j) 的稠密系数向量
+# 稠密 IF 的两步构造：先算 hybridization matrix，再构造 IF
 # ------------------------------------------------------------------ #
 
-# 稠密 IF 的输入：普通 correlation function 或 BCS 包装（后者不是
-# AbstractCorrelationFunction 的子类型）
-const IFSource = Union{AbstractCorrelationFunction,BCSCorrelationFunction}
+"""
+    GrassmannHybridizationMatrix{T<:Number}
 
-# 链序腿：节点（链序）× band × (a, ā)。混合 contour 的实时支与 GTEMPO 默认
-# ordering `A1Ā1B1B̄1_a1ā1A1Ā1b1b̄1B1B̄1a2ā2A2Ā2b2b̄2B2B̄2` 一致：
-# 每个时刻内按 band、branch（− 先 + 后）、(a, ā) 排列。
-function _if_legs(x::IFSource)
-    nb = _bands(x)
-    if branches(x) == (:+, :-, :τ)
-        u = x isa BCSCorrelationFunction ? x.uu : x
-        kt, Nτ = rsize(u), isize(u)
-        legs = GrassmannContourIndex[]
-        for j in Nτ:-1:1, band in 1:nb, c in (false, true)
-            push!(legs, GrassmannContourIndex(j, :τ, band, c))
-        end
-        for j in 1:kt, band in 1:nb, b in (:-, :+), c in (false, true)
-            push!(legs, GrassmannContourIndex(j, b, band, c))
-        end
-        return legs
-    end
-    return GrassmannContourIndex[GrassmannContourIndex(j, b, band, c)
-                                 for (b, j) in _if_legorder(x)
-                                 for band in 1:nb for c in (false, true)]
+费米稠密 IF 的杂交矩阵：`basis` 为链序腿列表（见 [`basis`](@ref)），
+`Δ` 为这些腿上的双线性系数矩阵（`Δ[i,j]` 是 ξ_i ξ_j 的系数；普通
+bath 给 `ā Δ a`，BCS 还含反常 `āā`、`aa` 块）。
+
+用 `GrassmannHybridizationMatrix(corr)` 从 correlation function 计算，
+之后交给 [`GrassmannIF`](@ref) 折叠成稠密 IF。
+"""
+struct GrassmannHybridizationMatrix{T<:Number}
+    basis::Vector{GrassmannContourIndex}
+    Δ::Matrix{T}
 end
+
+GrassmannHybridizationMatrix(x::IFSource) =
+    GrassmannHybridizationMatrix(basis(x), _if_coefficients(x))
 
 # GTEMPO 腿序的稠密系数向量 ← 双线性指数矩阵（Grassmann 幂零 ⟹
 # exp(Σ C_ij ξ_i ξ_j) = Π (1 + 项)，逐项折叠；含费米交换符号）
@@ -297,10 +324,11 @@ end
 # 普通费米高斯 bath：ā Δ a
 _delta_terms(x::AbstractCorrelationFunction) =
     [((1, true), (1, false), _contour_delta(x))]
-# BCS：正常 ↑↑ (ā↑Δa↑)、正常 ↓↓ (a↓Δā↓)、反常 ↑↓ (ā↑Δā↓)、反常 ↓↑ (a↓Δa↑)
+# BCS：正常 ↑↑ (ā↑Δa↑)、正常 ↓↓ (ā↓Δa↓，自旋对称下与 ↑↑ 同块)、
+# 反常 ↑↓ (ā↑Δā↓)、反常 ↓↑ (a↓Δa↑)
 _delta_terms(x::BCSCorrelationFunction) =
     [((1, true), (1, false), _contour_delta(x.uu)),
-     ((2, false), (2, true), _contour_delta(x.dd)),
+     ((2, true), (2, false), _contour_delta(x.uu)),
      ((1, true), (2, true), _contour_delta(x.ud)),
      ((2, false), (1, false), _contour_delta(x.du))]
 
@@ -308,9 +336,9 @@ function _if_eltype(x::IFSource)
     return promote_type(map(t -> eltype(t[3]), _delta_terms(x))...)
 end
 
-# 双线性指数矩阵 C（腿序同 _if_legs），C[i, j] 为 ξ_i ξ_j 的系数
+# 双线性指数矩阵 C（腿序即 basis(x)），C[i, j] 为 ξ_i ξ_j 的系数
 function _if_coefficients(x::IFSource)
-    legs = _if_legs(x)
+    legs = basis(x)
     T = _if_eltype(x)
     L = length(legs)
     idx = Dict(l => k for (k, l) in enumerate(legs))
@@ -361,22 +389,51 @@ bath 每节点 2 条腿 `(a, ā)`，**BCS bath 每节点 4 条腿**（`band = 1,
 验证；节点 `p` 在 Δ 行序（`[:+; :-; :τ]`，分支内时间升序）中的指标即
 GaussianStates 配对态的模式指标。
 """
-function GrassmannIF(x::IFSource)
-    basis = _if_legs(x)
-    L = length(basis)
+function GrassmannIF(h::GrassmannHybridizationMatrix)
+    L = length(h.basis)
     L ≤ log2(MAXTENSORDIM) || throw(ArgumentError(
         "稠密 IF 张量阶数 L = $(L) 超过上限 2^$(Int(log2(MAXTENSORDIM)))（2^L 个系数将耗尽内存）；" *
         "请减小 contour 节点数 n 或 flavor 数（当前 L = $(L)），" *
         "或使用协方差快速算法"))
-    return GrassmannADT(basis, _fold_grassmann(_if_coefficients(x)))
+    return GrassmannADT(h.basis, _fold_grassmann(h.Δ))
 end
+
+GrassmannIF(x::IFSource) = GrassmannIF(GrassmannHybridizationMatrix(x))
 
 # ------------------------------------------------------------------ #
 # 玻色：ADT（对角耦合）与 PT（非对角耦合）
 # ------------------------------------------------------------------ #
 
 """
-    BosonicIF(x::AbstractCorrelationFunction, λ::AbstractVector{<:Real})
+    BosonicHybridizationMatrix
+
+玻色稠密 IF 的杂交矩阵：`basis` 为链序节点，`Δ` 为 contour 杂交矩阵
+（节点行序 `[:+; :-; :τ]`）。
+
+- `split=false`（默认）：`Δ = M1 + M2`，供 [`BosonicIF`](@ref) 的 ADT
+  构造；
+- `split=true`：`Δ = (M1, M2)` 为算符次序拆分（`CorrelationMatrix`
+  块用 `ηⱼₖ`/`ηₖⱼ` 区分等时次序），供 PT 构造。
+"""
+struct BosonicHybridizationMatrix{T}
+    basis::Vector{BosonicContourIndex}
+    Δ::T
+end
+
+function BosonicHybridizationMatrix(x::AbstractCorrelationFunction; split::Bool=false)
+    chain = _if_legorder(x)
+    bs = BosonicContourIndex[BosonicContourIndex(j, br) for (br, j) in chain]
+    Δ = split ? _contour_delta_split(x) : _contour_delta(x)
+    return BosonicHybridizationMatrix(bs, Δ)
+end
+
+# Δ 行序：分支 + → − → τ，分支内节点升序
+_branch_rank(b::Symbol) = b == :+ ? 1 : b == :- ? 2 : 3
+_delta_row_order(chain) =
+    sort(collect(chain), by=b -> (_branch_rank(b.branch), b.j))
+
+"""
+    BosonicIF(h::BosonicHybridizationMatrix, λ::AbstractVector{<:Real})
         -> BosonicADT
 
 玻色影响泛函在**对角（ADT）耦合**下的稠密表示。耦合形式
@@ -391,28 +448,29 @@ H_int = hyb ⊗ Σ_k g_k (a†_k + a_k) ,   hyb = diag(λ)
 I[v₁..v_n] = exp(Σ_pq Δ_pq v_p v_q)
 ```
 
-其中 `Δ = _contour_delta(x)`（节点行序 `[:+; :-; :τ]`），`n` 为节点数；
-与 brute-force QuAPI 的 `exp(dot(v, G, v))` 约定一致（含对角项与上下
-三角全求和）。`λ` 为本征值矢量（自旋-玻色取 `[1, -1]` 等；顺序决定
-张量指标到路径值的映射）；`basis` 为链序节点（GTEMPO/TEMPO 默认
-ordering，见 `_if_legorder`），`d = length(λ)`。
+其中 `Δ = h.Δ`（`split=false` 构造的杂交矩阵，节点行序 `[:+; :-; :τ]`），
+`n` 为节点数；与 brute-force QuAPI 的 `exp(dot(v, G, v))` 约定一致（含
+对角项与上下三角全求和）。`λ` 为本征值矢量（自旋-玻色取 `[1, -1]` 等；
+顺序决定张量指标到路径值的映射）；`basis` 为链序节点（GTEMPO/TEMPO
+默认 ordering，见 `_if_legorder`），`d = length(λ)`。
 
 复杂度 O(n² dⁿ)；`dⁿ > MAXTENSORDIM`（`2³⁰`）时抛 `ArgumentError`
 （d=2 即 n ≤ 30）。
 """
-function BosonicIF(x::AbstractCorrelationFunction,
+function BosonicIF(h::BosonicHybridizationMatrix,
                          λ::AbstractVector{<:Real})
     isempty(λ) && throw(ArgumentError("λ 不能为空"))
+    h.Δ isa AbstractMatrix || throw(ArgumentError(
+        "该 BosonicHybridizationMatrix 存的是 PT 的 (M1, M2)；ADT 构造需要 split=false"))
     d = length(λ)
-    Δ = _contour_delta(x)
-    nodes = _contour_nodes(x)
-    chain = _if_legorder(x)
+    Δ = h.Δ
+    chain = h.basis
     n = length(chain)
     n * log2(d) ≤ log2(MAXTENSORDIM) || throw(ArgumentError(
         "稠密 IF 张量总元素数 d^n = $(d)^$(n) 超过上限 MAXTENSORDIM = 2³⁰；" *
         "请减小 contour 节点数 n（当前 $(n)）或路径值个数 d（当前 $(d)）"))
     T = eltype(Δ)
-    nodeidx = Dict(bi => k for (k, bi) in enumerate(nodes))
+    nodeidx = Dict(bi => k for (k, bi) in enumerate(_delta_row_order(chain)))
     data = ones(T, ntuple(_ -> d, n))
     # 逐对吸收 exp(Δ_pq λ_a λ_b)：I = Π_pq exp(Δ_pq v_p v_q)
     for p in 1:n, q in 1:n
@@ -423,12 +481,15 @@ function BosonicIF(x::AbstractCorrelationFunction,
             data[I] *= F[I[p], I[q]]
         end
     end
-    basis = BosonicContourIndex[BosonicContourIndex(j, b) for (b, j) in chain]
-    return BosonicADT(basis, d, vec(data))
+    return BosonicADT(chain, d, vec(data))
 end
 
+# 便捷入口：一步从 correlation function 构造（内部先算杂交矩阵）
+BosonicIF(x::AbstractCorrelationFunction, λ::AbstractVector{<:Real}) =
+    BosonicIF(BosonicHybridizationMatrix(x), λ)
+
 """
-    BosonicIF(x::AbstractCorrelationFunction, hyb::AbstractMatrix)
+    BosonicIF(h::BosonicHybridizationMatrix, hyb::AbstractMatrix)
         -> BosonicPT
 
 玻色影响泛函在**非对角（PT）耦合**下的稠密表示，`hyb` 为任意方阵
@@ -441,24 +502,27 @@ I = exp(H)
 H = Σ_pq [ M1[p,q]·op1_p·op2_q + M2[p,q]·op2_p·op1_q ]
 ```
 
-`M1 + M2 = Δ` 是 `_contour_delta(x)` 的算符次序拆分（`CorrelationMatrix`
-块用 `ηⱼₖ` / `ηₖⱼ` 区分等时两种次序，见 `_contour_delta_split`），
-`op1 = hyb`、`op2 = hyb'`，`op_p` 表示作用在第 `p` 个节点的系统
-自由度上。对对角 `hyb` 上式退化为 ADT 路径权重的对角嵌入。这里直接
-对显式构造的 `H` 做矩阵指数，**不含任何 Prony/指数展开近似**。
+`M1 + M2 = Δ` 是杂交矩阵的算符次序拆分（`CorrelationMatrix` 块用
+`ηⱼₖ` / `ηₖⱼ` 区分等时两种次序，见 `_contour_delta_split`；因此 PT
+需要 `split=true` 构造的 `BosonicHybridizationMatrix`），`op1 = hyb`、
+`op2 = hyb'`，`op_p` 表示作用在第 `p` 个节点的系统自由度上。对对角
+`hyb` 上式退化为 ADT 路径权重的对角嵌入。这里直接对显式构造的 `H`
+做矩阵指数，**不含任何 Prony/指数展开近似**。
 
 `data` 为 `d^{2n}` 个矩阵元：指标 `2p−1` = 节点 `p` 的 ket 路径，
 `2p` = 节点 `p` 的 bra 路径，指标 1 最快；`basis` 为链序节点，
 `d = size(hyb, 1)`。总元素数 `d^{2n} > MAXTENSORDIM`（`2³⁰`）时抛
 `ArgumentError`（d=2 即 n ≤ 15）。
 """
-function BosonicIF(x::AbstractCorrelationFunction, hyb::AbstractMatrix)
+function BosonicIF(h::BosonicHybridizationMatrix, hyb::AbstractMatrix)
     size(hyb, 1) == size(hyb, 2) || throw(ArgumentError("hyb 必须是方阵"))
+    h.Δ isa Tuple || throw(ArgumentError(
+        "PT 构造需要 split=true 的 BosonicHybridizationMatrix（存 (M1, M2)）"))
     d = size(hyb, 1)
-    M1, M2 = _contour_delta_split(x)
+    M1, M2 = h.Δ
+    chain = h.basis
     # 张量指标按链序（与 basis 一致）排列：把 M1/M2 从 Δ 行序重排到链序
-    chain = _if_legorder(x)
-    nodeidx = Dict(bi => k for (k, bi) in enumerate(_contour_nodes(x)))
+    nodeidx = Dict(bi => k for (k, bi) in enumerate(_delta_row_order(chain)))
     ord = [nodeidx[bi] for bi in chain]
     M1 = M1[ord, ord]
     M2 = M2[ord, ord]
@@ -490,9 +554,12 @@ function BosonicIF(x::AbstractCorrelationFunction, hyb::AbstractMatrix)
     # reshape 得 (ket₁..ket_n, bra₁..bra_n)，再交错成每节点 (ket, bra)
     Ten = reshape(F, ntuple(_ -> d, 2n))
     perm = vcat([[p, n + p] for p in 1:n]...)
-    basis = BosonicContourIndex[BosonicContourIndex(j, b) for (b, j) in chain]
-    return BosonicPT(basis, d, vec(permutedims(Ten, perm)))
+    return BosonicPT(chain, d, vec(permutedims(Ten, perm)))
 end
+
+# 便捷入口：一步从 correlation function 构造（内部先算拆分后的杂交矩阵）
+BosonicIF(x::AbstractCorrelationFunction, hyb::AbstractMatrix) =
+    BosonicIF(BosonicHybridizationMatrix(x; split=true), hyb)
 
 # op 作用在 d^n 维空间的第 p 个张量因子上（节点 1 为最快指标，与 data 的
 # 线性序一致）：从慢到快的因子依次为节点 n, n−1, …, 1

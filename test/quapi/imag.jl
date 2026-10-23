@@ -170,8 +170,8 @@ function quapi_rlm_gt(β, ϵ_d, spectrum::AbstractBoundedFunction; N, μ=0.0)
 
     # influence functional: coefficient matrix in the GTEMPO leg order
     C = QuAPI.Dense._if_coefficients(corr)
-    basis = QuAPI.Dense._if_legs(corr)
-    li = Dict(l => k for (k, l) in enumerate(basis))
+    legs = basis(corr)
+    li = Dict(l => k for (k, l) in enumerate(legs))
     leg(j, c) = li[GrassmannContourIndex(j, :τ, 1, c)]
     for i in 1:N                                  # Berezin measure −āᵢaᵢ
         C[leg(i, true), leg(i, false)] += -1.0
@@ -182,7 +182,7 @@ function quapi_rlm_gt(β, ϵ_d, spectrum::AbstractBoundedFunction; N, μ=0.0)
     C[leg(1, true), leg(N, false)] += -x          # anti-periodic wrap
 
     data = QuAPI.Dense._fold_grassmann(C)
-    L = length(basis)
+    L = length(legs)
     ctop = data[1 << L]                           # all-odd top coefficient
     # The measure contributes (-1)^N, but the GTEMPO leg order here is
     # τ-descending (and a before ā within a node) while the derivation above

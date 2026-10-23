@@ -254,8 +254,8 @@ function quapi_rlm_rt_gt(β, ϵ_d, spectrum; Nt, t, μ=0.0)
     corr = fermionic_Δt(spectrum, β=β, N=Nt, t=t, μ=μ)
 
     C = QuAPI.Dense._if_coefficients(corr)
-    basis = QuAPI.Dense._if_legs(corr)
-    li = Dict(l => k for (k, l) in enumerate(basis))
+    legs = basis(corr)
+    li = Dict(l => k for (k, l) in enumerate(legs))
     # 节点 j = i+1（i = 0..Nt），branch = :+ / :-
     leg(i, b, c) = li[GrassmannContourIndex(i + 1, b, 1, c)]
     for i in 0:Nt                                  # Berezin measures −āa
@@ -270,7 +270,7 @@ function quapi_rlm_rt_gt(β, ϵ_d, spectrum; Nt, t, μ=0.0)
     C[leg(0, :+, true), leg(0, :-, false)] += exp(-β * ϵ_d)   # initial weight
 
     data = QuAPI.Dense._fold_grassmann(C)
-    L = length(basis)
+    L = length(legs)
     ctop = data[1 << L]                            # all-odd coefficient
     Z = ctop
     # Under the GTEMPO leg order (a before ā per node, times descending) the

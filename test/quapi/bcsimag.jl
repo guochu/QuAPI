@@ -46,7 +46,7 @@ function quapi_bcs_gt(β, ϵ_d, spectrum::AbstractBoundedFunction; N, Δ, μ=0.0
     corr = bcs_Δτ(spectrum, β=β, N=N, μ=μ, Δ=Δ)
 
     # influence functional (normal + anomalous blocks, both flavors)
-    gif = GrassmannIF(corr)
+    gif = GrassmannIF(GrassmannHybridizationMatrix(corr))
     leg(j, band, c) = GrassmannContourIndex(j, :τ, band, c)
     # exp(c ξᵢξⱼ) = 1 + c ξᵢξⱼ as a two-leg GrassmannADT
     function term(i, j, c)
