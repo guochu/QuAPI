@@ -5,8 +5,9 @@ println("------------------------------------")
 using Test, LinearAlgebra
 
 # The influence functional — both flavors and the anomalous pairing blocks —
-# comes from the shared `QuAPI.Dense.GrassmannADT` machinery (GTEMPO 2-flavor
-# leg order); the impurity kinetic terms and the Berezin measures are applied
+# comes from the shared `QuAPI.Dense.GrassmannADT` machinery (unified ordering:
+# node ascending, per node band 1,2, per band a then ā); the impurity kinetic
+# terms and the Berezin measures are applied
 # by multiplying in two-leg `GrassmannADT` factors `exp(c ξᵢξⱼ) = 1 + c ξᵢξⱼ`.
 
 """
@@ -25,8 +26,8 @@ src/bcs/bcscorr.jl the discretized path weight is
 
 with M_imp the anti-periodic kinetic matrix (x = e^{-δτϵ_d}) and Δ↑↑/Δ↓↓ the
 normal, Δ↑↓/Δ↓↑ the anomalous influence-functional blocks from `bcs_Δτ`.  The
-bath part is assembled by `GrassmannIF` in the GTEMPO 2-flavor leg order
-(per node: a↑, ā↑, a↓, ā↓ with band = 1, 2), and the impurity terms are
+bath part is assembled by `GrassmannIF` in QuAPI's unified leg order
+(per node: band 1 `a↑, ā↑`, band 2 `a↓, ā↓`), and the impurity terms are
 multiplied in as two-leg `GrassmannADT` factors; Z and the Matsubara Green's
 function in the standard convention G(τ_m) = -⟨d↑(τ_m)d↑†(0)⟩ are then read
 off the coefficients
@@ -64,13 +65,15 @@ function quapi_bcs_gt(β, ϵ_d, spectrum::AbstractBoundedFunction; N, Δ, μ=0.0
     end
 
     ctop = Zvalue(gif)                            # all-odd top coefficient
-    # Z = +ctop in this ordering (the (-1)^(2N) measure sign and the
-    # τ-descending leg reversal cancel); the G numerator is the coefficient of
-    # the top monomial with {ā↑₁, a↑_{m+1}} removed (the complement is passed
-    # in basis order, so gif[...] adds no extra sign).
+    # G(τ_m) = -⟨d↑(τ_m)d↑†(0)⟩：分子是 a↑_m ā↑₀ 插入后的 Berezin 积分。
+    # 从 basis 顺序的全单项式移出 (a↑_m, ā↑₀) 的符号 =
+    #   +1 若 a↑_m 在 ā↑₀ 之前，否则 -1（与 basis 的具体 ordering 无关）。
+    pos = Dict(l => k for (k, l) in enumerate(gif.basis))
+    msign(ia, iab) = ia < iab ? 1.0 : -1.0
     c = [gif[complementindex(gif.basis, leg(1, 1, true), leg(m + 1, 1, false))...]
          for m in 0:N-1]
-    return ctop, -c ./ ctop, δτ
+    s = [msign(pos[leg(m + 1, 1, false)], pos[leg(1, 1, true)]) for m in 0:N-1]
+    return ctop, -s .* c ./ ctop, δτ
 end
 
 @testset "imaginary-time QuAPI (BCS bath, Grassmann tensor) vs Toulouse exact diagonalization" begin

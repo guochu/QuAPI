@@ -150,7 +150,7 @@ with the discretized path weight exp[Σᵢⱼ āᵢ (M_imp + Δ)ᵢⱼ aⱼ] (M_
 anti-periodic kinetic matrix with x = e^{-δτϵ_d}, Δ the fermionic influence-
 functional matrix from `fermionic_Δτ`).  The Δ part is taken from the shared
 dense Grassmann machinery in `src/models.jl` (`GrassmannHybridizationMatrix`
-in the GTEMPO leg order), the impurity kinetic terms and the measures −āᵢaᵢ are
+in QuAPI's unified contour ordering), the impurity kinetic terms and the measures −āᵢaᵢ are
 added to the same exponent matrix, and the tensor is folded once with
 `GrassmannIF`.  Z and the Matsubara Green's function in the standard
 convention G(τ_m) = -⟨d(τ_m)d†(0)⟩ are the Berezin integrals read off the
@@ -168,7 +168,7 @@ function quapi_rlm_gt(β, ϵ_d, spectrum::AbstractBoundedFunction; N, μ=0.0)
     x = exp(-δτ * ϵ_d)
     corr = fermionic_Δτ(spectrum, β=β, N=N, μ=μ)
 
-    # influence functional: coefficient matrix in the GTEMPO leg order
+    # influence functional: coefficient matrix in QuAPI's unified ordering
     h = GrassmannHybridizationMatrix(corr)
     legs = h.basis
     li = Dict(l => k for (k, l) in enumerate(legs))
@@ -184,15 +184,15 @@ function quapi_rlm_gt(β, ϵ_d, spectrum::AbstractBoundedFunction; N, μ=0.0)
 
     gif = GrassmannIF(GrassmannHybridizationMatrix(legs, C))
     ctop = Zvalue(gif)                            # all-odd top coefficient
-    # The measure contributes (-1)^N, but the GTEMPO leg order here is
-    # τ-descending (and a before ā within a node) while the derivation above
-    # used τ-ascending ā before a; the leg reversal carries (-1)^{N(2N-1)}
-    # and the a/ā swap another (-1)^N, so these cancel and Z = +ctop.
-    # The numerator monomial {ā₁, a_{m+1}} changes order under the same
-    # relabelling, hence the extra minus sign in G.
+    # G(τ_m) = -⟨d(τ_m)d†(0)⟩：分子是 a_m ā₀ 插入后的 Berezin 积分。
+    # 从 basis 顺序的全单项式移出 (a_m, ā₀) 的符号 =
+    #   +1 若 a_m 在 ā₀ 之前，否则 -1（与 basis 的具体 ordering 无关）。
+    # leg(...) 返回该腿在 basis 中的位置。
+    msign(ia, iab) = ia < iab ? 1.0 : -1.0
     c = [gif[complementindex(gif.basis, legs[leg(1, true)], legs[leg(m + 1, false)])...]
          for m in 0:N-1]
-    return ctop, -c ./ ctop, δτ
+    s = [msign(leg(m + 1, false), leg(1, true)) for m in 0:N-1]
+    return ctop, -s .* c ./ ctop, δτ
 end
 
 # Convenience wrapper for a discrete bath spectrum Σ_k λ_k² δ(ε-ω_k).

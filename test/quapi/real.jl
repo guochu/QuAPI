@@ -221,8 +221,8 @@ end
 
 ### fermionic Toulouse impurity (dense Grassmann tensor from src/models.jl) ###
 
-# The influence functional comes from `GrassmannHybridizationMatrix` in the
-# GTEMPO leg order; the impurity kinetics, measures and contour closure are
+# The influence functional comes from `GrassmannHybridizationMatrix` in QuAPI's
+# unified contour ordering; the impurity kinetics, measures and contour closure are
 # added to the same bilinear exponent and folded once by `GrassmannIF` (no
 # Grassmann-tensor package needed).
 
@@ -232,8 +232,8 @@ end
 Real-time (closed Keldysh contour) fermionic QuAPI for the Toulouse impurity,
 represented as a single dense Grassmann tensor over the legs of
 `GrassmannHybridizationMatrix(corr).basis` (per node: `a`, `ā`; nodes in
-GTEMPO order, i.e.
-`(+,Nt+1), (-,Nt+1), …, (+,1), (-,1)`).
+QuAPI's unified order, i.e.
+`(+,1), (-,1), …, (+,Nt+1), (-,Nt+1)`).
 
 Contour: nodes 0..Nt on the + branch (t = 0..t) and on the - branch.
 The bilinear exponent exp(Σ C_ij ξ_i ξ_j) contains:
@@ -274,12 +274,18 @@ function quapi_rlm_rt_gt(β, ϵ_d, spectrum; Nt, t, μ=0.0)
     gif = GrassmannIF(GrassmannHybridizationMatrix(legs, C))
     ctop = Zvalue(gif)                             # all-odd coefficient
     Z = ctop
-    # Under the GTEMPO leg order (a before ā per node, times descending) the
-    # {ā⁺₀, a⁺_j} numerator changes order relative to the ascending layout
-    # (one minus sign), while {ā⁻₀, a⁺_j} does not.
-    Gg = [gif[complementindex(gif.basis, legs[leg(0, :+, true)], legs[leg(j, :+, false)])...] / ctop
+    # 分子是 a⁺_j ā⁺_0（Gg）或 a⁺_j ā⁻_0（Gl）插入后的 Berezin 积分；
+    # 从 basis 顺序的全单项式移出这两个腿的符号 =
+    #   +1 若 a⁺_j 在 ā 之前，否则 -1（与 basis 的具体 ordering 无关）。
+    # leg(...) 返回该腿在 basis 中的位置。
+    msign(ia, iab) = ia < iab ? 1.0 : -1.0
+    Gg = [msign(leg(j, :+, false), leg(0, :+, true)) *
+          gif[complementindex(gif.basis, legs[leg(0, :+, true)],
+                              legs[leg(j, :+, false)])...] / ctop
           for j in 0:Nt]
-    Gl = [gif[complementindex(gif.basis, legs[leg(0, :-, true)], legs[leg(j, :+, false)])...] / ctop
+    Gl = [msign(leg(j, :+, false), leg(0, :-, true)) *
+          gif[complementindex(gif.basis, legs[leg(0, :-, true)],
+                              legs[leg(j, :+, false)])...] / ctop
           for j in 0:Nt]
     return Z, Gg, Gl, δt
 end

@@ -2,28 +2,38 @@ println("------------------------------------")
 println("|   GaussianStates extension: OSEE  |")
 println("------------------------------------")
 
+# 测试内小工具（只依赖导出接口，避免调用 QuAPI.Dense 的未导出内部函数）：
+# 2n×2n 辛形式 Ω = ⊕ₖ [[0,1],[−1,0]]（不依赖 GaussianStates 未导出的 _omega）
+function symplectic_form(n::Int)
+    Ω = zeros(2n, 2n)
+    for k in 1:n
+        Ω[2k-1, 2k] = 1.0
+        Ω[2k, 2k-1] = -1.0
+    end
+    return Ω
+end
+
 @testset "GaussianStates extension" begin
     # ---------------- contour Δ 组装（经 bdg 重载间接验证） ----------------
+    # 由分支块按统一节点序拼 Δ（独立参考，不调用 _contour_delta）
+    function delta_ref(corr)
+        nodes = contour_ordering(corr)
+        n = length(nodes)
+        M = zeros(ComplexF64, n, n)
+        for (p, (b1, j1)) in enumerate(nodes), (q, (b2, j2)) in enumerate(nodes)
+            M[p, q] = branch(corr; b1=b1, b2=b2)[j1, j2]
+        end
+        return M
+    end
+
     corrτ = fermionic_Δτ(semicircular(), β=5.0, N=8, μ=0.3)
-    Δτ_ref = [branch(corrτ; b1=:τ, b2=:τ)[i, j] for i in 1:8, j in 1:8]
+    Δτ_ref = delta_ref(corrτ)
 
     corrt = fermionic_Δt(semicircular(), β=2.0, t=1.0, N=3, μ=0.2)
-    Δt_ref = Matrix{ComplexF64}(undef, 8, 8)
-    for (i, b1) in enumerate((:+, :-)), (j, b2) in enumerate((:+, :-))
-        Δt_ref[(i-1)*4+1:i*4, (j-1)*4+1:j*4] =
-            [branch(corrt; b1=b1, b2=b2)[i2, j2] for i2 in 1:4, j2 in 1:4]
-    end
+    Δt_ref = delta_ref(corrt)
 
     corrm = fermionic_Δm(semicircular(), β=2.0, Nτ=4, t=1.0, Nt=3, μ=0.2)
-    Δm_ref = Matrix{ComplexF64}(undef, 12, 12)
-    for (i, b1) in enumerate((:+, :-, :τ)), (j, b2) in enumerate((:+, :-, :τ))
-        ni = (b1 == :τ) ? 4 : 4
-        nj = (b2 == :τ) ? 4 : 4
-        oi = (i - 1) * 4
-        oj = (j - 1) * 4
-        Δm_ref[oi+1:oi+ni, oj+1:oj+nj] =
-            [branch(corrm; b1=b1, b2=b2)[i2, j2] for i2 in 1:ni, j2 in 1:nj]
-    end
+    Δm_ref = delta_ref(corrm)
 
     # ---------------- 费米：fermionic_bdg_matrix(corr) → 系数态 OSEE ----------
     for (corr, Δref) in ((corrτ, Δτ_ref), (corrt, Δt_ref), (corrm, Δm_ref))
@@ -67,13 +77,21 @@ println("------------------------------------")
     Wb = bosonic_bdg_matrix(corr_b)
     Δb = real.([branch(corr_b; b1=:τ, b2=:τ)[i, j] for i in 1:4, j in 1:4])
     @test Wb == [zeros(4, 4) exp(-Δb); transpose(exp(-Δb)) zeros(4, 4)]
+    # 显式 BosonicHybridizationMatrix 入口：split=false 与 correlation 入口一致；
+    # split=true 的 BosonicSplitDelta(M1, M2) 是等时次序拆分，绝不等于 BdG 的
+    # (h, g) 块，必须报错而不是静默 dispatch 到 bosonic_bdg_matrix(h, g)
+    @test bosonic_bdg_matrix(BosonicHybridizationMatrix(corr_b)) == Wb
+    hsplit = BosonicHybridizationMatrix(corr_b; split=true)
+    @test !(hsplit.Δ isa Tuple)                    # split 结果为专用类型，非裸元组
+    @test_throws ArgumentError bosonic_bdg_matrix(hsplit)
+    @test_throws MethodError bosonic_bdg_matrix(hsplit.Δ...)   # 不可 splat 成 (h, g)
     @test Wb == transpose(Wb) && Wb isa Matrix{Float64}
     @test maximum(abs, eigvals(Symmetric(Wb))) < 1        # 谱 ⊂ (−1,1)
     sb = BosonicGaussianState(Wb)
     @test !sb.isbdg
     @test_throws ArgumentError entropy(sb)                # 非密度矩阵
     Γb = GaussianStates.covariance(sb)
-    Ω4 = GaussianStates._omega(8)                         # 8 模（16×16）的辛形式
+    Ω4 = symplectic_form(8)                               # 8 模（16×16）的辛形式
     ν = abs.(eigvals(Ω4 * Γb))
     @test maximum(abs.(ν .- 0.5)) < 1e-10                 # 纯态：辛本征值全 ½
     @test osee(sb, collect(1:8)) ≈ 0.0 atol = 1e-10
@@ -98,7 +116,50 @@ println("------------------------------------")
     @test osee(sm, [1, 3]; α=2) ≈ 2log(1 + 2n̄(m)) atol = 1e-12
 end
 
-# ---------------- 稠密 IF 张量 vs 快速 OSEE（GTEMPO 默认 ordering） ----------------
+# ---------------- 玻色 OSEE ↔ BosonicPT IF 的纠缠熵（d→∞ 收敛） ----------------
+@testset "玻色 OSEE ↔ BosonicPT IF 熵（d→∞）" begin
+    # 单模玻色杂质 + ohmic bath（TEMPO/osee 报告 §5.2、§6 的模型）：
+    # N=2、δτ=β/2=0.1 ⟹ Δ 正定、λ_min ≈ 2.1e-5。高斯协方差公式给的是
+    # **d→∞ 极限**；有限 d 的 BosonicPT 熵与它是同一条曲线的两端（§6），
+    # 因此这里检验 d 扫描穿过高斯值。
+    omic(w) = 2 * 0.1 * w * exp(-w / 2)
+    specb = spectrum(w -> omic(w), lb=0.0, ub=2.0)
+    corr = bosonic_Δτ(specb; β=0.2, N=2)
+
+    # 全部走导出接口：BosonicHybridizationMatrix 的公共字段 basis / Δ
+    h = BosonicHybridizationMatrix(corr)               # split=false ⟹ Δ 为矩阵
+    Δ = h.Δ
+    @test minimum(eigvals(Symmetric(Matrix(Δ)))) > 0   # 实 Δ、正定
+    n = length(h.basis)                                # contour 节点数
+    site = h.basis[1].j                                # 虚时 Δ 行序 (:τ,1..n)，链首为 n
+
+    sb = BosonicGaussianState(bosonic_bdg_matrix(h))
+    @test !sb.isbdg
+    Γb = GaussianStates.covariance(sb)
+    Ω = symplectic_form(2n)                            # Γ 为 4n×4n（2n 个 doubled 模）
+    @test maximum(abs.(abs.(eigvals(Ω * Γb)) .- 0.5)) < 1e-6     # 纯态（λ_min 小 ⟹ 近奇异）
+    S_fast = osee(sb, [site, n + site])                    # d→∞ 高斯 OSEE
+
+    # BosonicPT（PT 耦合 a†/a）：hyb = 截断湮灭算符；data 指标序
+    # (k₁,b₁,k₂,b₂)。OSEE 取 vectorized operator 的 ket|bra 二分，
+    # 重排为 (k₁,k₂ | b₁,b₂) 后做 SVD。
+    aop(nbas) = [k == j - 1 ? sqrt(k) : 0.0 for k in 1:nbas+1, j in 1:nbas+1]
+    function pt_osee(d)
+        P = BosonicIF(BosonicHybridizationMatrix(corr; split=true), aop(d - 1))
+        T = reshape(P.data, d, d, d, d)
+        sv = svdvals(reshape(permutedims(T, (1, 3, 2, 4)), d^2, d^2))
+        p = abs2.(sv); p ./= sum(p)
+        return -sum(x * log(x) for x in p if x > 1e-15)
+    end
+    @test BosonicIF(BosonicHybridizationMatrix(corr; split=true), aop(2)) isa BosonicPT
+
+    # 有限 d 熵随 d 单调上升（§4.2：小 d 近似 ∝ d²），d≈25 处穿过高斯极限
+    @test pt_osee(14) < pt_osee(18) < pt_osee(22) < pt_osee(26)
+    @test pt_osee(24) < S_fast < pt_osee(26)               # 极限被相邻 d 夹住
+    @test pt_osee(25) ≈ S_fast atol = 0.05                 # 交叉处 ~0.3%
+end
+
+# ---------------- 稠密 IF 张量 vs 快速 OSEE（统一 contour ordering） ----------------
 @testset "稠密 IF 张量 vs 快速 OSEE" begin
     # 前缀割 SVD 熵（plain SVD：连续前缀割下与 Z₂/协方差约定一致）
     svent(M) = (sv = svdvals(M); p = abs2.(sv); p ./= sum(p);
@@ -110,49 +171,38 @@ end
     )
     for (name, corr) in cases
         T = GrassmannIF(GrassmannHybridizationMatrix(corr))
-        n = size(QuAPI.Dense._contour_delta(corr), 1)
-        chain = QuAPI.Dense._if_legorder(corr)       # GTEMPO ordering 链序节点
-        nodes = QuAPI.Dense._contour_nodes(corr)     # Δ 行序节点（fast 模式指标）
+        n = length(basis(corr)) ÷ 2                    # 单 flavor：每节点 2 条腿
+        chain = contour_ordering(corr)                 # 统一节点序（= Δ 行列序）
         @test T isa GrassmannADT
         @test length(T.basis) == 2n && length(T.data) == 2^(2n)
         @test norm(T.data) > 0
         # 元素类型由 correlation function 决定（不写死）：虚时为实、实时含虚部
-        @test eltype(T.data) == eltype(QuAPI.Dense._contour_delta(corr))
+        @test eltype(T.data) == eltype(GrassmannHybridizationMatrix(corr).Δ)
         @test name == "IM" ? eltype(T.data) <: Real : eltype(T.data) <: Complex
-        # basis 逐位置固化：非混合为链序节点 × (a, ā)；混合的实时支按
-        # band、branch（− 先 + 后）、(a, ā)（与 GTEMPO 默认 ordering 一致）
+        # basis 逐位置固化：节点按 contour_ordering，每节点 (a, ā)（band 内）
         expected = GrassmannContourIndex[]
-        if name == "MX"
-            for j in isize(corr):-1:1, c in (false, true)
-                push!(expected, GrassmannContourIndex(j, :τ, 1, c))
-            end
-            for j in 1:rsize(corr), b in (:-, :+), c in (false, true)
-                push!(expected, GrassmannContourIndex(j, b, 1, c))
-            end
-        else
-            append!(expected, [GrassmannContourIndex(j, b, 1, c) for (b, j) in chain
+        append!(expected, [GrassmannContourIndex(j, b, 1, c) for (b, j) in chain
                                                          for c in (false, true)])
-        end
         @test T.basis == expected
         s = FermionicGaussianState(fermionic_bdg_matrix(corr))
         v = T.data
         for k in 1:n-1                                # 链前缀 k 个节点块
             pref = unique([(bi.branch, bi.j) for bi in T.basis[1:2k]])  # 前 k 个节点
             @test length(pref) == k
-            modes = [findfirst(==(bi), nodes) for bi in pref]
+            modes = [findfirst(==(bi), chain) for bi in pref]
             S_dense = svent(reshape(v, 2^(2k), 2^(2(n - k))))
             @test osee(s, vcat(modes, n .+ modes)) ≈ S_dense atol = 1e-10
         end
         # 整割 = 0（纯系数向量）
         @test svent(reshape(v, 2^(2n), 1)) ≈ 0.0 atol = 1e-12
     end
-    # GTEMPO 默认 ordering 链序（三种 contour）
-    @test QuAPI.Dense._if_legorder(fermionic_Δτ(semicircular(), β=5.0, N=3, μ=0.0)) ==
-          [(:τ, 3), (:τ, 2), (:τ, 1)]                 # 虚时降序
-    @test QuAPI.Dense._if_legorder(fermionic_Δt(semicircular(), β=2.0, t=1.0, N=2, μ=0.0)) ==
-          [(:+, 3), (:-, 3), (:+, 2), (:-, 2), (:+, 1), (:-, 1)]  # 时间降序，+ 先 − 后
-    @test QuAPI.Dense._if_legorder(fermionic_Δm(semicircular(), β=2.0, Nτ=2, t=0.5, Nt=1, μ=0.0)) ==
-          [(:τ, 2), (:τ, 1), (:+, 1), (:-, 1), (:+, 2), (:-, 2)]  # 虚时降序 ++ 实时升序
+    # 统一节点序（三种 contour）
+    @test contour_ordering(fermionic_Δτ(semicircular(), β=5.0, N=3, μ=0.0)) ==
+          [(:τ, 1), (:τ, 2), (:τ, 3)]                 # 虚时升序
+    @test contour_ordering(fermionic_Δt(semicircular(), β=2.0, t=1.0, N=2, μ=0.0)) ==
+          [(:+, 1), (:-, 1), (:+, 2), (:-, 2), (:+, 3), (:-, 3)]  # 时间升序，+ 先 − 后
+    @test contour_ordering(fermionic_Δm(semicircular(), β=2.0, Nτ=2, t=0.5, Nt=1, μ=0.0)) ==
+          [(:τ, 1), (:τ, 2), (:+, 1), (:-, 1), (:+, 2), (:-, 2)]  # 虚时升序接实时升序
     # 阶数上限：n = 16 ⟹ L = 32 > 30 提前报错（不进入 2^32 系数构造）
     big = fermionic_Δτ(semicircular(), β=5.0, N=16, μ=0.0)
     @test_throws ArgumentError GrassmannIF(GrassmannHybridizationMatrix(big))
@@ -168,12 +218,12 @@ end
     B = GrassmannIF(GrassmannHybridizationMatrix(bcs))
     n = N
     @test B isa GrassmannADT
-    # 每节点 4 条腿：band 1/2，每个 band 内 (a, ā) 相邻，链序 τ 降序
+    # 每节点 4 条腿：band 1/2，每个 band 内 (a, ā) 相邻；节点按 contour_ordering（τ 升序）
     @test length(B.basis) == 4n
     @test length(B.data) == 2^(4n)
     @test B.basis == GrassmannContourIndex[
         GrassmannContourIndex(j, b, band, c)
-        for (b, j) in QuAPI.Dense._if_legorder(corr) for band in (1, 2)
+        for (b, j) in contour_ordering(corr) for band in (1, 2)
         for c in (false, true)]
     # 只有 ↑ 的正常块非零：↓ 腿全偶的系数应与单 flavor 张量逐一相等
     A = GrassmannIF(GrassmannHybridizationMatrix(corr))   # 单 flavor
@@ -267,10 +317,10 @@ end
         term = GrassmannADT([gif.basis[i], gif.basis[j]], [1.0, 0.0, 0.0, c])
         prod = gif * term
         @test prod.basis == gif.basis
-        # 独立参考：把 c 加进指数矩阵再折叠
-        C = QuAPI.Dense._if_coefficients(corr)
+        # 独立参考：把 c 加进指数矩阵再经公开构造函数折叠
+        C = copy(GrassmannHybridizationMatrix(corr).Δ)
         C[i, j] += c
-        @test prod.data ≈ QuAPI.Dense._fold_grassmann(C) rtol = 1e-12
+        @test prod.data ≈ GrassmannIF(GrassmannHybridizationMatrix(gif.basis, C)).data rtol = 1e-12
     end
     # 玻色 ADT：共享节点上的逐点乘积
     bcorr = bosonic_Δτ(spectrum(ε -> exp(-ε), lb=0.5, ub=8.0), β=2.0, N=3)
@@ -329,20 +379,15 @@ end
 # ---------------- 稠密玻色 ADT（对角耦合：路径权重） ----------------
 @testset "稠密玻色 ADT 路径权重" begin
     λsbm = eigvals(Symmetric([1.0 0.0; 0.0 -1.0]))   # σ_z 本征值（自旋-玻色）
-    # 逐元素对照公式 I[v] = exp(Σ_pq Δ_pq v_p v_q)，v 取 λ（链序）
-    # 张量维度 p（链序）的指标 I[p] 选路径值 λ[I[p]]；Δ 按行序节点索引
+    # 逐元素对照公式 I[v] = exp(Σ_pq Δ_pq v_p v_q)，v 取 λ（统一节点序）
+    # 张量维度 p 的指标 I[p] 选路径值 λ[I[p]]；Δ 的行列序与 contour_ordering 相同
     function ref_IF(corr, λ)
-        Δ = QuAPI.Dense._contour_delta(corr)
-        nodes = QuAPI.Dense._contour_nodes(corr)
-        chain = QuAPI.Dense._if_legorder(corr)
+        Δ = BosonicHybridizationMatrix(corr).Δ
+        chain = contour_ordering(corr)
         d, n = length(λ), length(chain)
-        rowof = [findfirst(==(bi), nodes) for bi in chain]   # 链位置 → Δ 行号
         T = ones(ComplexF64, ntuple(_ -> d, n))
         for I in CartesianIndices(T)
-            v = zeros(n)
-            for p in 1:n
-                v[rowof[p]] = λ[I[p]]
-            end
+            v = [λ[I[p]] for p in 1:n]
             T[I] = exp(dot(v, Δ, v))
         end
         return T
@@ -353,11 +398,11 @@ end
                          ("RT", bosonic_Δt(f0b, β=2.0, t=1.0, N=2)),
                          ("MX", bosonic_Δm(f0b, β=2.0, Nτ=2, t=0.5, Nt=1)))
         A = BosonicIF(BosonicHybridizationMatrix(corr), λsbm)
-        n = length(QuAPI.Dense._if_legorder(corr))
-        chain = QuAPI.Dense._if_legorder(corr)
+        chain = contour_ordering(corr)
+        n = length(chain)
         @test A isa BosonicADT
         @test A.d == 2 && length(A.data) == 2^n
-        @test eltype(A.data) == eltype(QuAPI.Dense._contour_delta(corr))
+        @test eltype(A.data) == eltype(BosonicHybridizationMatrix(corr).Δ)
         # basis 逐位置固化
         @test A.basis == BosonicContourIndex[BosonicContourIndex(j, b) for (b, j) in chain]
         @test A.data ≈ vec(ref_IF(corr, λsbm)) rtol = 1e-12
@@ -367,15 +412,15 @@ end
     A4 = BosonicIF(BosonicHybridizationMatrix(bosonic_Δτ(f0b, β=2.0, N=3)), λg)
     @test A4.data ≈ vec(ref_IF(bosonic_Δτ(f0b, β=2.0, N=3), λg)) rtol = 1e-12
     @test A4.d == 3 && length(A4.data) == 27 && length(A4.basis) == 3
-    # 负检验：链序（GTEMPO ordering）确实影响结果——升序链的参考与实现不同，
+    # 负检验：节点序确实影响结果——故意用逆序链的参考与实现不同，
     # 保证上面的逐元素对照不是平凡通过。用实时 corr（虚时 Δ 有 KMS 时间反转
     # 对称 Δ = JΔJ，升降序恰好重合，不能用于此检验）
     corr3 = bosonic_Δt(f0b, β=2.0, t=1.0, N=2)
     Tdown = BosonicIF(BosonicHybridizationMatrix(corr3), λsbm)
-    function ref_IF_wrong(corr, λ)   # 故意用升序链
-        Δ = QuAPI.Dense._contour_delta(corr)
-        nodes = QuAPI.Dense._contour_nodes(corr)
-        chain = reverse(QuAPI.Dense._if_legorder(corr))
+    function ref_IF_wrong(corr, λ)   # 故意用逆序链
+        Δ = BosonicHybridizationMatrix(corr).Δ
+        nodes = contour_ordering(corr)
+        chain = reverse(nodes)
         d, n = length(λ), length(chain)
         rowof = [findfirst(==(bi), nodes) for bi in chain]
         T = ones(ComplexF64, ntuple(_ -> d, n))
@@ -407,7 +452,7 @@ end
     for corr in (bosonic_Δτ(f0b, β=2.0, N=4),
                  bosonic_Δt(f0b, β=2.0, t=1.0, N=2),
                  bosonic_Δm(f0b, β=2.0, Nτ=2, t=0.5, Nt=1))
-        n = length(QuAPI.Dense._if_legorder(corr))
+        n = length(contour_ordering(corr))
         d = 2
         A = BosonicIF(BosonicHybridizationMatrix(corr), λ)
         P = BosonicIF(BosonicHybridizationMatrix(corr; split=true), Matrix(Diagonal(λ)))
@@ -430,7 +475,7 @@ end
     # 非对角（实对称）hyb：PT = 在本征基 ADT 上逐节点套正交变换 U
     # hyb = U·diag(λ)·Uᵀ，exp(H) = (⊗U)·exp(H_diag)·(⊗Uᵀ)
     corr = bosonic_Δτ(f0b, β=2.0, N=4)
-    n = length(QuAPI.Dense._if_legorder(corr))
+    n = length(contour_ordering(corr))
     d = 2
     θ = 0.37
     U = [cos(θ) -sin(θ); sin(θ) cos(θ)]

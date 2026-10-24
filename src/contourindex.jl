@@ -54,6 +54,14 @@ BosonicContourIndex(j::Int; branch::Symbol=:τ) = BosonicContourIndex(j, branch)
 "腿指标所在的分支（`:+`、`:-` 或 `:τ`）。"
 branch(x::AbstractContourIndex) = x.branch
 
+"""
+    conj(x::GrassmannContourIndex)
+
+共轭腿指标：时间步、分支、band 不变，仅翻转共轭标志，即 `a ↔ ā`。
+用于在 a-ā 约定（`x[a, ā] = Δ`）下查找影响泛函腿与关联函数之间的收缩。
+"""
+Base.conj(x::GrassmannContourIndex) = GrassmannContourIndex(x.j, x.branch, x.band, !x.conj)
+
 # ------------------------------------------------------------------ #
 # 用腿指标访问 hybridization function：
 # - 普通费米 bath：按 conj 组合给出 Wick 收缩（a-ā 取 Δ，ā-a 取 -Δ，

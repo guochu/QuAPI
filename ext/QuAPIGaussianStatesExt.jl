@@ -29,7 +29,7 @@ module QuAPIGaussianStatesExt
 
 using QuAPI
 using QuAPI: AbstractCorrelationFunction
-using QuAPI.Dense: _contour_delta
+using QuAPI.Dense: _contour_delta, BosonicHybridizationMatrix
 using GaussianStates
 using GaussianStates: FermionicGaussianState
 using LinearAlgebra
@@ -72,6 +72,7 @@ end
 
 """
     bosonic_bdg_matrix(x::AbstractCorrelationFunction) -> Matrix{Float64}
+    bosonic_bdg_matrix(h::BosonicHybridizationMatrix) -> Matrix{Float64}
 
 玻色 hybridization function `x` 的 IF 系数态配对矩阵（d→∞ 高斯极限，
 TEMPO/osee 报告 §5.2）。**只支持实 Δ**（虚时 Matsubara contour）；实时/
@@ -92,12 +93,16 @@ s = BosonicGaussianState(bosonic_bdg_matrix(x))     # isbdg = false
 osee(s, vcat(sites, n .+ sites))                    # site p ↔ 模式对 [p, n+p]
 ```
 
-注意这是 Fock 截断 d→∞ 的极限值（由 Δ 的最小正实谱 λ_min 控制，
-`S ~ ln(1/λ_min)`，对 δτ 敏感）；与固定 d 的 TEMPO PT/ADT bond 熵是同一条
-曲线的两端，有限 d 数值请走稠密构造。
+`BosonicHybridizationMatrix` 重载仅接受 `split=false`（`Δ` 为普通矩阵）。
+`split=true` 存的是等时算符次序拆分 `BosonicSplitDelta(M1, M2)`——它与 BdG 的
+`(h, g)` 块含义无关，不能拆成两个矩阵传给 `bosonic_bdg_matrix(h, g)`，故直接报错。
 """
-function GaussianStates.bosonic_bdg_matrix(x::AbstractCorrelationFunction)
-    Δ = _contour_delta(x)
+function GaussianStates.bosonic_bdg_matrix(h::BosonicHybridizationMatrix)
+    Δ = h.Δ
+    Δ isa AbstractMatrix || throw(ArgumentError(
+        "该 BosonicHybridizationMatrix 由 split=true 构造，Δ = BosonicSplitDelta(M1, M2) " *
+        "是等时算符次序拆分，不是 BdG 的 (h, g) 块；玻色 OSEE 请用 " *
+        "BosonicHybridizationMatrix(x)（split=false）或直接 bosonic_bdg_matrix(x)"))
     if maximum(abs, imag.(Δ)) > 1e-12 * max(1.0, maximum(abs, real.(Δ)))
         throw(ArgumentError(
             "玻色 OSEE 只支持实 Δ（虚时 Matsubara contour）；当前 Δ 含非平凡" *
@@ -110,5 +115,8 @@ function GaussianStates.bosonic_bdg_matrix(x::AbstractCorrelationFunction)
     W[n+1:2n, 1:n] .= transpose(M)
     return W
 end
+
+GaussianStates.bosonic_bdg_matrix(x::AbstractCorrelationFunction) =
+    GaussianStates.bosonic_bdg_matrix(BosonicHybridizationMatrix(x))
 
 end # module
