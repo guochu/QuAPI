@@ -469,46 +469,31 @@ I = \exp\Big[\bar a_\uparrow\Delta_{\uparrow\uparrow}a_\uparrow
 ## 9. 非对角（PT）耦合的影响泛函
 
 对角耦合时玻色 IF 是路径权重的对角嵌入（`BosonicIF` 的 ADT 形式）。耦合
-算符 ``S`` 非对角（`NonDiagonalHyb` 约定 ``H_{SB} = S\otimes a + S'\otimes a'``，
-``S`` 可为任意复方阵）时，稠密 IF 是作用在系统路径上的算符
-（`QuAPI.Dense.BosonicIF(h, hyb)`）：
+算符 ``S`` 非对角（`NonDiagonalHyb` 约定 ``H_{SB} = S\otimes a + S^{\dagger}\otimes a^{\dagger}``，
+代码 `op*a + op'*a'`，``a`` 为 bath 湮灭算符；``S`` 可为任意复方阵）时，稠密 IF
+是作用在系统路径上的算符（`QuAPI.Dense.BosonicIF(h, hyb)`）：
 
 ```math
-I = \exp(H), \qquad H = \text{(节点对上的双线性型，见下)} .
+I = \exp(H), \qquad H = \text{节点对上的双线性型，见下}.
 ```
 
-记 ``\mathrm{op}_1 = S``、``\mathrm{op}_2 = S'``。**行腿矩阵**随分支取
-转置 / 伴随 / 原矩阵（元素语言：+ 支元素为 ``\mathrm{op}[a,m]`` 放在
-(out,in) 腿上、− 支为 ``\overline{\mathrm{op}[b,m]}``、τ 支同 + 支但腿
-序相反）：
+**行腿矩阵**：记 ``\mathrm{op}_1 = S``、``\mathrm{op}_2 = S^{\dagger}``。节点
+``\nu`` 的腿矩阵随分支取转置 / 伴随 / 原矩阵（元素语言：+ 支元素为
+``\mathrm{op}[a,m]`` 放在 (out,in) 腿上、− 支为 ``\mathrm{op}^{\dagger}`` 的
+元素 ``\overline{\mathrm{op}[b,m]}``、τ 支同 + 支但腿序相反）：
 
 ```math
-X_1^\nu = \begin{cases}\mathrm{op}_1^{\mathsf T} & (+)\\ \mathrm{op}_1' & (-)\\ \mathrm{op}_1 & (\tau)\end{cases},
+X_1^\nu = \begin{cases}\mathrm{op}_1^{\mathsf T} & (+)\\ \mathrm{op}_1^{\dagger} & (-)\\ \mathrm{op}_1 & (\tau)\end{cases},
 \qquad
-X_2^\nu = \begin{cases}\mathrm{op}_2^{\mathsf T} & (+)\\ \mathrm{op}_2' & (-)\\ \mathrm{op}_2 & (\tau)\end{cases}.
+X_2^\nu = \begin{cases}\mathrm{op}_2^{\mathsf T} & (+)\\ \mathrm{op}_2^{\dagger} & (-)\\ \mathrm{op}_2 & (\tau)\end{cases}.
 ```
 
-`split=true` 的杂化矩阵把每块的等时两种算符次序拆成 ``M_1``（``\eta_{jk}``
-侧）与 ``M_2``（``\eta_{kj}`` 侧），``M_1+M_2=\Delta``。``H`` 的组装规则
-（``j_\nu`` 为节点步数；ν 靠后指 ``j_\nu>j_\mu``）：
-
-| 节点对 | 贡献 |
-|---|---|
-| 同支不同节点 ``(ν,μ)`` | ``M_1[ν,μ]\,X_1^ν X_2^μ + M_2[μ,ν]\,X_2^ν X_1^μ``（`−` 支整体 ``X_1\!\leftrightarrow\!X_2``） |
-| 同节点等时 | 矩阵积：``M_1[νν]\,X_2^ν X_1^ν + M_2[νν]\,X_1^ν X_2^ν``（`+` 支此序；`−` 与 `τ` 支互换） |
-| 跨支 ``(+ν,-μ)``（含同 cell） | 求和核配同算符：``(M_1{+}M_2)[ν,μ]\,X_1^ν X_1^μ + (M_1{+}M_2)[μ,ν]\,X_2^ν X_2^μ`` |
-| 混合轮廓 ``τ×±`` | 混合配对（核留槽位、± 侧算符标签与跨支相反）：``(M_1{+}M_2)[ν,μ]\,X_1^ν \tilde X^μ + (M_1{+}M_2)[μ,ν]\,X_2^ν \tilde X'^\mu``，``\tilde X^\mu = X_2^\mu``（+ 节点）或 ``X_1^\mu``（− 节点） |
-
-**精确性**（对单模与双模 bath、用「精确 cell 演化算符 + 偏迹环境」的严格
-IF 数值验证）：
-
-- 对角 ``S``、``S=S'``（厄米）、``[S,S']=0`` ⟹ 严格 IF 恰为 Gaussian，
-  上式**机器精度成立**（实时 / 虚时 / 混合三轮廓均是）；
-- 一般 ``S\ne S'``：严格 IF 含 ``O(G^4)`` 非高斯累积量（Magnus 对易子项），
-  上式与严格 IF 的生成元一致到 ``O(G^2)``，全链残差按 ``G^4`` 标度
-  （``G`` 为耦合强度）。
-
-对 ``\mathrm{op}_1=\mathrm{op}_2``（实对称 ``S``）以上退化为
-``H=\sum M_1\,\mathrm{op}_1\,\mathrm{op}_2 + M_2\,\mathrm{op}_2\,\mathrm{op}_1``，
-再对对角 ``S`` 退化为 ADT 对角嵌入。验证脚本与严格参照的构造见
-`performance/nondiagcoupling.jl` 及其附录。
+`split=true` 的杂化矩阵把等时两种算符次序拆成 ``M_1``（``\eta_{jk}`` 侧）与
+``M_2``（``\eta_{kj}`` 侧），``M_1+M_2=\Delta``。**组装规则**——同支 /
+同节点等时 / 跨支 / ``\tau\times\pm`` 四类配对的逐条公式、``I=\exp(H)`` 的
+张量化、以及组装的**误差标度**（对角厄米耦合机器精确、一般
+``S\ne S^{\dagger}`` 的 ``O(V^{4})`` 非高斯累积量残差、费米冻结核的
+``V^{4}\delta t^{4}``/cell 截断）——独立成章，见
+[Dense IF Assembly](@ref)。验证脚本与严格参照的构造见
+`performance/nondiagcoupling.jl`、`performance/fermionicG4.jl` 与
+`performance/assembly_scaling.jl`。

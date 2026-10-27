@@ -8,7 +8,7 @@
 #     虚时:  Z = (−1)^N·Zvalue(IF(测度+动能+Δ))·prefactor == Tr[B^N]/Z_bath
 #     实时:  ρ(T) = prefactor·∫[骨架×IF] == Tr_b[B^N (ρ₀⊗ρ_b) (B^N)†]
 #   [收敛性] ε_d ≠ 0（骨架动能 x = e^{−δt ϵ_d}）: 对真实链 (B·A)^N 的误差
-#     严格小于现行冻结源核（fermionic_Δτ/Δt）的误差（O(g²δt³) vs O(g²δt²)）
+#     严格小于现行冻结源核（fermionic_Δτ/Δt）的误差（O(V²δt³) vs O(V²δt²)）
 # ============================================================================
 
 # ------------------------------ Fock 空间参考链 ------------------------------ #
@@ -184,10 +184,10 @@ _Ztau(C, basis, N, pref) =
         @test maximum(abs.(ex0.hmat.Δ)) == 0
     end
 
-    @testset "ε_d ≠ 0: 标准核（顶点移位后 = PT 类）与 exact 同级，差距 G⁴" begin
+    @testset "ε_d ≠ 0: 标准核（顶点移位后 = PT 类）与 exact 同级，差距 V⁴" begin
         # 顶点移位约定（2026-10，models.jl）后标准装配的核 = 严格 B-cell IF 的
-        # O(g²) 精确 ⟹ 标准与 exact 对链 (B·A)^N 的误差同为方案误差
-        # （O(g²δt³)/cell）主导，两者之差 = G⁴ 核截断
+        # O(V²) 精确 ⟹ 标准与 exact 对链 (B·A)^N 的误差同为方案误差
+        # （O(V²δt³)/cell）主导，两者之差 = V⁴ 核截断
         for (label, spec, ws, Vs) in specs[1:2]
             μ = 0.0
             εs = copy(ws)
@@ -202,7 +202,7 @@ _Ztau(C, basis, N, pref) =
             hfr = GrassmannHybridizationMatrix(fermionic_Δτ(spec; β = β, N = N, μ = μ))
             Zfr = _Ztau(_tau_skeleton!(Matrix{ComplexF64}(hfr.Δ), N, exp(-δτ * ϵ_d)),
                         hfr.basis, N, 1.0)
-            @test abs(Zfr * ex.prefactor - Zex) < 5e-4        # G⁴ 核截断量级（补常数）
+            @test abs(Zfr * ex.prefactor - Zex) < 5e-4        # V⁴ 核截断量级（补常数）
             # 实时 ρ(T)
             N = 3; T = 1.2; δt = T / N
             ex = exact_fermionic_Δt(spec; β = β, t = T, N = N, μ = μ)
@@ -216,7 +216,7 @@ _Ztau(C, basis, N, pref) =
             ρex = _rho_from_C(_rt_skeleton!(copy(ex.hmat.Δ), N, x), ex.prefactor, N, ρ0)
             hfr = GrassmannHybridizationMatrix(fermionic_Δt(spec; β = β, t = T, N = N, μ = μ))
             ρfr = _rho_from_C(_rt_skeleton!(Matrix{ComplexF64}(hfr.Δ), N, x), 1.0, N, ρ0)
-            @test norm(ρfr .* ex.prefactor .- ρex) < 5e-3     # G⁴ 核截断量级（补常数；RT 条目差 ~5e-4）
+            @test norm(ρfr .* ex.prefactor .- ρex) < 5e-3     # V⁴ 核截断量级（补常数；RT 条目差 ~5e-4）
             @testset "$label" begin end
         end
     end
@@ -257,7 +257,7 @@ _Ztau(C, basis, N, pref) =
     # ---------------- 混合轮廓（Kadanoff–Baym） ----------------
     # 全迹收缩：Zvalue(IF(单位骨架 + Δ))·prefactor == Tr[(B^τ)^Nτ]/Z_bath
     #（实时段 B^t B̄^t 幺正回绕相消）；标准装配（顶点移位后）与 exact 的差按
-    # G⁴ 标度（补 prefactor 后）
+    # V⁴ 标度（补 prefactor 后）
 
     function _mixed_C0(Nτ, Nt)
         n = Nτ + 2 * (Nt + 1)
@@ -276,7 +276,7 @@ _Ztau(C, basis, N, pref) =
         return C0
     end
 
-    @testset "混合 Δm：exact 机器精度对链 + 移位装配 G⁴" begin
+    @testset "混合 Δm：exact 机器精度对链 + 移位装配 V⁴" begin
         for (label, spec, ws, Vs) in specs[1:2]
             for (Nτ, Nt, t) in ((2, 1, 0.6), (3, 2, 0.9))
                 ex = exact_fermionic_Δm(spec; β = β, Nτ = Nτ, t = t, Nt = Nt)
@@ -285,7 +285,7 @@ _Ztau(C, basis, N, pref) =
                 H_B, = _fock_chain_ops(copy(ws), Vs, 0.0)
                 Zref = tr((exp(-(β / Nτ) .* H_B))^Nτ) / prod(1 .+ exp.(-β .* (ws .- 0.0)))
                 @test abs(Zm - Zref) < 1e-11
-                # 标准装配（移位后）与 exact 同级：差 = G⁴ 核截断（补常数）
+                # 标准装配（移位后）与 exact 同级：差 = V⁴ 核截断（补常数）
                 hfr = GrassmannHybridizationMatrix(
                     fermionic_Δm(spec; β = β, Nτ = Nτ, t = t, Nt = Nt))
                 @test hfr.basis == ex.hmat.basis

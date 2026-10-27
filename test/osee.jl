@@ -17,7 +17,7 @@ end
     # ---------------- contour Δ 组装（经 bdg 重载间接验证） ----------------
     # 新约定（顶点移位，2026-10）：与稠密 IF（GrassmannHybridizationMatrix）
     # 同一 Δ —— 独立性体现在"不调用 fermionic_bdg_matrix 自身"；约定本身的
-    # 正确性由 performance/fermionicG4.jl 的 G⁴ 平台检验背书。
+    # 正确性由 performance/fermionicG4.jl 的 V⁴ 平台检验背书。
     function delta_ref(corr)
         C = Matrix(GrassmannHybridizationMatrix(corr).Δ)
         n = size(C, 1) ÷ 2
@@ -503,7 +503,7 @@ end
     @test Tc ≈ conj.(permutedims(Tc, swap)) atol = 1e-11
     # 一般非对角耦合（op1 ≠ op2，含复非厄米）：与「精确 cell 演化算符 + 偏迹
     # 环境」的严格单模 bath IF 对照——对角/厄米 hyb 机器精度，一般 hyb 残差
-    # O(G⁴)（非高斯累积量；G=0.1 时 ~1e-6）
+    # O(V⁴)（非高斯累积量；V=0.1 时 ~1e-6）
     begin
         ω, βs, Gc, nb, h = 1.3, 1.7, 0.1, 24, 0.3
         bth = diagm(1 => sqrt.(1.0:(nb - 1)))
@@ -531,7 +531,7 @@ end
             P = reshape(BosonicIF(h2, hyb).data, 2, 2, 2, 2)
             if hyb == [0.3 + 0.4im 0; 0 -0.2 + 0.1im]         # 对角：严格 Gaussian
                 @test maximum(abs.(P .- Fex)) < 1e-11
-            else                                               # O(G⁴) ≈ 1e-6 @ G=0.1
+            else                                               # O(V⁴) ≈ 1e-6 @ V=0.1
                 @test maximum(abs.(P .- Fex)) < 1e-5
             end
         end

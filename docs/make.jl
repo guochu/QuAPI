@@ -14,6 +14,7 @@ makedocs(;
         "Guide" => "guide.md",
         "API" => "api.md",
         "Hybridization Functions" => "hybridization.md",
+        "Dense IF Assembly" => "assembly.md",
         "IF OSEE" => "osee.md",
     ],
     # Dense / contourindex 的 docstring 尚未全部收录进 api.md，降级为警告

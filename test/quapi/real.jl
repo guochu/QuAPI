@@ -310,8 +310,8 @@ end
 
     @testset "coupled vs ED (toulouse_neq_greater_lesser)" begin
         ws, Vs = [1.0], [0.5]
-        # 顶点移位约定（2026-10，models.jl）：核 = 严格 B-cell 链 IF 的 O(g²)
-        # 精确（performance/fermionicG4.jl 的 G⁴ 平台），对 ED 的残差 = 链的
+        # 顶点移位约定（2026-10，models.jl）：核 = 严格 B-cell 链 IF 的 O(V²)
+        # 精确（performance/fermionicG4.jl 的 V⁴ 平台），对 ED 的残差 = 链的
         # Trotter 误差（δt 收敛）。耦合一致性：discretebath 的第三参是谱权重
         # α = V²（cmatrix 给出 V = √α），与 QuAPI 侧 DiscreteSpectrum(ws, Vs²)
         # 对齐须传 Vs.^2——此前传 Vs 使 ED 侧 V 大 √2 倍（α 差 2 倍），旧约定

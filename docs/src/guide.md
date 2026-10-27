@@ -5,6 +5,29 @@ ImpurityModelBase 提供。
 
 ## 谱函数与 bath
 
+### 记号：谱强度 Γ（α）与谱宽 D
+
+本包文档与测试中，谱的**总强度（总权重）**记作 ``\Gamma`` 或 ``\alpha``——
+它等于系统–库**耦合系数** ``V`` 的平方：``\Gamma = \alpha = V^{2}``（``V``
+即耦合项 ``H_{SB}`` 中 bath 算符前的系数，文献中通常记 ``V``）。由于每条
+系统–库配对线两端各接一个顶点，杂化矩阵元与所有 IF 系数**线性于**谱
+强度。谱的**宽度**记作 ``D``（半带宽，半圆谱支撑 ``[-D,D]``）。单 δ 峰
+`DiracDelta(ω; α)` 的 `α` 即谱强度：测试脚本常写 `DiracDelta(ω; α = V^2)`。
+
+例：宽度 ``D``、强度 ``\Gamma`` 的半圆谱（归一化 Bethe 半圆 DoS 乘强度
+系数）：
+
+```math
+A(\varepsilon) = \Gamma\,\frac{2}{\pi D^2}\sqrt{D^{\,2}-\varepsilon^2},
+\qquad \varepsilon\in[-D, D],
+```
+
+```julia
+Γ, D = 0.4, 1.0                    # 谱强度 Γ = V²（V 为耦合系数）与谱宽（半带宽）
+f = bounded(ε -> Γ * 2 / (π * D^2) * sqrt(D^2 - ε^2), -D, D)
+# D = 1、Γ = 1 时即 semicircular(1.0)（归一化到 1）
+```
+
 谱函数（`AbstractBoundedFunction`）调用语义：`x(ε)` 在
 `[lowerbound(x), upperbound(x)]` 内取 `f(ε)`，否则为 0。
 

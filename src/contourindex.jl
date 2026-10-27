@@ -92,7 +92,7 @@ different bands (no band matching is required).
 # ------------------------------------------------------------------ #
 # 顶点位置装配（访问器层，2026-10）：与 Dense.GrassmannHybridizationMatrix
 # 的装配修正同一约定——核闭式不变，顶点从 cell 边界移到节点（严格 B-cell IF
-# 的 O(g²) 系数，G⁴ 平台验证见 performance/fermionicG4.jl 与
+# 的 O(V²) 系数，V⁴ 平台验证见 performance/fermionicG4.jl 与
 # exact_fermionic_Δτ/Δt/Δm）。返回 (源分支1, 源 j1, 源分支2, 源 j2, 符号)，
 # nothing 表示该腿对的 IF 内容为零。玻色 bath 不受影响（PT 已精确）。
 # ------------------------------------------------------------------ #

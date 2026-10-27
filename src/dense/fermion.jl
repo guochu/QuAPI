@@ -39,9 +39,9 @@ struct GrassmannHybridizationMatrix{T<:Number}
 end
 
 # --------------------- 顶点位置装配（费米 PT 修正） --------------------- #
-# fermionic_Δτ/Δt 的核闭式（胞元积分）逐位等于严格 B-cell IF 的 O(g²) 系数，
-# 但旧装配把顶点放在 cell 边界（滞后偏一格），对严格方案的残差因此停在 O(g²)
-# （G 减半残差比值 4，performance/fermionicG4.jl 实测）。此处把顶点移到节点
+# fermionic_Δτ/Δt 的核闭式（胞元积分）逐位等于严格 B-cell IF 的 O(V²) 系数，
+# 但旧装配把顶点放在 cell 边界（滞后偏一格），对严格方案的残差因此停在 O(V²)
+# （V 减半残差比值 4，performance/fermionicG4.jl 实测）。此处把顶点移到节点
 # ——与玻色 non-diagonal PT 在 BosonicIF 里做的分支规则修复属同一层级的
 # 装配修正，核数值完全复用：
 #
@@ -54,9 +54,9 @@ end
 #     (ā⁺,a⁺) 块：列移一位（aⱼ→aⱼ₊₁）；动能位 (j, j−1) 取 (ā⁻,a⁻) 块对角
 #     (ā⁻,a⁻) 块：镜像（列移 aⱼ→aⱼ₋₁；动能位 (j−1, j) 取 (ā⁺,a⁺) 块对角）
 #
-# 精度：核内容对严格方案（exact_fermionic_Δτ/Δt 参照）的残差按 G⁴ 标度
-# （比值≈16）——与玻色 non-diagonal PT 同级（O(G²) 系数精确 + G⁴ 截断）。
-# 整体 Z/ρ 另带一个 O(g²) 归一化常数（"跳去又跳回"泄漏 = exact_fermionic_*
+# 精度：核内容对严格方案（exact_fermionic_Δτ/Δt 参照）的残差按 V⁴ 标度
+# （比值≈16）——与玻色 non-diagonal PT 同级（O(V²) 系数精确 + V⁴ 截断）。
+# 整体 Z/ρ 另带一个 O(V²) 归一化常数（"跳去又跳回"泄漏 = exact_fermionic_*
 # 的 prefactor；迹归一化的观测量中自动消去）。BCS τ 轮廓按块同构移位（严格
 # BCS 链验证待补）；BCS 实时与混合轮廓暂沿用旧装配。
 
@@ -116,7 +116,7 @@ function _vertex_shifted_rt(C::AbstractMatrix{T}, N::Int) where {T}
 end
 
 function _vertex_shifted_mixed(C::AbstractMatrix, Nτ::Int, Nt::Int)
-    # 混合轮廓顶点移位（数值标定 vs exact_fermionic_Δm，Richardson O(g²)）：
+    # 混合轮廓顶点移位（数值标定 vs exact_fermionic_Δm，Richardson O(V²)）：
     #   行源 r：τ_j→τ_{j−1}（j≥2；τ₁ 无源）；+₁→τ_Nτ；+_j→+_{j−1}（j≥2）；
     #          −_j→−_j（j ≤ Nt；−_{Nt+1} 无源）
     #   列源 c：τ_k→τ_k；+_k→+_k（k ≤ Nt；+_{Nt+1} 无源）；−_k→−_{k−1}（k≥2；−₁ 无源）

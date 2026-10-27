@@ -25,11 +25,11 @@
 #   Δ_exact = (w₀−1)·S_kinetic − C_ib·M_bb⁻¹·C_bi，   w₀ = ⟨d|W|d⟩
 # 两部分都是纯 bath 量：交叉 Schur 项 = 精确顶点幅 × bath 格点 Green 逆；
 # (w₀−1) 项 = 耦合对杂质线的 cell 内缀饰。与冻结源核（把顶点幅冻结为
-# Duhamel 低阶项）相比，对真实链 (B·A)^N 的局部误差从 O(g²δt²)/cell
-# 改善到 O(g²δt³)/cell（全局二阶）。
+# Duhamel 低阶项）相比，对真实链 (B·A)^N 的局部误差从 O(V²δt²)/cell
+# 改善到 O(V²δt³)/cell（全局二阶）。
 #
 # prefactor（≠1，必须乘进 Z/ρ）：bath 配分修正 + "cell 内跳去又跳回"泄漏；
-# 虚时含 Berezin 迹符号 (−1)^{N(K+1)}（K = 模式数；K=1 时恒 1），g=0 时为 1
+# 虚时含 Berezin 迹符号 (−1)^{N(K+1)}（K = 模式数；K=1 时恒 1），V=0 时为 1
 #（连续谱闭式路径的 prefactor 无此显式符号，已按同一约定归一）。
 # ============================================================================
 
@@ -49,7 +49,7 @@ export ExactGrassmannIF, exact_fermionic_Δτ, exact_fermionic_Δt, exact_fermio
 收缩时必须乘 `prefactor`。严格性：ε_d = 0 时
 `Z = (−1)^N·Zvalue(IF(测度+动能+Δ))·prefactor == Tr[B^{Nτ}]/Z_bath`
 （实时同理对 Tr_b[B^N ρ₀⊗ρ_b (B^N)†]）逐位机器精度成立；ε_d ≠ 0 时方案对
-链 (B·A)^N 的局部误差为 O(g²δt³)/cell（冻结源核为 O(g²δt²)/cell）。
+链 (B·A)^N 的局部误差为 O(V²δt³)/cell（冻结源核为 O(V²δt²)/cell）。
 """
 struct ExactGrassmannIF{T<:Number}
     hmat::Dense.GrassmannHybridizationMatrix{T}
@@ -156,7 +156,7 @@ end
 严格性：调用方骨架动能取 x = 1（ε_d = 0）时
 `Z = (−1)^N·Zvalue(IF(测度+动能+Δ))·prefactor == Tr[B^{Nτ}]/Z_bath` 逐位成立
 （离散谱下对直接链机器验证）；一般 ε_d 下对链 (B·A)^N 的局部误差为
-O(g²δτ³)/cell（`fermionic_Δτ` 为 O(g²δτ²)/cell）。
+O(V²δτ³)/cell（`fermionic_Δτ` 为 O(V²δτ²)/cell）。
 
 输入：离散谱（`DiracDelta`/`DiscreteSpectrum`）取精确极点（`npts` 无效）；
 一般连续谱（有限支撑）经 Gauss–Legendre 正交离散为 `npts` 个模式（构造对该
@@ -200,7 +200,7 @@ _pos_rt(j0::Int, br::Symbol, ā::Bool) = 4 * j0 + (br === :+ ? 0 : 2) + (ā ? 2 
 严格性：杂质动能取 x = 1 时
 `ρ(T) = prefactor·∫D[杂质](骨架×e^{āΔa}×⟨η̄⁺₀|ρ₀|η⁻₀⟩×投影) ==
 Tr_b[B^N ρ₀⊗ρ_b (B^N)†]` 逐位成立；一般 ε_d 下对链 (B·A)^N 的局部误差
-O(g²δt³)/cell。
+O(V²δt³)/cell。
 
 输入：离散谱（`DiracDelta`/`DiscreteSpectrum`）走极点装配（`npts` 无效）；
 一般连续谱（有限支撑）经 Gauss–Legendre 正交离散为 `npts` 个模式（构造对该
@@ -210,10 +210,10 @@ O(g²δt³)/cell。
 （op⊗b†+h.c.，[op,H_b]=0）⟹ 精确 cell = 多模位移（算符幅），热迹按模式
 因子化且在算符幅上为高斯泛函；幅代数封闭于 c 数换位子（op=op；或
 [a†,a]=−1 的谐振子情形）⟹ M1/M2 次序记账**精确**——a†b+ab† 同样完美。
-σ⁺⊗b+σ⁻⊗b†（[σ⁺,σ⁻]=σz 为算符）迹不封闭，修复 PT 仅为 O(G²) 截断
+σ⁺⊗b+σ⁻⊗b†（[σ⁺,σ⁻]=σz 为算符）迹不封闭，修复 PT 仅为 O(V²) 截断
 （nondiagcoupling.jl 附录）。费米耦合被宇称强制为**双线性** d†c+c†d ⟹
 无位移型 cell（比 σ⁺ 更早一步失效），裸系数核（冻结源 fermionic_Δt）即
-O(g²δt²) 截断；严格对象来自另一机制——联合二次型 ⟹ determinant/Schur
+O(V²δt²) 截断；严格对象来自另一机制——联合二次型 ⟹ determinant/Schur
 边缘（本实现），核为耦合单粒子传播子的泛函。
 """
 function exact_fermionic_Δt(f::AbstractBoundedFunction;

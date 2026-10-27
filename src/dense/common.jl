@@ -75,7 +75,7 @@ _bands(::BCSCorrelationFunction) = 2
         -> Vector{Tuple{Symbol,Int}}
 
 contour 节点的**统一序**，返回 `(branch, j)` 列表。它同时定义
-Grassmann/玻色 IF 张量的轴序与 [`_contour_delta`](@ref) 的行列序：
+Grassmann/玻色 IF 张量的轴序与 `_contour_delta` 的行列序：
 
 ```text
 IM : (:τ,1) (:τ,2) .. (:τ,Nτ)                    （虚时升序）

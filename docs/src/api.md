@@ -63,6 +63,25 @@ bcs_Δt
 bcs_Δm
 ```
 
+## 稠密 IF（QuAPI.Dense）
+
+```@docs
+QuAPI.Dense.MAXTENSORDIM
+QuAPI.Dense.GrassmannADT
+QuAPI.Dense.GrassmannHybridizationMatrix
+QuAPI.Dense.GrassmannIF
+QuAPI.Dense.BosonicADT
+QuAPI.Dense.BosonicPT
+QuAPI.Dense.BosonicSplitDelta
+QuAPI.Dense.BosonicHybridizationMatrix
+QuAPI.Dense.BosonicIF
+QuAPI.Dense.Zvalue
+QuAPI.Dense.margin
+QuAPI.Dense.complementindex
+QuAPI.Dense.contour_ordering
+QuAPI.Dense.basis
+```
+
 ## 废弃实现（未导出）
 
 旧版本内核仅用于交叉验证（新实现与之一致性由测试保证），命名带
