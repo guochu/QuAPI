@@ -321,12 +321,16 @@ S_-(\varepsilon) = \frac{(1-i\,\delta t\,\varepsilon)-e^{-i\delta t\,\varepsilon
 
 ```math
 \begin{aligned}
-G^{++}_{ij} &= \begin{cases}\eta_{jk}[i-j+1], & i>j\\ \eta_{jk}[1]+\eta_{kj}[1], & i=j\\ \eta_{kj}[j-i+1], & i<j\end{cases} &
-G^{+-}_{ij} &= \begin{cases}\eta_{kj}[i-j+1]^*, & i>j\\ \eta_{jk}[1]+\eta_{kj}[1], & i=j\\ \eta_{kj}[j-i+1], & i<j\end{cases} \\[4pt]
-G^{-+}_{ij} &= \begin{cases}\eta_{jk}[i-j+1], & i>j\\ \eta_{jk}[1]+\eta_{kj}[1], & i=j\\ \eta_{jk}[j-i+1]^*, & i<j\end{cases} &
-G^{--}_{ij} &= \begin{cases}\eta_{kj}[i-j+1]^*, & i>j\\ \eta_{jk}[1]+\eta_{kj}[1], & i=j\\ \eta_{jk}[j-i+1]^*, & i<j\end{cases}
+G^{++}_{ij} &= \begin{cases}\eta_{+,i-j+1}, & i>j\\ \eta_{+,1}+\eta_{-,1}, & i=j\\ \eta_{-,j-i+1}, & i<j\end{cases} &
+G^{+-}_{ij} &= \begin{cases}-\eta_{-,i-j+1}^{\,*}, & i>j\\ -\eta_{-,1}^{\,*}-\eta_{-,1}, & i=j\\ -\eta_{-,j-i+1}, & i<j\end{cases} \\[4pt]
+G^{-+}_{ij} &= \begin{cases}-\eta_{+,i-j+1}, & i>j\\ -\eta_{+,1}-\eta_{+,1}^{\,*}, & i=j\\ -\eta_{+,j-i+1}^{\,*}, & i<j\end{cases} &
+G^{--}_{ij} &= \begin{cases}\eta_{-,i-j+1}^{\,*}, & i>j\\ \eta_{-,1}^{\,*}+\eta_{+,1}^{\,*}, & i=j\\ \eta_{+,j-i+1}^{\,*}, & i<j\end{cases}
 \end{aligned}
 ```
+
+（记号 ``\eta_{+,n}\equiv\eta_{jk}[n]``、``\eta_{-,n}\equiv\eta_{kj}[n]``；
+``*`` 为复共轭。``G^{\tau\tau}`` 与交叉块同用此记号：``\xi_{\pm,n}``、
+``\zeta_{+}[k,j]\equiv\zeta_{jk}[k,j]``、``\zeta_{-}[i,k]\equiv\zeta_{kj}[i,k]``。）
 
 ```math
 G^{+\tau}_{ik} = -i\,\zeta_{kj}[i,k], \quad
@@ -478,14 +482,15 @@ I = \exp(H), \qquad H = \text{节点对上的双线性型，见下}.
 ```
 
 **行腿矩阵**：记 ``\mathrm{op}_1 = S``、``\mathrm{op}_2 = S^{\dagger}``。节点
-``\nu`` 的腿矩阵随分支取转置 / 伴随 / 原矩阵（元素语言：+ 支元素为
-``\mathrm{op}[a,m]`` 放在 (out,in) 腿上、− 支为 ``\mathrm{op}^{\dagger}`` 的
-元素 ``\overline{\mathrm{op}[b,m]}``、τ 支同 + 支但腿序相反）：
+``\nu``（下标即其分支–时间标签 ``(\sigma_\nu, j_\nu)``）的腿矩阵随分支取转置 /
+伴随 / 原矩阵（元素语言：+ 支元素为 ``\mathrm{op}[a,m]`` 放在 (out,in) 腿上、
+− 支为 ``\mathrm{op}^{\dagger}`` 的元素 ``\overline{\mathrm{op}[b,m]}``、τ 支同
++ 支但腿序相反）：
 
 ```math
-X_1^\nu = \begin{cases}\mathrm{op}_1^{\mathsf T} & (+)\\ \mathrm{op}_1^{\dagger} & (-)\\ \mathrm{op}_1 & (\tau)\end{cases},
+X_{\nu} = \begin{cases}\mathrm{op}_1^{\mathsf T} & (+)\\ \mathrm{op}_1^{\dagger} & (-)\\ \mathrm{op}_1 & (\tau)\end{cases},
 \qquad
-X_2^\nu = \begin{cases}\mathrm{op}_2^{\mathsf T} & (+)\\ \mathrm{op}_2^{\dagger} & (-)\\ \mathrm{op}_2 & (\tau)\end{cases}.
+Y_{\nu} = \begin{cases}\mathrm{op}_2^{\mathsf T} & (+)\\ \mathrm{op}_2^{\dagger} & (-)\\ \mathrm{op}_2 & (\tau)\end{cases}.
 ```
 
 `split=true` 的杂化矩阵把等时两种算符次序拆成 ``M_1``（``\eta_{jk}`` 侧）与

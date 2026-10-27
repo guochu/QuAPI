@@ -165,8 +165,8 @@ end
             # ηⱼₖ = -ηⱼₖ、ηₖⱼ = -conj(ηⱼₖ)
             d > 0 ? -x.ηⱼₖ[d+1] : d < 0 ? -conj(x.ηⱼₖ[1-d]) : -x.ηⱼₖ[1] - conj(x.ηⱼₖ[1])
         elseif b2 === :-
-            # ηⱼₖ = conj(ηₖⱼ)、ηₖⱼ = conj(ηₖⱼ)
-            d > 0 ? conj(x.ηₖⱼ[d+1]) : d < 0 ? conj(x.ηₖⱼ[1-d]) : conj(x.ηₖⱼ[1]) + conj(x.ηₖⱼ[1])
+            # ηⱼₖ = conj(ηₖⱼ)、ηₖⱼ = conj(ηⱼₖ)
+            d > 0 ? conj(x.ηₖⱼ[d+1]) : d < 0 ? conj(x.ηⱼₖ[1-d]) : conj(x.ηₖⱼ[1]) + conj(x.ηⱼₖ[1])
         else
             im * x.ζₖⱼ[i, j]
         end
