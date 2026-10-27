@@ -9,6 +9,9 @@ QuAPI（Quasi-Adiabatic Propagator Path Integral）用于玻色子和费米子�
 - **[Hybridization Functions](hybridization.md)**：Δτ、Δt、Δm 及 BCS
   杂化函数的完整数学定义——Toeplitz 结构、每个生成元素的谱积分表达式与
   时间核的封闭形式。
+- **[IF OSEE](osee.md)**：影响泛函系数态的 operator-space 纠缠熵——
+  GaussianStates extension 一键入口、模式/割约定、费米与玻色分支的
+  适用范围，以及与稠密 IF 张量的交叉验证。
 
 ## 全局符号约定
 

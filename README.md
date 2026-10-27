@@ -105,6 +105,13 @@ corr.ud    # 反常块 ā↑Δ↑↓ā↓（= cc）
 julia --project=docs docs/make.jl
 ```
 
+本地实时预览（改 `docs/src/*.md` 后自动重建、浏览器自动刷新；首次需先
+`julia --project=docs -e 'using Pkg; Pkg.add("LiveServer")'`）：
+
+```bash
+julia --project=docs docs/liveserver.jl
+```
+
 ## 运行测试
 
 ```bash

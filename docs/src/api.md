@@ -7,8 +7,8 @@
 ```@docs
 CorrelationMatrix
 AbstractCorrelationFunction
-index
 branch
+branches
 ```
 
 ## 虚时（Matsubara）

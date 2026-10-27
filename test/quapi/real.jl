@@ -310,11 +310,17 @@ end
 
     @testset "coupled vs ED (toulouse_neq_greater_lesser)" begin
         ws, Vs = [1.0], [0.5]
-        for (t, Nt, tol) in ((0.25, 2, 0.01), (0.5, 3, 0.02))
+        # 顶点移位约定（2026-10，models.jl）：核 = 严格 B-cell 链 IF 的 O(g²)
+        # 精确（performance/fermionicG4.jl 的 G⁴ 平台），对 ED 的残差 = 链的
+        # Trotter 误差（δt 收敛）。耦合一致性：discretebath 的第三参是谱权重
+        # α = V²（cmatrix 给出 V = √α），与 QuAPI 侧 DiscreteSpectrum(ws, Vs²)
+        # 对齐须传 Vs.^2——此前传 Vs 使 ED 侧 V 大 √2 倍（α 差 2 倍），旧约定
+        # 恰靠方案误差对消通过
+        for (t, Nt, tol) in ((0.25, 2, 0.005), (0.5, 4, 0.005))
             ts = [j * t / Nt for j in 0:Nt]
             Z, Gg, Gl, δt = quapi_rlm_rt_gt(β, ϵ_d, DiscreteSpectrum(copy(ws), copy(Vs) .^ 2); Nt=Nt, t=t, μ=μ)
             # exact ED of the coupled quadratic impurity+bath Hamiltonian
-            b = discretebath(Fermion, copy(ws), copy(Vs); β=β, μ=μ)
+            b = discretebath(Fermion, copy(ws), copy(Vs) .^ 2; β=β, μ=μ)
             m = Toulouse(b, ϵ_d=ϵ_d)
             gt1, gt2 = toulouse_neq_greater_lesser(m, ts)
             GgE = im .* gt1

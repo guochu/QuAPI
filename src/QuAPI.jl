@@ -19,6 +19,9 @@ export BCSCorrelationFunction, bcs_Δτ, bcs_Δt, bcs_Δm
 # contour indices
 export AbstractContourIndex, GrassmannContourIndex, BosonicContourIndex
 
+# 费米 normal bath 二次型链的严格 Gaussian IF（谱 → 精确 cell 振幅 + Schur）
+export ExactGrassmannIF, exact_fermionic_Δτ, exact_fermionic_Δt
+
 # numerical tolerance
 export get_quapi_tol, set_quapi_tol!
 
@@ -45,6 +48,9 @@ include("bcs/bcs.jl")
 
 # 腿指标（AbstractContourIndex）与稠密 IF（QuAPI.Dense）
 include("contourindex.jl")
-include("models.jl")
+include("dense/dense.jl")
+
+# 费米 normal bath 的严格 Gaussian IF（虚时/实时，离散谱）
+include("exactfermionic.jl")
 
 end

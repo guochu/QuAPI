@@ -34,6 +34,10 @@ include("quapi/real.jl")
 include("quapi/bcsreal.jl")
 include("quapi/bcsmixed.jl")
 
+### exact fermionic IF (normal bath, quadratic chain)
+
+include("quapi/exactfermionic.jl")
+
 ### mixed-time (Kadanoff contour) QuAPI
 
 include("quapi/mixed.jl")

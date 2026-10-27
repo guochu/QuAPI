@@ -76,7 +76,101 @@ Taylor 极限（如 ``\delta^2/2``、``\delta^2`` 等）以避免 ``0/0``；Bose
 
 ---
 
-## 2. 虚时杂化函数 Δτ
+## 2. 影响泛函与 Δτ、Δt、Δm 的对应关系
+
+这一节把影响泛函（IF）的指数与三个杂化函数一一对上：三者是同一个
+``\Delta(t,t')`` 在三段不同轮廓上的离散版本。
+
+### 连续形式
+
+费米 bath（``\bar\psi,\psi`` 为环境 Grassmann 场）：
+
+```math
+I[\bar\psi,\psi]
+=\exp\Big[\int_C\!\mathrm{d}t\int_C\!\mathrm{d}t'\;
+\bar\psi(t)\,\Delta(t,t')\,\psi(t')\Big],
+```
+
+玻色 bath（系统耦合 ``s\otimes B^\dagger+s^\dagger\otimes B``，``s`` 可为任意
+系统算符）：
+
+```math
+I[s^\dagger,s]
+=\exp\Big[\int_C\!\mathrm{d}t\int_C\!\mathrm{d}t'\;
+s^\dagger(t)\,\Delta(t,t')\,s(t')\Big].
+```
+
+Hermitian 耦合 ``s^\dagger=s``（ADT 情形）退化为单算符形式
+``I[s]=\exp[\int_C\!\mathrm{d}t\int_C\!\mathrm{d}t'\,s(t)\,\Delta(t,t')\,s(t')]``。
+注意指数中是**加号**：本包已把文献中常见的负号吸收进 ``\Delta``（第 1 节）。
+
+### 离散形式
+
+沿轮廓把每支划成节点，双重积分变双重求和：
+
+```math
+I\;\longrightarrow\;
+\exp\Big[\sum_{b_1,b_2}\sum_{i\in b_1}\sum_{j\in b_2}
+\bar\psi_i^{b_1}\,\Delta^{b_1b_2}_{ij}\,\psi_j^{b_2}\Big],
+```
+
+``b\in\{+,-\}`` 是 Keldysh 前/后向支，``b=\tau`` 是虚时支；
+``\Delta^{b_1b_2}`` 就是 `branch(Δ; b1=b1, b2=b2)` 返回的分块，
+``\Delta^{b_1b_2}_{ij}`` 用 `Δ[i, j]`（`GrassmannContourIndex` /
+`BosonicContourIndex`）读取。三个函数的差别只在**保留哪些支、节点怎么排**：
+
+| IF 中的项 | 函数 | 轮廓支 | 网格与节点 | 存储 |
+|---|---|---|---|---|
+| ``\sum_{k,l=1}^{N_\tau}\bar\psi_k^{\tau}\,\Delta\tau_{kl}\,\psi_l^{\tau}`` | `Δτ` | 只有 ``\tau`` | ``N_\tau`` 个 cell，``\delta\tau=\beta/N_\tau`` | 单个 ``N_\tau\times N_\tau`` Toeplitz |
+| ``\sum_{\sigma,\sigma'=\pm}\sum_{i,j=1}^{N_t+1}\bar\psi_i^{\sigma}\,(G_{\sigma\sigma'})_{ij}\,\psi_j^{\sigma'}`` | `Δt` | ``+`` 与 ``-`` | ``N_t+1`` 个节点，``\delta t=t/N_t`` | 四块 ``G_{\sigma\sigma'}``，各 ``(N_t+1)\times(N_t+1)`` |
+| 三支全保留（``b_1,b_2\in\{+,-,\tau\}``） | `Δm` | ``+``、``-``、``\tau`` | ``N_\tau`` 个 cell 加 ``2(N_t+1)`` 个节点 | 九块（六组生成向量） |
+
+节点约定：Δτ 的 ``k=1,\dots,N_\tau`` 是 cell
+``I_k=[\tau_k,\tau_{k+1})``，``\tau_k=(k-1)\delta\tau``（``N_\tau`` 即
+`Δτ(...; N=...)` 的 `N`）；Δt 的 ``i=1,\dots,N_t+1`` 对应
+``t_i=(i-1)\delta t``（``N_t`` 即 `Δt(...; N=...)` 的 `N`；存储指标从 1
+起，物理时刻从 0 起）。
+
+### 三个函数在 IF 中的位置
+
+- **Δτ**：虚时（Matsubara）路径的权重，
+  ``I_\beta=\exp[\sum_{k,l}\bar\psi_k\,\Delta\tau_{kl}\,\psi_l]``，
+  矩阵元与生成向量的谱积分见第 3 节。
+- **Δt**：闭合 Keldysh 回路的权重，四块 ``G_{++}``、``G_{+-}``、``G_{-+}``、
+  ``G_{--}`` 分别进入 ``(\sigma,\sigma')`` 组合，见第 4 节。
+- **Δm**：L 形（Kadanoff）回路的权重，九块同时含虚时、实时与交叉项，见第 5 节。
+  ``\mu=0`` 且实时部分闭合时，``G^{\tau\tau}`` 严格等于 Δτ 矩阵、
+  ``G^{\sigma\sigma'}`` 严格等于 Δt 的对应 Keldysh 块；只有交叉块
+  ``G^{\tau\pm}``、``G^{\pm\tau}`` 是混合轮廓新增的。
+
+### 核与网格的对应
+
+三个函数的矩阵元都写成「谱积分 × 统计因子 × 时间核」，只有相位里的
+时间差不同：
+
+| 轮廓 | 相位 | 双重积分核 | 小节 |
+|---|---|---|---|
+| 虚时 | ``e^{-\xi(\tau-\tau')}`` | ``K_m(\xi)``、``T_\pm(\xi)`` | 第 3 节 |
+| 实时 | ``e^{-i\varepsilon(t-t')}`` | ``R_m(\varepsilon)``、``S_\pm(\varepsilon)`` | 第 4 节 |
+| 混合 | ``e^{-\varepsilon\tau}e^{+i\varepsilon t}`` | ``\zeta_{jk}``、``\zeta_{kj}`` | 第 5 节 |
+
+Toeplitz 结构与统计因子的结构在三种情形完全相同，差别只在网格
+（``\delta\tau`` 或 ``\delta t``）和相位。
+
+### 装配到稠密 IF 时的细节
+
+1. **等时元**：Toeplitz 存储的对角元是两种算符次序之和（第 1 节）；ADT
+   形式直接把完整 ``\Delta`` 放进指数，PT / 非对角耦合（`split=true`）则用
+   ``M_1+M_2=\Delta`` 把两种次序分给不同的算符乘积，见第 9 节。
+2. **顶点位置**：`Dense` 的 IF 通过 `contour_ordering` 与
+   `contourindex.jl` 的 `_vs_*_acc` 访问器读取 ``\Delta``（对 ``\tau`` 环与混合
+   轮廓逐块移位）；「矩阵元 ↔ 指数项」的指标映射以这两个函数为准。
+3. **纠缠度量**：把整个指数当作算符向量化后的 OSEE（及其与稠密 IF 张量
+   前缀割 SVD 熵的逐位一致）见 [IF OSEE](osee.md)。
+
+---
+
+## 3. 虚时杂化函数 Δτ
 
 网格 ``\tau_k=(k-1)\delta\tau``，``k=1,\dots,N``，``\delta\tau=\beta/N``，
 cell ``I_k=[\tau_k,\tau_{k+1})``。返回 ``N\times N`` 的
@@ -145,7 +239,7 @@ T_+(\xi) = \frac{e^{+\delta\tau\,\xi}-(1+\delta\tau\,\xi)}{\xi^2} = T_-(-\xi),
 
 ---
 
-## 3. 实时杂化函数 Δt
+## 4. 实时杂化函数 Δt
 
 闭合 Keldysh 回路 ``t\in[0,t]``，节点 ``t_k=(k-1)\delta t``，
 ``k=1,\dots,N+1``（即节点 0..N），``\delta t=t/N``。返回
@@ -202,7 +296,7 @@ S_-(\varepsilon) = \frac{(1-i\,\delta t\,\varepsilon)-e^{-i\delta t\,\varepsilon
 
 ---
 
-## 4. 混合时杂化函数 Δm（Kadanoff L 形回路）
+## 5. 混合时杂化函数 Δm（Kadanoff L 形回路）
 
 回路由三支组成：虚时支 ``\tau\in[0,\beta)`` 取 ``N_\tau`` 个 cell
 （``\delta\tau=\beta/N_\tau``），随后闭合 Keldysh 部分 ``t\in[0,t]`` 每支
@@ -217,13 +311,19 @@ S_-(\varepsilon) = \frac{(1-i\,\delta t\,\varepsilon)-e^{-i\delta t\,\varepsilon
 
 ### 九块的装配（`index` 的定义）
 
-对实时指标 ``i,j``（虚时指标在 ``G^{\tau\cdot},G^{\cdot\tau}`` 中）：
+对实时指标 ``i,j``（虚时指标在 ``G^{\tau\cdot},G^{\cdot\tau}`` 中）。**等时
+（对角）元**：``G^{\pm\mp}`` 的对角为**共轭对** ``\{b\,S_-,\;b\,S_+\}`` /
+``\{\bar b\,S_-,\;\bar b\,S_+\}``（玻色；费米为 ``\{nS_-,nS_+\}`` /
+``\{\bar nS_-,\bar nS_+\}``），二者之和 ``\propto S_-+S_+=`` 整 cell 核
+``R_1``——这保证 `op1=op2`（厄米耦合）时 ket=bra 路径权重为实；``G^{\pm\pm}``
+的对角为 ``-\bar bS_- - bS_+``（++）/ ``-bS_- - \bar bS_+``（−−）型。非对角
+元（``m\ge2``）为：
 
 ```math
 \begin{aligned}
 G^{++}_{ij} &= \begin{cases}\eta_{jk}[i-j+1], & i>j\\ \eta_{jk}[1]+\eta_{kj}[1], & i=j\\ \eta_{kj}[j-i+1], & i<j\end{cases} &
-G^{+-}_{ij} &= \begin{cases}-\eta_{kj}[i-j+1]^*, & i>j\\ -2\eta_{kj}[1], & i=j\\ -\eta_{kj}[j-i+1], & i<j\end{cases} \\[4pt]
-G^{-+}_{ij} &= \begin{cases}-\eta_{jk}[i-j+1], & i>j\\ -2\eta_{jk}[1], & i=j\\ -\eta_{jk}[j-i+1]^*, & i<j\end{cases} &
+G^{+-}_{ij} &= \begin{cases}\eta_{kj}[i-j+1]^*, & i>j\\ \eta_{jk}[1]+\eta_{kj}[1], & i=j\\ \eta_{kj}[j-i+1], & i<j\end{cases} \\[4pt]
+G^{-+}_{ij} &= \begin{cases}\eta_{jk}[i-j+1], & i>j\\ \eta_{jk}[1]+\eta_{kj}[1], & i=j\\ \eta_{jk}[j-i+1]^*, & i<j\end{cases} &
 G^{--}_{ij} &= \begin{cases}\eta_{kj}[i-j+1]^*, & i>j\\ \eta_{jk}[1]+\eta_{kj}[1], & i=j\\ \eta_{jk}[j-i+1]^*, & i<j\end{cases}
 \end{aligned}
 ```
@@ -259,7 +359,7 @@ G^{\tau\tau}_{ij} = \begin{cases}-\xi_{jk}[i-j+1], & i>j\\ -(\xi_{jk}[1]+\xi_{kj
 | 费米 | ``-\bar n\,T_-`` | ``-\bar n\,K_k`` | ``+n\,T_+`` | ``+n\,K_k(-\varepsilon)`` |
 | 玻色 | ``-\bar b\,T_-`` | ``-\bar b\,K_k`` | ``-b\,T_+`` | ``-b\,K_k(-\varepsilon)`` |
 
-（表中 ``K_k,T_\pm`` 即第 2 节的核，变量换成 ``\varepsilon``，统计因子含
+（表中 ``K_k,T_\pm`` 即第 3 节的核，变量换成 ``\varepsilon``，统计因子含
 ``\mu``。）于是在 ``\mu=0`` 时有精确的边界对应
 ``G^{\tau\tau} = \Delta\tau`` 矩阵、``G^{\sigma\sigma'}_{\text{real}} =
 \Delta t`` 的 Keldysh 块——L 形回路的实时/虚时部分分别退化为独立的
@@ -288,7 +388,7 @@ G^{\tau\tau}_{ij} = \begin{cases}-\xi_{jk}[i-j+1], & i>j\\ -(\xi_{jk}[1]+\xi_{kj
 
 ---
 
-## 5. BCS 超导 bath 的杂化函数
+## 6. BCS 超导 bath 的杂化函数
 
 Bogoliubov 变换已对角化的 bath，配对隙 ``\Delta``（可复数）。相干因子：
 
@@ -299,7 +399,7 @@ v(\varepsilon)=\sqrt{\tfrac{1}{2}\big(1-\tfrac{\varepsilon}{E}\big)}\,e^{i\arg\D
 ```
 
 正常谱按四种相干权重加权限色散 ``\varepsilon\mapsto E(\varepsilon)`` 复用
-第 2–4 节的**费米** kernel：
+第 3–5 节的**费米** kernel：
 
 ```math
 f \;\mapsto\; \big(u^2 f,\;\; u v\, f,\;\; v u\, f,\;\; v^2 f\big),
@@ -338,18 +438,18 @@ I = \exp\Big[\bar a_\uparrow\Delta_{\uparrow\uparrow}a_\uparrow
 
 ---
 
-## 6. 无穷温窗（β→∞ / t→∞）
+## 7. 无穷温窗（β→∞ / t→∞）
 
-`infinite_Δτ` / `infinite_Δt` 使用与第 2、3 节**完全相同**的 kernel，取
+`infinite_Δτ` / `infinite_Δt` 使用与第 3、4 节**完全相同**的 kernel，取
 ``\beta=\infty``：此时 ``\bar n,n\to\theta(\mp\varepsilon)``（费米真空）
 或 ``b\to 0,\ \bar b\to\theta(-\varepsilon)\cdot\delta(\varepsilon)^{-1}``
 （玻色真空，只有 ``\varepsilon\le 0`` 的发射部分）。Toeplitz 生成向量按节点
 增量生成（`compute_next!`），直到最新元素幅度小于容差 `atol`；实时 cache
-通过 `branch` 按需组合出四个 Keldysh 块（共轭关系同第 3 节表格）。
+通过 `branch` 按需组合出四个 Keldysh 块（共轭关系同第 4 节表格）。
 
 ---
 
-## 7. Matsubara 频域入口
+## 8. Matsubara 频域入口
 
 `Δiw_to_Δτ` 从频域数据直接构造虚时矩阵（详细推导见作者笔记
 `docs/quapi.pdf`，未随仓库分发）：
@@ -363,3 +463,52 @@ I = \exp\Big[\bar a_\uparrow\Delta_{\uparrow\uparrow}a_\uparrow
 
 要求 ``\Delta iw`` 为按 `ifrequencies(β, nmax)` 顺序的偶数个频率值，虚部
 不为零时报错。
+
+---
+
+## 9. 非对角（PT）耦合的影响泛函
+
+对角耦合时玻色 IF 是路径权重的对角嵌入（`BosonicIF` 的 ADT 形式）。耦合
+算符 ``S`` 非对角（`NonDiagonalHyb` 约定 ``H_{SB} = S\otimes a + S'\otimes a'``，
+``S`` 可为任意复方阵）时，稠密 IF 是作用在系统路径上的算符
+（`QuAPI.Dense.BosonicIF(h, hyb)`）：
+
+```math
+I = \exp(H), \qquad H = \text{(节点对上的双线性型，见下)} .
+```
+
+记 ``\mathrm{op}_1 = S``、``\mathrm{op}_2 = S'``。**行腿矩阵**随分支取
+转置 / 伴随 / 原矩阵（元素语言：+ 支元素为 ``\mathrm{op}[a,m]`` 放在
+(out,in) 腿上、− 支为 ``\overline{\mathrm{op}[b,m]}``、τ 支同 + 支但腿
+序相反）：
+
+```math
+X_1^\nu = \begin{cases}\mathrm{op}_1^{\mathsf T} & (+)\\ \mathrm{op}_1' & (-)\\ \mathrm{op}_1 & (\tau)\end{cases},
+\qquad
+X_2^\nu = \begin{cases}\mathrm{op}_2^{\mathsf T} & (+)\\ \mathrm{op}_2' & (-)\\ \mathrm{op}_2 & (\tau)\end{cases}.
+```
+
+`split=true` 的杂化矩阵把每块的等时两种算符次序拆成 ``M_1``（``\eta_{jk}``
+侧）与 ``M_2``（``\eta_{kj}`` 侧），``M_1+M_2=\Delta``。``H`` 的组装规则
+（``j_\nu`` 为节点步数；ν 靠后指 ``j_\nu>j_\mu``）：
+
+| 节点对 | 贡献 |
+|---|---|
+| 同支不同节点 ``(ν,μ)`` | ``M_1[ν,μ]\,X_1^ν X_2^μ + M_2[μ,ν]\,X_2^ν X_1^μ``（`−` 支整体 ``X_1\!\leftrightarrow\!X_2``） |
+| 同节点等时 | 矩阵积：``M_1[νν]\,X_2^ν X_1^ν + M_2[νν]\,X_1^ν X_2^ν``（`+` 支此序；`−` 与 `τ` 支互换） |
+| 跨支 ``(+ν,-μ)``（含同 cell） | 求和核配同算符：``(M_1{+}M_2)[ν,μ]\,X_1^ν X_1^μ + (M_1{+}M_2)[μ,ν]\,X_2^ν X_2^μ`` |
+| 混合轮廓 ``τ×±`` | 混合配对（核留槽位、± 侧算符标签与跨支相反）：``(M_1{+}M_2)[ν,μ]\,X_1^ν \tilde X^μ + (M_1{+}M_2)[μ,ν]\,X_2^ν \tilde X'^\mu``，``\tilde X^\mu = X_2^\mu``（+ 节点）或 ``X_1^\mu``（− 节点） |
+
+**精确性**（对单模与双模 bath、用「精确 cell 演化算符 + 偏迹环境」的严格
+IF 数值验证）：
+
+- 对角 ``S``、``S=S'``（厄米）、``[S,S']=0`` ⟹ 严格 IF 恰为 Gaussian，
+  上式**机器精度成立**（实时 / 虚时 / 混合三轮廓均是）；
+- 一般 ``S\ne S'``：严格 IF 含 ``O(G^4)`` 非高斯累积量（Magnus 对易子项），
+  上式与严格 IF 的生成元一致到 ``O(G^2)``，全链残差按 ``G^4`` 标度
+  （``G`` 为耦合强度）。
+
+对 ``\mathrm{op}_1=\mathrm{op}_2``（实对称 ``S``）以上退化为
+``H=\sum M_1\,\mathrm{op}_1\,\mathrm{op}_2 + M_2\,\mathrm{op}_2\,\mathrm{op}_1``，
+再对对角 ``S`` 退化为 ADT 对角嵌入。验证脚本与严格参照的构造见
+`performance/nondiagcoupling.jl` 及其附录。

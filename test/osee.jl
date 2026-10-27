@@ -15,15 +15,13 @@ end
 
 @testset "GaussianStates extension" begin
     # ---------------- contour Δ 组装（经 bdg 重载间接验证） ----------------
-    # 由分支块按统一节点序拼 Δ（独立参考，不调用 _contour_delta）
+    # 新约定（顶点移位，2026-10）：与稠密 IF（GrassmannHybridizationMatrix）
+    # 同一 Δ —— 独立性体现在"不调用 fermionic_bdg_matrix 自身"；约定本身的
+    # 正确性由 performance/fermionicG4.jl 的 G⁴ 平台检验背书。
     function delta_ref(corr)
-        nodes = contour_ordering(corr)
-        n = length(nodes)
-        M = zeros(ComplexF64, n, n)
-        for (p, (b1, j1)) in enumerate(nodes), (q, (b2, j2)) in enumerate(nodes)
-            M[p, q] = branch(corr; b1=b1, b2=b2)[j1, j2]
-        end
-        return M
+        C = Matrix(GrassmannHybridizationMatrix(corr).Δ)
+        n = size(C, 1) ÷ 2
+        return [C[2i, 2j-1] for i in 1:n, j in 1:n]
     end
 
     corrτ = fermionic_Δτ(semicircular(), β=5.0, N=8, μ=0.3)
@@ -251,34 +249,36 @@ end
     j = GrassmannContourIndex(3, :τ, 1, true)
     @test branch(i) == :τ && branch(j) == :τ
     @test i isa AbstractContourIndex && BosonicContourIndex(1, :+) isa AbstractContourIndex
-    # a-ā 取 Δ，ā-a 取 -Δ，a-a / ā-ā 为零
-    @test corrτ[i, j] == branch(corrτ; b1=:τ, b2=:τ)[2, 3]
-    @test corrτ[j, i] == -branch(corrτ; b1=:τ, b2=:τ)[3, 2]
+    # a-ā 取 Δ，ā-a 取 -Δ，a-a / ā-ā 为零（顶点移位后：访问器返回严格约定的
+    # 移位读数——τ 环 negative 滞后 −c_k = −Δ[k,1]，等时和 Δ[1,1]，见
+    # contourindex.jl 的装配规则）
+    @test corrτ[i, j] == -branch(corrτ; b1=:τ, b2=:τ)[3, 1]
+    @test corrτ[j, i] == -branch(corrτ; b1=:τ, b2=:τ)[1, 1]
     @test iszero(corrτ[i, GrassmannContourIndex(3, :τ, 1, false)])
     @test iszero(corrτ[j, GrassmannContourIndex(3, :τ, 1, true)])
     # 普通费米 bath：不再要求两个 band 相等
     @test corrτ[i, GrassmannContourIndex(3, :τ, 2, true)] ==
-          branch(corrτ; b1=:τ, b2=:τ)[2, 3]
-    # 实时 contour：分支由指标携带
+          -branch(corrτ; b1=:τ, b2=:τ)[3, 1]
+    # 实时 contour：分支由指标携带（+− 块值不变；(−,+) 的 (3,2) 越窗为零）
     corrt = fermionic_Δt(semicircular(), β=2.0, t=1.0, N=2, μ=0.2)
     ip = GrassmannContourIndex(2, :+, 1, false)
     jm = GrassmannContourIndex(3, :-, 1, true)
     @test corrt[ip, jm] == branch(corrt; b1=:+, b2=:-)[2, 3]
-    @test corrt[jm, ip] == -branch(corrt; b1=:-, b2=:+)[3, 2]
+    @test iszero(corrt[jm, ip])
     # 玻色（无 band）
     corrb = bosonic_Δτ(spectrum(ε -> exp(-ε), lb=0.5, ub=8.0), β=2.0, N=3)
     bi = BosonicContourIndex(1, :τ)
     bj = BosonicContourIndex(2, :τ)
     @test corrb[bi, bj] == branch(corrb; b1=:τ, b2=:τ)[1, 2]
     @test corrb[bj, bi] == branch(corrb; b1=:τ, b2=:τ)[2, 1]
-    # BCS：band 奇数 = 上自旋，偶数 = 下自旋（允许带间块）
+    # BCS：band 奇数 = 上自旋，偶数 = 下自旋（允许带间块；τ 环同移位规则）
     bcs = bcs_Δτ(DiscreteSpectrum([1.0], [0.25]), β=2.0, N=3, μ=0.0, Δ=0.5)
     kup = GrassmannContourIndex(1, :τ, 1, false)
     kdn = GrassmannContourIndex(2, :τ, 2, true)
-    @test bcs[kup, kdn] == branch(bcs[:↑, :↓]; b1=:τ, b2=:τ)[1, 2]
-    @test bcs[kdn, kup] == branch(bcs[:↓, :↑]; b1=:τ, b2=:τ)[2, 1]
+    @test bcs[kup, kdn] == -branch(bcs[:↑, :↓]; b1=:τ, b2=:τ)[2, 1]
+    @test bcs[kdn, kup] == branch(bcs[:↓, :↑]; b1=:τ, b2=:τ)[1, 1]
     @test bcs[kup, GrassmannContourIndex(3, :τ, 3, true)] ==
-          branch(bcs[:↑, :↑]; b1=:τ, b2=:τ)[1, 3]     # band 3 = 上自旋
+          -branch(bcs[:↑, :↑]; b1=:τ, b2=:τ)[1, 1]     # band 3 = 上自旋；k = 1 环回
 
     # contour 次序：分支 :+ < :- < :τ；:+ / :τ 内 j 升序，:- 内 j 降序
     @test GrassmannContourIndex(1, :+, 1, false) < GrassmannContourIndex(2, :+, 1, false)
@@ -501,6 +501,41 @@ end
     Tc = reshape(Pc.data, ntuple(_ -> d, 2n))
     swap = vcat([[2p, 2p - 1] for p in 1:n]...)
     @test Tc ≈ conj.(permutedims(Tc, swap)) atol = 1e-11
+    # 一般非对角耦合（op1 ≠ op2，含复非厄米）：与「精确 cell 演化算符 + 偏迹
+    # 环境」的严格单模 bath IF 对照——对角/厄米 hyb 机器精度，一般 hyb 残差
+    # O(G⁴)（非高斯累积量；G=0.1 时 ~1e-6）
+    begin
+        ω, βs, Gc, nb, h = 1.3, 1.7, 0.1, 24, 0.3
+        bth = diagm(1 => sqrt.(1.0:(nb - 1)))
+        hb = ω * Diagonal(0.0:(nb - 1))
+        pth = exp.(-βs * ω * (0.0:(nb - 1))); pth ./= sum(pth)
+        spec = DiracDelta(ω, α = Gc^2)
+        for hyb in ([0 1; 0 0],                                      # σ⁺（非厄米）
+                    [0.2 + 0.3im 0.7; 0.4 - 0.1im 0.15 + 0.25im],    # 随机复非厄米
+                    [0.3 + 0.4im 0; 0 -0.2 + 0.1im])                 # 复对角（应机器精度）
+            op1, op2 = hyb, hyb'
+            # 严格 1-cell IF：V = expm(-ih(hb + G(op1⊗b + op2⊗b†)))，
+            # F[m,a,mm,b] = tr(⟨a|V|m⟩ ρ_b ⟨b|V|mm⟩†)，交错布局 (m,a,mm,b)
+            V = exp(-im * h * (kron(Matrix(I, 2, 2), Matrix(hb)) +
+                               Gc * (kron(op1, Matrix(bth)) + kron(op2, Matrix(bth')))))
+            Vb = permutedims(reshape(V, nb, 2, nb, 2), (2, 1, 4, 3))
+            Fex = [tr(Vb[a, :, m, :] * Diagonal(pth) * Vb[b, :, mm, :]')
+                   for m in 1:2, a in 1:2, mm in 1:2, b in 1:2]
+            corrq = bosonic_Δt(spec; β = βs, N = 1, t = h)
+            hq = BosonicHybridizationMatrix(corrq; split = true)
+            keep = trues(4); keep[1] = keep[2] = false       # 丢 t=0 窗口节点对
+            idx = findall(keep)
+            basis = [BosonicContourIndex(2, s) for s in (:+, :-)]
+            h2 = BosonicHybridizationMatrix(basis,
+                  QuAPI.Dense.BosonicSplitDelta(hq.Δ.M1[idx, idx], hq.Δ.M2[idx, idx]))
+            P = reshape(BosonicIF(h2, hyb).data, 2, 2, 2, 2)
+            if hyb == [0.3 + 0.4im 0; 0 -0.2 + 0.1im]         # 对角：严格 Gaussian
+                @test maximum(abs.(P .- Fex)) < 1e-11
+            else                                               # O(G⁴) ≈ 1e-6 @ G=0.1
+                @test maximum(abs.(P .- Fex)) < 1e-5
+            end
+        end
+    end
     # 非方阵 hyb / 规模上限
     @test_throws ArgumentError BosonicIF(BosonicHybridizationMatrix(corr; split=true), [1.0 2.0 3.0])
     big = bosonic_Δτ(f0b, β=2.0, N=16)          # d=2, n=16 ⟹ 2^32

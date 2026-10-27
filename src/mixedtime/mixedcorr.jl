@@ -80,13 +80,12 @@ function branch(x::MixedCorrelationFunction; b1::Symbol, b2::Symbol)
         (b1 in (:+, :-, :τ)) || throw(ArgumentError("branch must be one of :+, :- or :τ"))
         (b2 in (:+, :-, :τ)) || throw(ArgumentError("branch must be one of :+, :- or :τ"))
     end
-    if b1 == :+ 
+    if b1 == :+
         if b2 == :+
             return CorrelationMatrix(x.ηⱼₖ, x.ηₖⱼ)
         elseif b2 == :-
             ηₖⱼ = -(x.ηₖⱼ)
-            ηⱼₖ = conj(ηₖⱼ)
-            ηⱼₖ[1] = ηₖⱼ[1]
+            ηⱼₖ = conj(ηₖⱼ)          # 等时也为共轭对：{b·S₋, b·S₊}，和 = b·f²
             return CorrelationMatrix(ηⱼₖ, ηₖⱼ)
         else
             return -im*x.ζₖⱼ
@@ -94,14 +93,11 @@ function branch(x::MixedCorrelationFunction; b1::Symbol, b2::Symbol)
     elseif b1 == :-
         if b2 == :+
             ηⱼₖ = -x.ηⱼₖ
-            ηₖⱼ = -conj(x.ηⱼₖ)
-            ηₖⱼ[1] = ηⱼₖ[1]
+            ηₖⱼ = -conj(x.ηⱼₖ)       # 等时也为共轭对：{bb·S₋, bb·S₊}，和 = bb·f²
             return CorrelationMatrix(ηⱼₖ, ηₖⱼ)
         elseif b2 == :-
-            ηⱼₖ = conj(x.ηₖⱼ)
-            ηⱼₖ[1] = x.ηⱼₖ[1]
-            ηₖⱼ = conj(x.ηⱼₖ)
-            ηₖⱼ[1] = x.ηₖⱼ[1]
+            ηⱼₖ = conj(x.ηₖⱼ)            # 等时为共轭对：{−b·S₋, −bb·S₊}（与 (++) 的
+            ηₖⱼ = conj(x.ηⱼₖ)            # {−bb·S₋, −b·S₊} 相配，ket=bra 路径权重为实）
             return CorrelationMatrix(ηⱼₖ, ηₖⱼ)
         else
             return im*x.ζₖⱼ

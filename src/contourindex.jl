@@ -89,16 +89,130 @@ Grassmann legs `i` and `j`, selected by the `conj` flags:
 Δ is the `branch` block carried by the two indices; the legs may belong to
 different bands (no band matching is required).
 """
+# ------------------------------------------------------------------ #
+# 顶点位置装配（访问器层，2026-10）：与 Dense.GrassmannHybridizationMatrix
+# 的装配修正同一约定——核闭式不变，顶点从 cell 边界移到节点（严格 B-cell IF
+# 的 O(g²) 系数，G⁴ 平台验证见 performance/fermionicG4.jl 与
+# exact_fermionic_Δτ/Δt/Δm）。返回 (源分支1, 源 j1, 源分支2, 源 j2, 符号)，
+# nothing 表示该腿对的 IF 内容为零。玻色 bath 不受影响（PT 已精确）。
+# ------------------------------------------------------------------ #
+
+# τ 环（N 节点）：skew-circulant 生成值（c₀ = D[1,2]；c₁ = D[1,1]（等时和）；
+# c_k = D[k,1]；负滞后 = −c_{N+i−j}）
+function _vs_τ_acc(i::Int, j::Int, N::Int)
+    if i == j
+        return (:τ, 1, :τ, 2, 1)
+    elseif i > j
+        d = i - j
+        return d == 1 ? (:τ, 1, :τ, 1, 1) : (:τ, d, :τ, 1, 1)
+    else
+        k = N + i - j
+        return k == 1 ? (:τ, 1, :τ, 1, -1) : (:τ, k, :τ, 1, -1)
+    end
+end
+
+# 实时 Keldysh（节点 j = 1..N+1，N cells）：同支块列移 + 动能位取本支对角；
+# 交叉块开窗不变
+function _vs_rt_acc(b1::Symbol, j1::Int, b2::Symbol, j2::Int, N::Int)
+    if b1 === :+ && b2 === :+
+        (j1 ≥ 2 && j2 ≤ N) || return nothing
+        return j2 == j1 - 1 ? (:+, 1, :+, 1, 1) : (:+, j1, :+, j2 + 1, 1)
+    elseif b1 === :- && b2 === :-
+        (j1 ≤ N && j2 ≥ 2) || return nothing
+        return j2 == j1 + 1 ? (:-, 1, :-, 1, 1) : (:-, j1, :-, j2 - 1, 1)
+    elseif b1 === :+ && b2 === :-
+        (j1 ≥ 2 && j2 ≥ 2) || return nothing
+        return (:+, j1, :-, j2, 1)
+    else                                    # (−, +)
+        (j1 ≤ N && j2 ≤ N) || return nothing
+        return (:-, j1, :+, j2, 1)
+    end
+end
+
+# 混合轮廓：行 τ_j→τ_{j−1}、+₁→τ_Nτ、+_j→+_{j−1}、− 不动（−_{Nt+1} 无源）；
+# 列 τ 不动、+ 不动（+_{Nt+1} 无源）、−_k→−_{k−1}（−₁ 无源）；
+# 符号恰一支为 + 时 −1（+₁ 行例外，其源为 τ_Nτ）
+function _vs_mixed_acc(b1::Symbol, j1::Int, b2::Symbol, j2::Int, Nτ::Int, Nt::Int)
+    r = b1 === :τ ? (j1 ≥ 2 ? (:τ, j1 - 1) : nothing) :
+        b1 === :+ ? (j1 == 1 ? (:τ, Nτ) : (:+, j1 - 1)) :
+        (j1 ≤ Nt ? (:-, j1) : nothing)
+    c = b2 === :τ ? (:τ, j2) :
+        b2 === :+ ? (j2 ≤ Nt ? (:+, j2) : nothing) :
+        (j2 ≥ 2 ? (:-, j2 - 1) : nothing)
+    (r === nothing || c === nothing) && return nothing
+    s = ((b1 === :+ && j1 ≥ 2) ⊻ (b2 === :+)) ? -1 : 1
+    return (r[1], r[2], c[1], c[2], s)
+end
+
+# 混合轮廓的无分配元素读取：按 `branch()` 的分支公式直接取单元素，
+# 避免为读一个矩阵元而构造整个分支矩阵（conj/负号/±im 都会分配数组）。
+# 分支公式与 `branch(x::MixedCorrelationFunction; b1, b2)` 逐一对应；ζ 块的
+# branch 值是满矩阵（±im·ζ），按 [i, j] 直接索引。
+@inline function _mixed_branch_elem(x::AbstractMixedCorrelationFunction,
+                                    b1::Symbol, b2::Symbol, i::Int, j::Int)
+    d = i - j
+    if b1 === :+
+        if b2 === :+
+            d > 0 ? x.ηⱼₖ[d+1] : d < 0 ? x.ηₖⱼ[1-d] : x.ηⱼₖ[1] + x.ηₖⱼ[1]
+        elseif b2 === :-
+            # ηⱼₖ = -conj(ηₖⱼ)、ηₖⱼ = -ηₖⱼ
+            d > 0 ? -conj(x.ηₖⱼ[d+1]) : d < 0 ? -x.ηₖⱼ[1-d] : -conj(x.ηₖⱼ[1]) - x.ηₖⱼ[1]
+        else
+            -im * x.ζₖⱼ[i, j]
+        end
+    elseif b1 === :-
+        if b2 === :+
+            # ηⱼₖ = -ηⱼₖ、ηₖⱼ = -conj(ηⱼₖ)
+            d > 0 ? -x.ηⱼₖ[d+1] : d < 0 ? -conj(x.ηⱼₖ[1-d]) : -x.ηⱼₖ[1] - conj(x.ηⱼₖ[1])
+        elseif b2 === :-
+            # ηⱼₖ = conj(ηₖⱼ)、ηₖⱼ = conj(ηₖⱼ)
+            d > 0 ? conj(x.ηₖⱼ[d+1]) : d < 0 ? conj(x.ηₖⱼ[1-d]) : conj(x.ηₖⱼ[1]) + conj(x.ηₖⱼ[1])
+        else
+            im * x.ζₖⱼ[i, j]
+        end
+    else
+        if b2 === :+
+            -im * x.ζⱼₖ[i, j]
+        elseif b2 === :-
+            im * x.ζⱼₖ[i, j]
+        else
+            # ηⱼₖ = -ξⱼₖ、ηₖⱼ = -ξₖⱼ
+            d > 0 ? -x.ξⱼₖ[d+1] : d < 0 ? -x.ξₖⱼ[1-d] : -x.ξⱼₖ[1] - x.ξₖⱼ[1]
+        end
+    end
+end
+
+# 混合轮廓专用：无分配（不走 branch 构造分支矩阵）
+function Base.getindex(x::AbstractMixedCorrelationFunction,
+                       i::GrassmannContourIndex, j::GrassmannContourIndex)
+    (i.conj == j.conj) && return zero(eltype(x.ηⱼₖ))
+    m = _vs_mixed_acc(branch(i), i.j, branch(j), j.j,
+                      length(x.ξⱼₖ), length(x.ηⱼₖ) - 1)
+    m === nothing && return zero(eltype(x.ηⱼₖ))
+    v = m[5] * _mixed_branch_elem(x, m[1], m[3], m[2], m[4])
+    return i.conj ? -v : v                  # ā-a 取 −（原约定保留）
+end
+
 function Base.getindex(x::AbstractCorrelationFunction,
                        i::GrassmannContourIndex, j::GrassmannContourIndex)
-    D = branch(x; b1=branch(i), b2=branch(j))
-    if !i.conj && j.conj          # a-ā
-        return D[i.j, j.j]
-    elseif i.conj && !j.conj      # ā-a
-        return -D[i.j, j.j]
-    else                          # a-a, ā-ā
-        return zero(eltype(D))
+    (i.conj == j.conj) && return zero(eltype(branch(x; b1=branch(i), b2=branch(j))))
+    bs = branches(x)
+    m = if bs == (:τ,)
+        Nτ = length(branch(x; b1=:τ, b2=:τ).ηⱼₖ)
+        # 单节点环无移位空间（与 Dense 装配的 n == 1 短路一致）：读原始等时和
+        Nτ == 1 ? (:τ, 1, :τ, 1, 1) : _vs_τ_acc(i.j, j.j, Nτ)
+    elseif bs == (:+, :-)
+        _vs_rt_acc(branch(i), i.j, branch(j), j.j,
+                   length(branch(x; b1=:+, b2=:+).ηⱼₖ) - 1)
+    else                                    # 混合轮廓
+        _vs_mixed_acc(branch(i), i.j, branch(j), j.j,
+                      length(branch(x; b1=:τ, b2=:τ).ηⱼₖ),
+                      length(branch(x; b1=:+, b2=:+).ηⱼₖ) - 1)
     end
+    m === nothing && return zero(eltype(branch(x; b1=branch(i), b2=branch(j))))
+    D = branch(x; b1=m[1], b2=m[3])
+    v = m[5] * D[m[2], m[4]]
+    return i.conj ? -v : v                  # ā-a 取 −（原约定保留）
 end
 
 """
@@ -114,7 +228,23 @@ function Base.getindex(x::BCSCorrelationFunction,
     (j.band ≥ 1) || throw(ArgumentError("band 必须 ≥ 1（当前 $(j.band)）"))
     σᵢ = isodd(i.band) ? :↑ : :↓
     σⱼ = isodd(j.band) ? :↑ : :↓
-    return branch(x[σᵢ, σⱼ]; b1=branch(i), b2=branch(j))[i.j, j.j]
+    # IF 分解（_delta_terms）：两个正常块 (ā↑,a↑)/(ā↓,a↓) 都取 uu 的 Δ，
+    # 反常块 (ā↑,ā↓) 取 ud、(a↓,a↑) 取 du
+    Δb = (σᵢ === σⱼ) ? x.uu : (σᵢ === :↑ ? x.ud : x.du)
+    # 顶点位置装配（与 Dense 路径一致）：τ 环 / 混合逐块移位；BCS RT 暂不迁移
+    bs = branches(x)
+    m = if bs == (:τ,)
+        Nτ = length(branch(x.uu; b1=:τ, b2=:τ).ηⱼₖ)
+        Nτ == 1 ? (:τ, 1, :τ, 1, 1) : _vs_τ_acc(i.j, j.j, Nτ)
+    elseif bs == (:+, :-)
+        return branch(Δb; b1=branch(i), b2=branch(j))[i.j, j.j]
+    else                                    # BCS 混合
+        _vs_mixed_acc(branch(i), i.j, branch(j), j.j,
+                      length(branch(x.uu; b1=:τ, b2=:τ).ηⱼₖ),
+                      length(branch(x.uu; b1=:+, b2=:+).ηⱼₖ) - 1)
+    end
+    m === nothing && return zero(eltype(branch(Δb; b1=branch(i), b2=branch(j))))
+    return m[5] * branch(Δb; b1=m[1], b2=m[3])[m[2], m[4]]
 end
 
 """
