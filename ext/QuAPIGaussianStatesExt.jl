@@ -29,7 +29,7 @@ module QuAPIGaussianStatesExt
 
 using QuAPI
 using QuAPI: AbstractCorrelationFunction
-using QuAPI.Dense: _contour_delta, BosonicHybridizationMatrix
+using QuAPI.Dense: _contour_delta, BosonicHybridizationMatrix, GrassmannHybridizationMatrix
 using GaussianStates
 using GaussianStates: FermionicGaussianState
 using LinearAlgebra
@@ -59,8 +59,18 @@ osee(s, vcat(sites, n .+ sites))               # site p ↔ 模式对 [p, n+p]
 ```
 """
 function GaussianStates.fermionic_bdg_matrix(x::AbstractCorrelationFunction)
-    Δ = _contour_delta(x)
-    n = size(Δ, 1)
+    # 单 flavor：与稠密 IF（GrassmannHybridizationMatrix，顶点移位后的约定）
+    # 保持同一 Δ —— 从腿矩阵按节点提取 [C[āᵢ, aⱼ]]，确保与 GrassmannIF 张量
+    # 的 OSEE 逐位一致；多 band（BCS）/混合 contour 沿用 _contour_delta 原序。
+    C = Matrix(GrassmannHybridizationMatrix(x).Δ)
+    n2 = size(C, 1)
+    if n2 % 2 == 0 && all(b -> b.band == 1, GrassmannHybridizationMatrix(x).basis)
+        n = n2 ÷ 2
+        Δ = [C[2i, 2j-1] for i in 1:n, j in 1:n]
+    else
+        Δ = _contour_delta(x)
+        n = size(Δ, 1)
+    end
     W = zeros(ComplexF64, 2n, 2n)
     W[n+1:2n, 1:n] .= Δ
     return W - transpose(W)
