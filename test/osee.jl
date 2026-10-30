@@ -319,16 +319,16 @@ end
     j = GrassmannContourIndex(3, :τ, 1, true)
     @test branch(i) == :τ && branch(j) == :τ
     @test i isa AbstractContourIndex && BosonicContourIndex(1, :+) isa AbstractContourIndex
-    # a-ā 取 Δ，ā-a 取 -Δ，a-a / ā-ā 为零（顶点移位后：访问器返回严格约定的
-    # 移位读数——τ 环 negative 滞后 −c_k = −Δ[k,1]，等时和 Δ[1,1]，见
-    # contourindex.jl 的装配规则）
-    @test corrτ[i, j] == -branch(corrτ; b1=:τ, b2=:τ)[3, 1]
-    @test corrτ[j, i] == -branch(corrτ; b1=:τ, b2=:τ)[1, 1]
+    # 2026-10-30 访问器 τ 环回退 cell（节点值）读取（顶点重组使 g(τ) 误差
+    # 常数恶化 ~30×，GTEMPO Toulouse 基准；判决见 contourindex.jl）：
+    # i-ā / j-cross 交叉读 = branch[i.j, j.j] 与 −branch[i.j, j.j]（conj 符号）
+    @test corrτ[i, j] == branch(corrτ; b1=:τ, b2=:τ)[2, 3]
+    @test corrτ[j, i] == -branch(corrτ; b1=:τ, b2=:τ)[3, 2]
     @test iszero(corrτ[i, GrassmannContourIndex(3, :τ, 1, false)])
     @test iszero(corrτ[j, GrassmannContourIndex(3, :τ, 1, true)])
     # 普通费米 bath：不再要求两个 band 相等
     @test corrτ[i, GrassmannContourIndex(3, :τ, 2, true)] ==
-          -branch(corrτ; b1=:τ, b2=:τ)[3, 1]
+          branch(corrτ; b1=:τ, b2=:τ)[2, 3]
     # 实时 contour：分支由指标携带（+− 块值不变；(−,+) 的 (3,2) 越窗为零）
     corrt = fermionic_Δt(semicircular(), β=2.0, t=1.0, N=2, μ=0.2)
     ip = GrassmannContourIndex(2, :+, 1, false)
@@ -345,10 +345,10 @@ end
     bcs = bcs_Δτ(DiscreteSpectrum([1.0], [0.25]), β=2.0, N=3, μ=0.0, Δ=0.5)
     kup = GrassmannContourIndex(1, :τ, 1, false)
     kdn = GrassmannContourIndex(2, :τ, 2, true)
-    @test bcs[kup, kdn] == -branch(bcs[:↑, :↓]; b1=:τ, b2=:τ)[2, 1]
-    @test bcs[kdn, kup] == branch(bcs[:↓, :↑]; b1=:τ, b2=:τ)[1, 1]
+    @test bcs[kup, kdn] == branch(bcs[:↑, :↓]; b1=:τ, b2=:τ)[1, 2]
+    @test bcs[kdn, kup] == -branch(bcs[:↓, :↑]; b1=:τ, b2=:τ)[2, 1]
     @test bcs[kup, GrassmannContourIndex(3, :τ, 3, true)] ==
-          -branch(bcs[:↑, :↑]; b1=:τ, b2=:τ)[1, 1]     # band 3 = 上自旋；k = 1 环回
+          branch(bcs[:↑, :↑]; b1=:τ, b2=:τ)[1, 3]      # band 3 = 上自旋；k = 1 环回
 
     # contour 次序：分支 :+ < :- < :τ；:+ / :τ 内 j 升序，:- 内 j 降序
     @test GrassmannContourIndex(1, :+, 1, false) < GrassmannContourIndex(2, :+, 1, false)

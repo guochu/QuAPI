@@ -57,41 +57,16 @@ end
 # 精度：核内容对严格方案（exact_fermionic_Δτ/Δt 参照）的残差按 V⁴ 标度
 # （比值≈16）——与玻色 non-diagonal PT 同级（O(V²) 系数精确 + V⁴ 截断）。
 # 整体 Z/ρ 另带一个 O(V²) 归一化常数（"跳去又跳回"泄漏 = exact_fermionic_*
-# 的 prefactor；迹归一化的观测量中自动消去）。BCS τ 轮廓按块同构移位（严格
-# BCS 链验证待补）；BCS 实时与混合轮廓暂沿用旧装配。
+# 的 prefactor；迹归一化的观测量中自动消去）。
+#
+# 2026-10-30 生效范围收缩（与 contourindex.jl 访问器逐轮廓对齐）：仅
+# 实时 Keldysh（单 flavor）保留顶点位移（ED 验证通过、误差常数好 ~25×）。
+# τ 环位移使 g(τ) 离散误差常数恶化 ~30×（GTEMPO Toulouse 基准）、mixed
+# 位移与物理 ED 矛盾 6–7% 且不随 δt 收敛（GTEMPO 全部 mixed ED 套件）——
+# 两者连同 BCS τ 均回退 cell（节点值）读取（证据与复现：
+# bugrepots/dense_mixed_vertexshift_convention.md）；BCS mixed 的位移与
+# 访问器互一致（严格 BCS 链验证待补）；BCS RT 暂沿用旧装配。
 
-function _shift_τblock!(D::AbstractMatrix, C::AbstractMatrix, n::Int, rowpos, colpos)
-    # 单个 (ā,a) 型块（或反常 (ā,ā)/(a,a) 块）的顶点移位：rowpos(i)/colpos(j)
-    # 给出块内 (āᵢ, aⱼ) 的腿位；生成值从块的 Toeplitz 读取（滞后偏一格重组）
-    n == 1 && return
-    c = Vector{eltype(C)}(undef, n - 1)
-    c[1] = C[rowpos(1), colpos(1)]              # c₁ = 块对角（等时和）
-    for k in 2:(n - 1)
-        c[k] = C[rowpos(k), colpos(1)]          # c_k = 滞后 k−1（节点 k → 1）
-    end
-    c₀ = C[rowpos(1), colpos(2)]                # c₀ = 滞后 −1（节点 1 → 2）
-    for i in 1:n, j in 1:n
-        D[rowpos(i), colpos(j)] = i == j ? c₀ : i > j ? c[i-j] : -c[n+i-j]
-    end
-    return
-end
-
-function _vertex_shifted_τ(C::AbstractMatrix, n::Int)
-    D = copy(C)
-    _shift_τblock!(D, C, n, i -> 2i, j -> 2j - 1)
-    return Matrix(D)
-end
-
-function _vertex_shifted_bcs_τ(C::AbstractMatrix, n::Int)
-    # BCS τ（每节点 a↑,ā↑,a↓,ā↓ 四腿）：正常块 (ā↑,a↑)/(ā↓,a↓) 与反常块
-    # (ā↑,ā↓)/(a↓,a↑) 逐块做同构移位（顶点统一在节点；BCS 严格链验证待补）
-    D = copy(C)
-    _shift_τblock!(D, C, n, i -> 4i - 2, j -> 4j - 3)
-    _shift_τblock!(D, C, n, i -> 4i, j -> 4j - 1)
-    _shift_τblock!(D, C, n, i -> 4i - 2, j -> 4j)
-    _shift_τblock!(D, C, n, i -> 4i - 1, j -> 4j - 3)
-    return Matrix(D)
-end
 
 function _vertex_shifted_rt(C::AbstractMatrix{T}, N::Int) where {T}
     pos(j0, br, ā) = 4 * j0 + (br === :+ ? 0 : 2) + (ā ? 2 : 1)
@@ -115,91 +90,72 @@ function _vertex_shifted_rt(C::AbstractMatrix{T}, N::Int) where {T}
     return D
 end
 
-function _vertex_shifted_mixed(C::AbstractMatrix, Nτ::Int, Nt::Int)
-    # 混合轮廓顶点移位（数值标定 vs exact_fermionic_Δm，Richardson O(V²)）：
-    #   行源 r：τ_j→τ_{j−1}（j≥2；τ₁ 无源）；+₁→τ_Nτ；+_j→+_{j−1}（j≥2）；
-    #          −_j→−_j（j ≤ Nt；−_{Nt+1} 无源）
-    #   列源 c：τ_k→τ_k；+_k→+_k（k ≤ Nt；+_{Nt+1} 无源）；−_k→−_{k−1}（k≥2；−₁ 无源）
-    #   符号 s：行源、列源恰一个在 + 支时取 −1（+₁ 行的源是 τ_Nτ，行侧不算 + 支）
-    ipos(b, j, ā) = 2 * _mxnode(b, j, Nτ) - (ā ? 0 : 1)
-    D = zero(C)
-    for b1 in (:τ, :+, :-), j1 in _mjran(b1, Nτ, Nt),
-        b2 in (:τ, :+, :-), j2 in _mjran(b2, Nτ, Nt)
-        r = b1 === :τ ? (j1 ≥ 2 ? (:τ, j1 - 1) : nothing) :
-            b1 === :+ ? (j1 == 1 ? (:τ, Nτ) : (:+, j1 - 1)) :
-            (j1 ≤ Nt ? (:-, j1) : nothing)
-        c = b2 === :τ ? (:τ, j2) :
-            b2 === :+ ? (j2 ≤ Nt ? (:+, j2) : nothing) :
-            (j2 ≥ 2 ? (:-, j2 - 1) : nothing)
-        (r === nothing || c === nothing) && continue
-        # 符号：恰一支为 + 时取 −1；+₁ 行例外（其源为 τ_Nτ 行，跨支读不翻符号）
-        s = ((b1 === :+ && j1 ≥ 2) ⊻ (b2 === :+)) ? -1 : 1
-        D[ipos(b1, j1, true), ipos(b2, j2, false)] =
-            s * C[ipos(r[1], r[2], true), ipos(c[1], c[2], false)]
-    end
-    return Matrix(D)
-end
 
 # 混合轮廓链位：τ_j（j=1..Nτ）在前，随后按时间 jj=1..Nt+1 的 (+,−) 对
 function _mxnode(b::Symbol, j::Int, Nτ::Int)
-    b === :τ && return j
-    return Nτ + 2 * (j - 1) + (b === :+ ? 1 : 2)
+	b === :τ && return j
+	return Nτ + 2 * (j - 1) + (b === :+ ? 1 : 2)
 end
 _mjran(b::Symbol, Nτ::Int, Nt::Int) = b === :τ ? (1:Nτ) : (1:Nt+1)
 
 # 行/列源与符号（单 flavor 混合轮廓；BCS 混合逐 band 同构复用）
 function _mx_maps(b1::Symbol, j1::Int, b2::Symbol, j2::Int, Nτ::Int, Nt::Int)
-    r = b1 === :τ ? (j1 ≥ 2 ? (:τ, j1 - 1) : nothing) :
-        b1 === :+ ? (j1 == 1 ? (:τ, Nτ) : (:+, j1 - 1)) :
-        (j1 ≤ Nt ? (:-, j1) : nothing)
-    c = b2 === :τ ? (:τ, j2) :
-        b2 === :+ ? (j2 ≤ Nt ? (:+, j2) : nothing) :
-        (j2 ≥ 2 ? (:-, j2 - 1) : nothing)
-    s = ((b1 === :+ && j1 ≥ 2) ⊻ (b2 === :+)) ? -1 : 1
-    return r, c, s
+	r = b1 === :τ ? (j1 ≥ 2 ? (:τ, j1 - 1) : nothing) :
+		b1 === :+ ? (j1 == 1 ? (:τ, Nτ) : (:+, j1 - 1)) :
+		(j1 ≤ Nt ? (:-, j1) : nothing)
+	c = b2 === :τ ? (:τ, j2) :
+		b2 === :+ ? (:+, j2) : (j2 ≥ 2 ? (:-, j2 - 1) : nothing)
+	s = ((b1 === :+ && j1 ≥ 2) ⊻ (b2 === :+)) ? -1 : 1
+	return r, c, s
 end
 
 function _vertex_shifted_bcs_mixed(C::AbstractMatrix, Nτ::Int, Nt::Int)
-    # BCS 混合（每节点 a↑,ā↑,a↓,ā↓ 四腿）：正常块 (ā↑,a↑)/(ā↓,a↓) 与反常块
-    # (ā↑,ā↓)/(a↓,a↑) 按单 flavor 规则逐块同构移位（严格 BCS 链验证待补）
-    ipos(b, j, band, ā) = 4 * (_mxnode(b, j, Nτ) - 1) + (band - 1) * 2 + (ā ? 2 : 1)
-    D = zero(C)
-    blocks = (((1, true, 1, false), (1, true, 1, false)),   # (ā↑,a↑)=uu
-              ((2, true, 2, false), (2, true, 2, false)),   # (ā↓,a↓)=dd
-              ((1, true, 2, true), (1, true, 2, true)),     # (ā↑,ā↓)=ud
-              ((2, false, 1, false), (2, false, 1, false))) # (a↓,a↑)=du
-    for b1 in (:τ, :+, :-), j1 in _mjran(b1, Nτ, Nt),
-        b2 in (:τ, :+, :-), j2 in _mjran(b2, Nτ, Nt)
-        r, c, s = _mx_maps(b1, j1, b2, j2, Nτ, Nt)
-        (r === nothing || c === nothing) && continue
-        for (dst, src) in blocks
-            D[ipos(b1, j1, dst[1], dst[2]), ipos(b2, j2, dst[3], dst[4])] =
-                s * C[ipos(r[1], r[2], src[1], src[2]), ipos(c[1], c[2], src[3], src[4])]
-        end
-    end
-    return Matrix(D)
+	# BCS 混合（每节点 a↑,ā↑,a↓,ā↓ 四腿）：正常块 (ā↑,a↑)/(ā↓,a↓) 与反常块
+	# (ā↑,ā↓)/(a↓,a↑) 按单 flavor 规则逐块同构移位（严格 BCS 链验证待补）
+	ipos(b, j, band, ā) = 4 * (_mxnode(b, j, Nτ) - 1) + (band - 1) * 2 + (ā ? 2 : 1)
+	D = zero(C)
+	blocks = (((1, true, 1, false), (1, true, 1, false)),   # (ā↑,a↑)=uu
+			  ((2, true, 2, false), (2, true, 2, false)),   # (ā↓,a↓)=dd
+			  ((1, true, 2, true), (1, true, 2, true)),     # (ā↑,ā↓)=ud
+			  ((2, false, 1, false), (2, false, 1, false))) # (a↓,a↑)=du
+	for b1 in (:τ, :+, :-), j1 in _mjran(b1, Nτ, Nt),
+		b2 in (:τ, :+, :-), j2 in _mjran(b2, Nτ, Nt)
+		r, c, s = _mx_maps(b1, j1, b2, j2, Nτ, Nt)
+		(r === nothing || c === nothing) && continue
+		for (dst, src) in blocks
+			D[ipos(b1, j1, dst[1], dst[2]), ipos(b2, j2, dst[3], dst[4])] =
+				s * C[ipos(r[1], r[2], src[1], src[2]), ipos(c[1], c[2], src[3], src[4])]
+		end
+	end
+	return Matrix(D)
 end
 
 function _vertex_shifted_IF(C::AbstractMatrix, bs::Vector{GrassmannContourIndex})
     brs = branch.(bs)
     single = all(b -> b.band == 1, bs)
     mixed = any(==(:τ), brs) && any(b -> b === :+ || b === :-, brs)
-    if all(==(:τ), brs) && single
-        return _vertex_shifted_τ(C, length(bs) ÷ 2)
-    elseif all(==(:τ), brs)                     # BCS τ：逐块移位（严格链验证待补）
-        return _vertex_shifted_bcs_τ(C, length(bs) ÷ 4)
-    elseif !mixed && single
-        return _vertex_shifted_rt(C, length(bs) ÷ 4 - 1)
-    elseif mixed && single
-        Nτ = count(==(:τ), brs) ÷ 2
-        Nt = (length(brs) - count(==(:τ), brs)) ÷ 4 - 1
-        return _vertex_shifted_mixed(C, Nτ, Nt)
-    elseif mixed                                 # BCS 混合：逐块同构移位（严格链验证待补）
-        Nτ = count(b -> branch(b) === :τ && b.band == 1, bs) ÷ 2
+    # 2026-10-30 与访问器（contourindex.jl）逐轮廓对齐——只有实时 Keldysh
+    # （单 flavor）保留顶点位移，其余轮廓回退 cell（节点值）读取：
+    #   · 实时 Keldysh（单 flavor）：位移保留——ED 验证通过，误差常数好 ~25×；
+    #   · τ 环：回退——顶点重组使 g(τ) 离散误差常数恶化 ~30×（0.017 vs
+    #     0.0006 @δτ=0.125，同为一阶；GTEMPO Toulouse 基准
+    #     performance/firstorder/vertex_shift_accuracy.jl）；
+    #   · mixed：回退——顶点位移与物理 ED 矛盾（GTEMPO 全部 mixed ED 套件
+    #     偏差 6–7% 且不随 δt 收敛；cell 读取全部通过；证据与复现见
+    #     bugrepots/dense_mixed_vertexshift_convention.md）；
+    #   · BCS τ：随访问器回退 cell 读取；BCS mixed：访问器与 Dense 均为
+    #     位移版（互一致，严格 BCS 链验证待补）；BCS RT：暂沿用旧装配。
+    if single && !mixed
+        all(b -> b === :τ, brs) && return C          # τ 环：raw（g(τ) 常数恶化 30×）
+        return _vertex_shifted_rt(C, length(bs) ÷ 4 - 1)  # RT 单 flavor：位移保留（ED ✓）
+    elseif !mixed
+        return C                                     # BCS RT：暂沿用旧装配
+    elseif !all(b -> b.band == 1, bs)
+        Nτ = count(b -> b.branch === :τ && b.band == 1, bs) ÷ 2
         Nt = (length(bs) - count(==(:τ), brs)) ÷ 8 - 1
-        return _vertex_shifted_bcs_mixed(C, Nτ, Nt)
+        return _vertex_shifted_bcs_mixed(C, Nτ, Nt)  # BCS mixed：与访问器一致（严格链验证待补）
     end
-    return C                                    # BCS RT 暂沿用旧装配
+    return C                                         # mixed 单 flavor：raw（ED 矛盾，回退）
 end
 
 GrassmannHybridizationMatrix(x::IFSource) =
