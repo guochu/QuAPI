@@ -153,3 +153,17 @@ end
   `transpose` 对两矩阵显式 `Matrix(transpose(·))` 收集（`transpose(Matrix)`
   返回 `Transpose` 包装器，否则类型不匹配）。
 - 回归：全部 10 测试文件零失败、全部基准 + dense 变体 CSV 逐位不变。
+
+
+## 9. ImagCorrelationFunction 的 data 固化为 CorrelationMatrix{T}（2026-10-30）
+
+- `struct ImagCorrelationFunction{T}`：`data::CorrelationMatrix{T}`（不再接受
+  `M<:AbstractMatrix` 一般矩阵）。inner constructor + 一般矩阵外部构造器抛
+  ArgumentError（含迁移指引：包成 `CorrelationMatrix(ηⱼₖ, ηₖⱼ)`——τ 核按构造
+  即 Toeplitz，不存在需要一般矩阵的场景）。
+- 全库构造点本就全走 CorrelationMatrix（fermionic/bosonic/deprecated/Δτ），
+  零下游迁移；消费面（.data.ηⱼₖ/ηₖⱼ 字段、branch(:τ,:τ)、dense 的
+  _contour_delta→branch）全部不受影响。
+- 重构中修复：Base.size 方法曾在早前编辑中丢失（imagtime 测试 size 报错暴露），
+  已恢复；顺手修复 isapprox 行的损坏。
+- 回归：全部 10 测试文件零失败；imagtime 相关基准 CSV 逐位不变。

@@ -15,13 +15,15 @@
 #   [a₁..aₙ; ā₁..āₙ]（模 1..n = ket contour 节点、n+1..2n = bra），
 #   **site p 的割 = 模式对 [p, n+p]**，即 entropy(s, vcat(sites, n .+ sites))。
 #
-# 配对 → 协方差（一般路径，无 pairing 特殊分支）：系数态是一般配对高斯态
-# |Ψ⟩ = exp(Σ C_ab β†_a β†_b)|0⟩（β†_a 为各腿的产生算符；BCS 的 ξξ/ξ̄ξ̄ 反常
-# 块天然含内）。构造 = 湮灭条件 ξ = b − W b†（W = C − Cᵀ 一般反对称核）的
-# 闭式解：G − conj(W)·G·conj(W) = I、F = −W·Gᵀ（复线性 Kronecker，O(L³)）。
-# 对奇异 W（零耦合）良定义；单 flavor 情形与 GaussianStates 的 `purify`
-#（Choi 路线）熵逐位互证；BCS 情形以稠密 IF 张量的前缀割 SVD 熵为锚
-#（test/osee.jl）。
+# 配对 → 协方差（一般路径，无 pairing 特殊分支；任意 band——BCS 反常块
+# 含内；任意奇异度）：系数态的湮灭子 ξ_a = β_a − Σ_b W_ab β†_b
+#（W = C − Cᵀ 一般反对称核）恒湮灭该态，湮灭子 Nambu 矩阵 V = [I, −W]
+# 恒满行秩。Nambu 协方差 = V 行空间投影子（purify 内部同款的
+# 湮灭子→投影子数学，见 F_utilities/FermionicGaussianStates 讲义 §5），
+# 经 GaussianStates 的 `to_majorana` 变实 Majorana 协方差。零耦合
+#（W = 0）良定义（投影子 = Nambu 恒等，真空态）。
+# 锚：单 flavor 与 `purify`（Choi 路线，覆盖 ā–a 型配对）熵逐位互证；
+# BCS 一般核以稠密 IF 张量的前缀割 SVD 熵为锚（test/osee.jl）。
 # 两个重载按统计性质区分（CorrelationFunction 类型本身不分玻色/费米，
 # 由构造器名承担统计信息）：
 #   fermionic：Δ[ā_p, a_q] 直接配对（复 Δ、任意 contour 均可）。
@@ -57,11 +59,10 @@ using LinearAlgebra
 `FermionicGaussianState` 表示：`Γ = i⟨γγ⟩` 实反对称，`nmodes(s) = L`
 （L = 腿数：单 flavor 2n、BCS 4n）。
 
-一般构造 = 湮灭条件闭式（无 pairing 特殊分支）：反对称核 W = C − Cᵀ，
-ξ = b − W b† 湮灭态 ⟹ G − conj(W)·G·conj(W) = I、F = −W·Gᵀ（复线性
-Kronecker 解，O(L³)）；奇异 W（零耦合）良定义。单 flavor 情形与
-`purify`（Choi 路线）熵逐位互证；BCS 情形以稠密 IF 张量的前缀割 SVD
-熵为锚（test/osee.jl）。
+一般构造 = 湮灭子投影子（无 pairing 特殊分支）：W = C − Cᵀ（一般反对称
+核），V = [I, −W] 湮灭子 Nambu 矩阵，Nambu 协方差 = V 行空间投影子，
+`to_majorana` 变实 Γ；零耦合良定义。单 flavor 与 `purify`（Choi 路线）
+熵逐位互证；BCS 一般核以稠密 IF 张量前缀割 SVD 熵为锚（test/osee.jl）。
 
 OSEE 割约定：模式 = 腿重排为「全部 a 腿（contour 序），全部 ā 腿」；
 单 flavor n 节点即 site p ↔ [p, n+p]（同旧约定）：
@@ -100,44 +101,6 @@ GaussianStates.FermionicGaussianState(x::AbstractCorrelationFunction) =
 GaussianStates.FermionicGaussianState(x::BCSCorrelationFunction) =
     FermionicGaussianState(GrassmannHybridizationMatrix(x))
 
-# 纯 ā–a 配对系数态的二点函数（模式序 [a₁..aₙ; ā₁..āₙ]）。Δ = U·diag(s)·V†
-#（SVD）⟹ 配对模式占据 ε_k = s_k²/(1+s_k²)，
-#   ⟨a†a⟩ = V ε V†，⟨ā†ā⟩ = Ū ε Uᵀ，⟨āa⟩ = −U s̃ V†（s̃ = s/(1+s²)）
-#（GaussianStates v1 `_correlations_pairing` 同式；对稠密系数向量机器精度仲裁）
-function _pairing_correlations(Δ::AbstractMatrix{<:Number})
-    n = size(Δ, 1)
-    Fs = svd(Matrix{ComplexF64}(Δ))
-    ε = Fs.S .^ 2 ./ (1 .+ Fs.S .^ 2)                  # 配对模式占据
-    s̃ = Fs.S ./ (1 .+ Fs.S .^ 2)
-    A = Fs.V * Diagonal(ε) * Fs.V'                     # ⟨a†a⟩
-    B = conj(Fs.U) * Diagonal(ε) * transpose(Fs.U)     # ⟨ā†ā⟩
-    Cc = -(Fs.U * Diagonal(s̃) * Fs.V')                # ⟨āa⟩
-    G = zeros(ComplexF64, 2n, 2n)                      # ⟨b†_i b_j⟩
-    F = zeros(ComplexF64, 2n, 2n)                      # ⟨b_i b_j⟩
-    G[1:n, 1:n] .= A
-    G[n+1:2n, n+1:2n] .= B
-    F[1:n, n+1:2n] .= .-transpose(Cc)                  # ⟨a_q ā_p⟩ = −⟨ā_p a_q⟩
-    F[n+1:2n, 1:n] .= Cc
-    return G, F
-end
-
-# (G, F) → Majorana 协方差 Γ_ab = i⟨γ_aγ_b⟩（γ_{2m−1} = b_m + b_m†、
-# γ_{2m} = i(b_m† − b_m)），实反对称——b_m b_n† 型反厄米组合的期望纯虚，
-# 任意复 (G, F) 下恒实。
-function _majorana_covariance(G::AbstractMatrix{<:Number}, F::AbstractMatrix{<:Number})
-    n = size(G, 1)
-    M = zeros(ComplexF64, 2n, 2n)                      # ⟨γ_aγ_b⟩
-    for i in 1:n, j in 1:n
-        δ = ifelse(i == j, 1.0, 0.0)
-        M[2i-1, 2j-1] = F[i,j] + δ - G[j,i] + G[i,j] + conj(F[j,i])
-        M[2i-1, 2j]   = 1im * (δ - G[j,i] - G[i,j] - F[i,j] - conj(F[i,j]))
-        M[2i, 2j-1]   = 1im * (G[i,j] + G[j,i] + F[j,i] + conj(F[j,i]) - δ)
-        M[2i, 2j]     = conj(F[i,j]) + G[i,j] + δ - G[j,i] - F[i,j]
-    end
-    Γ = real.(1im .* M)
-    return (Γ .- transpose(Γ)) ./ 2                    # 数值反对称化
-end
-
 # ------------------------------------------------------------------ #
 # bosonic：IF 系数态（实 (x,p) 协方差；d→∞ 高斯极限）
 # ------------------------------------------------------------------ #
@@ -156,14 +119,8 @@ end
 
 `M = exp(−Δ)`（奇异值 `e^{−λ_k(Δ)} < 1`）：玻色系数向量 `exp(Σ Δ b†b)`
 向量化的直接配对振幅 `exp(+Δ)` 奇异值 > 1，`I − W²` 不定、协方差公式数值
-失败；`exp(−Δ)` 与之只差每模粒子–空穴反射，时间割 Schmidt 谱相同、熵不变
-（几何分布 `p_n ∝ t^{2n}` 在 `t ↔ 1/t` 下不变）。OSEE：
-
-```julia
-s = BosonicGaussianState(corr)
-n = nmodes(s) ÷ 2                              # contour 节点数
-entropy(s, vcat(sites, n .+ sites))            # site p ↔ 模式对 [p, n+p]
-```
+失败；`exp(−Δ)` 与之只差每模粒子–空穴反射，时间割 Schmidt 谱相同、
+熵不变（TEMPO/osee 报告 §5.2；几何分布 p_n ∝ t^{2n} 在 t ↔ 1/t 下不变）。
 
 `BosonicHybridizationMatrix` 重载仅接受 `split=false`（`Δ` 为普通矩阵）。
 `split=true` 存的是等时算符次序拆分 `BosonicSplitDelta(M1, M2)`——它不是
@@ -191,7 +148,7 @@ end
 GaussianStates.BosonicGaussianState(x::AbstractCorrelationFunction) =
     BosonicGaussianState(BosonicHybridizationMatrix(x))
 
-# 纯配对系数向量 |Ψ⟩ = exp(½b†Wb†)|0⟩ 的 (x,p) 协方差（W 实对称、奇异值
+# 玻色配对系数向量 |Ψ⟩ = exp(½b†Wb†)|0⟩ 的 (x,p) 协方差（W 实对称、奇异值
 # < 1）。湮灭条件 (b_i − Σ_j W_ij b†_j)|Ψ⟩ = 0 给出
 #   G = (I − WWᵀ)⁻¹ = ⟨bb†⟩，K = W Gᵀ = ⟨bb⟩，⟨b†b⟩ = Gᵀ − I
 #   σ_xx = G + K − ½I，σ_pp = G − K − ½I，σ_xp = 0（实 W）

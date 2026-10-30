@@ -36,9 +36,16 @@ coincide and the exponent degenerates to the single-operator (ADT) form
 for diagonal `s` this is exactly the exponent of the standard
 imaginary-time QuAPI/TEMPO ADT framework.
 """
-struct ImagCorrelationFunction{M<:AbstractMatrix} <: AbstractCorrelationFunction
-    data::M
+struct ImagCorrelationFunction{T} <: AbstractCorrelationFunction
+    data::CorrelationMatrix{T}
+
+    ImagCorrelationFunction(data::CorrelationMatrix{T}) where {T} = new{T}(data)
 end
+
+ImagCorrelationFunction(data::AbstractMatrix) = throw(ArgumentError(
+    "ImagCorrelationFunction requires CorrelationMatrix (Toeplitz-vector) storage; " *
+    "got $(typeof(data)). Wrap the two lags as CorrelationMatrix(ηⱼₖ, ηₖⱼ) — general " *
+    "matrices are not accepted (the τ kernel is Toeplitz by construction)."))
 
 Base.size(x::ImagCorrelationFunction, i::Int...) = size(x.data, i...)
 
