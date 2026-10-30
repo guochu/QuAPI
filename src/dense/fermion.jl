@@ -381,9 +381,10 @@ GTEMPO 链上的左边界辅助腿不进入 IF。
 `ArgumentError`。
 
 前缀割（链前 `k` 个节点块，即腿 `1..2k·bands`）的 plain SVD 熵等于
-系数态的 OSEE（协方差快速算法，`GaussianStates.osee`），可用于交叉
-验证；节点 `p` 在 Δ 行序（`[:+; :-; :τ]`，分支内时间升序）中的指标即
-GaussianStates 配对态的模式指标。
+系数态的 OSEE（协方差快速算法，`QuAPIGaussianStatesExt`：
+`FermionicGaussianState(corr)` + `entropy`），可用于交叉验证；节点 `p`
+在 Δ 行序（`[:+; :-; :τ]`，分支内时间升序）中的指标即 GaussianStates
+系数态的模式指标。
 """
 function GrassmannIF(h::GrassmannHybridizationMatrix)
     L = length(h.basis)

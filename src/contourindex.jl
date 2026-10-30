@@ -186,10 +186,13 @@ end
 function Base.getindex(x::AbstractMixedCorrelationFunction,
                        i::GrassmannContourIndex, j::GrassmannContourIndex)
     (i.conj == j.conj) && return zero(eltype(x.ηⱼₖ))
-    m = _vs_mixed_acc(branch(i), i.j, branch(j), j.j,
-                      length(x.ξⱼₖ), length(x.ηⱼₖ) - 1)
-    m === nothing && return zero(eltype(x.ηⱼₖ))
-    v = m[5] * _mixed_branch_elem(x, m[1], m[3], m[2], m[4])
+    # 2026-10-29：恢复原始（cell）读取，不走 _vs_mixed_acc 顶点位移。判决依据
+    # 是物理 ED：位移版使 GTEMPO 全部 mixed ED 测试偏差 ~6-7%（normalbath
+    # mixedtime 6 项、continuousbath 3 项、multiorbital mixed 3 项全挂，且不随
+    # δt 收敛）；原始读取下全部通过。τ 环与实时 Keldysh 的顶点位移保留（其 ED
+    # 验证通过）。Dense 侧的 mixed 装配若仍带位移则与本访问器不一致——待 Dense
+    # mixed 对齐后可恢复（GTEMPO crosscheck mixed 项已暂时隔离并留 TODO(bug)）。
+    v = _mixed_branch_elem(x, branch(i), branch(j), i.j, j.j)
     return i.conj ? -v : v                  # ā-a 取 −（原约定保留）
 end
 
@@ -238,7 +241,8 @@ function Base.getindex(x::BCSCorrelationFunction,
         Nτ == 1 ? (:τ, 1, :τ, 1, 1) : _vs_τ_acc(i.j, j.j, Nτ)
     elseif bs == (:+, :-)
         return branch(Δb; b1=branch(i), b2=branch(j))[i.j, j.j]
-    else                                    # BCS 混合
+    else                                    # BCS 混合（2026-10-29 同普通 bath 恢复原始读取）
+        return branch(Δb; b1=branch(i), b2=branch(j))[i.j, j.j] * ((i.conj && !j.conj) ? -1 : 1)
         _vs_mixed_acc(branch(i), i.j, branch(j), j.j,
                       length(branch(x.uu; b1=:τ, b2=:τ).ηⱼₖ),
                       length(branch(x.uu; b1=:+, b2=:+).ηⱼₖ) - 1)

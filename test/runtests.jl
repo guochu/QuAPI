@@ -1,11 +1,10 @@
 using Test, LinearAlgebra
 
-# 加载 GaussianStates 触发 QuAPI 的 extension（fermionic_/bosonic_bdg_matrix
-# 的 correlation 方法）；显式导入非导出名 covariance 供测试使用
+# 加载 GaussianStates 触发 QuAPI 的 extension（Fermionic/BosonicGaussianState
+# 的 correlation function 方法）；显式导入测试用到的名字
 using GaussianStates
 using GaussianStates: FermionicGaussianState, BosonicGaussianState,
-                      osee, entropy, covariance, nmodes,
-                      fermionic_bdg_matrix, bosonic_bdg_matrix
+                      entropy, covariance, nmodes, ispure
 using QuAPI
 using QuAPI.Dense
 using ImpurityModelBase

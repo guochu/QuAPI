@@ -2,8 +2,8 @@ println("------------------------------------")
 println("|   GaussianStates extension: OSEE  |")
 println("------------------------------------")
 
-# 测试内小工具（只依赖导出接口，避免调用 QuAPI.Dense 的未导出内部函数）：
-# 2n×2n 辛形式 Ω = ⊕ₖ [[0,1],[−1,0]]（不依赖 GaussianStates 未导出的 _omega）
+# 测试内小工具（只依赖导出接口，避免调用未导出内部函数）：
+# 2n×2n 辛形式 Ω = ⊕ₖ [[0,1],[−1,0]]
 function symplectic_form(n::Int)
     Ω = zeros(2n, 2n)
     for k in 1:n
@@ -14,10 +14,11 @@ function symplectic_form(n::Int)
 end
 
 @testset "GaussianStates extension" begin
-    # ---------------- contour Δ 组装（经 bdg 重载间接验证） ----------------
-    # 新约定（顶点移位，2026-10）：与稠密 IF（GrassmannHybridizationMatrix）
-    # 同一 Δ —— 独立性体现在"不调用 fermionic_bdg_matrix 自身"；约定本身的
-    # 正确性由 performance/fermionicG4.jl 的 V⁴ 平台检验背书。
+    # ---------------- Δ 提取约定（经构造器间接验证） ----------------
+    # 新约定（GaussianStates v7：态直接由 corr 构造）：扩展读的 Δ 与稠密 IF
+    # （GrassmannHybridizationMatrix，顶点移位）同一 —— 独立性体现在
+    # "不调用扩展自身的 Δ 提取"；约定本身的正确性由下方解析锚、
+    # 稠密 SVD 对照与 performance/fermionicG4.jl 的 V⁴ 平台检验背书。
     function delta_ref(corr)
         C = Matrix(GrassmannHybridizationMatrix(corr).Δ)
         n = size(C, 1) ÷ 2
@@ -33,85 +34,112 @@ end
     corrm = fermionic_Δm(semicircular(), β=2.0, Nτ=4, t=1.0, Nt=3, μ=0.2)
     Δm_ref = delta_ref(corrm)
 
-    # ---------------- 费米：fermionic_bdg_matrix(corr) → 系数态 OSEE ----------
+    # ---------------- 费米：FermionicGaussianState(corr) → 系数态 OSEE ----------
     for (corr, Δref) in ((corrτ, Δτ_ref), (corrt, Δt_ref), (corrm, Δm_ref))
-        W = fermionic_bdg_matrix(corr)
+        s = FermionicGaussianState(corr)
         n = size(Δref, 1)
-        @test size(W) == (2n, 2n)
-        # 反对称块结构：W[ā_p, a_q] = Δ_pq ⟹ 左下 = Δ、右上 = −Δᵀ
-        @test W == [zeros(n, n) -transpose(Δref); Δref zeros(n, n)]
-        @test W ≈ -transpose(W)
-        s = FermionicGaussianState(W)
-        @test !s.isbdg
-        Γ = GaussianStates.covariance(s)                # 未导出，限定名（惰性触发）
+        @test nmodes(s) == 2n                        # doubled：模 1..n = ket、n+1..2n = bra
+        # 约定：corr 入口 = 腿矩阵 [ā_p, a_q] 位放 Δ 的矩阵级入口（与旧
+        # W 块测试同一约定声明：W[ā_p, a_q] = Δ_pq ⟺ C[2p, 2q−1] = Δ_pq）
+        C = zeros(eltype(Δref), 2n, 2n)
+        for i in 1:n, j in 1:n
+            C[2i, 2j-1] = Δref[i, j]
+        end
+        sref = FermionicGaussianState(GrassmannHybridizationMatrix(basis(corr), C))
+        @test covariance(sref) ≈ covariance(s) atol = 1e-13
+        Γ = covariance(s)
         @test Γ isa Matrix{Float64}                # 任意向量 Majorana 协方差恒实
+        @test Γ ≈ -transpose(Γ)
         @test maximum(abs, Γ^2 + I) < 1e-10        # 纯态
-        @test osee(s, collect(1:2n)) ≈ 0.0 atol = 1e-10   # 无 bipartition
+        @test ispure(s)
+        @test entropy(s, collect(1:2n)) ≈ 0.0 atol = 1e-10   # 无 bipartition
         # 互补对称（纯态）：前缀割 = 余下割
         k = div(n, 2)
-        @test osee(s, vcat(1:k, n+1:n+k)) ≈
-              osee(s, vcat(k+1:n, n+k+1:2n)) atol = 1e-10
-        @test_throws BoundsError osee(s, [0])
-        @test_throws ArgumentError osee(s, [1, 1])
+        @test entropy(s, vcat(1:k, n+1:n+k)) ≈
+              entropy(s, vcat(k+1:n, n+k+1:2n)) atol = 1e-10
+        @test_throws BoundsError entropy(s, [0])
+        @test_throws ArgumentError entropy(s, [1, 1])
     end
 
-    # 跨 site 单配对解析（矩阵级，验证 W → 态 → osee 的约定链）：
+    # 跨 site 单配对解析（矩阵级，验证 Δ → 态 → entropy 的约定链）：
     # Δ[ā₂, a₁] = d 只配对 ā₂–a₁ ⟹ site 割 1|2 劈开该配对，两割同熵
     d = 0.7 + 0.2im
-    Δ = [0 0; d 0]
-    n = 2
-    W = zeros(ComplexF64, 2n, 2n); W[n+1:2n, 1:n] .= Δ
-    s2 = FermionicGaussianState(W - transpose(W))
+    b2 = [GrassmannContourIndex(j, :τ, 1, c) for j in 1:2 for c in (false, true)]
+    Cd = zeros(ComplexF64, 4, 4)
+    Cd[4, 1] = d                                     # C[ā₂, a₁]
+    s2 = FermionicGaussianState(GrassmannHybridizationMatrix(b2, Cd))
     ε = abs(d)^2 / (1 + abs(d)^2)
     h2(p) = -p * log(p) - (1 - p) * log(1 - p)
-    @test osee(s2, [1, 3]) ≈ h2(ε) atol = 1e-12
-    @test osee(s2, [2, 4]) ≈ h2(ε) atol = 1e-12
-    @test osee(s2, [1, 3]; α=2) ≈ -log(ε^2 + (1 - ε)^2) atol = 1e-12
+    @test entropy(s2, [1, 3]) ≈ h2(ε) atol = 1e-12
+    @test entropy(s2, [2, 4]) ≈ h2(ε) atol = 1e-12
+    @test entropy(s2, [1, 3]; α=2) ≈ -log(ε^2 + (1 - ε)^2) atol = 1e-12
+    # 稠密 IF 侧同值：I = 1 + d·ξ₄ξ₁，节点前缀割的 plain SVD 熵同 h2(ε)
+    #（两条路径（协方差 vs SVD）在同一解析值上会合）
+    gif2 = GrassmannIF(GrassmannHybridizationMatrix(b2, Cd))
+    sv = svdvals(reshape(gif2.data, 4, 4))
+    p = abs2.(sv); p ./= sum(p)
+    @test -sum(x * log(x) for x in p if x > 1e-15) ≈ h2(ε) atol = 1e-12
 
-    # ---------------- 玻色：bosonic_bdg_matrix(corr) → 系数态 OSEE ----------
+    # ---------------- 玻色：BosonicGaussianState(corr) → 系数态 OSEE ----------
     # 玻色 bath 谱须全正（BE 分布要求 ε > μ），semicircular 含负能量不适用
     f0b = spectrum(ε -> exp(-ε), lb=0.5, ub=8.0)
     corr_b = bosonic_Δτ(f0b, β=2.0, N=4)
-    Wb = bosonic_bdg_matrix(corr_b)
+    sb = BosonicGaussianState(corr_b)
+    # 约定：Δ 与 BosonicHybridizationMatrix（contour_ordering 行序）同源
     Δb = real.([branch(corr_b; b1=:τ, b2=:τ)[i, j] for i in 1:4, j in 1:4])
-    @test Wb == [zeros(4, 4) exp(-Δb); transpose(exp(-Δb)) zeros(4, 4)]
+    hb = BosonicHybridizationMatrix([BosonicContourIndex(j, :τ) for j in 1:4], Δb)
+    @test covariance(BosonicGaussianState(hb)) ≈ covariance(sb) atol = 1e-13
     # 显式 BosonicHybridizationMatrix 入口：split=false 与 correlation 入口一致；
-    # split=true 的 BosonicSplitDelta(M1, M2) 是等时次序拆分，绝不等于 BdG 的
-    # (h, g) 块，必须报错而不是静默 dispatch 到 bosonic_bdg_matrix(h, g)
-    @test bosonic_bdg_matrix(BosonicHybridizationMatrix(corr_b)) == Wb
+    # split=true 的 BosonicSplitDelta(M1, M2) 是等时次序拆分，不是配对振幅，
+    # 必须报错而不是静默拆成两个矩阵
+    @test covariance(BosonicGaussianState(BosonicHybridizationMatrix(corr_b))) ≈
+          covariance(sb) atol = 1e-13
     hsplit = BosonicHybridizationMatrix(corr_b; split=true)
     @test !(hsplit.Δ isa Tuple)                    # split 结果为专用类型，非裸元组
-    @test_throws ArgumentError bosonic_bdg_matrix(hsplit)
-    @test_throws MethodError bosonic_bdg_matrix(hsplit.Δ...)   # 不可 splat 成 (h, g)
-    @test Wb == transpose(Wb) && Wb isa Matrix{Float64}
-    @test maximum(abs, eigvals(Symmetric(Wb))) < 1        # 谱 ⊂ (−1,1)
-    sb = BosonicGaussianState(Wb)
-    @test !sb.isbdg
-    @test_throws ArgumentError entropy(sb)                # 非密度矩阵
-    Γb = GaussianStates.covariance(sb)
-    Ω4 = symplectic_form(8)                               # 8 模（16×16）的辛形式
+    @test_throws ArgumentError BosonicGaussianState(hsplit)
+    @test_throws MethodError BosonicGaussianState(hsplit.Δ...)   # 不可 splat
+    Γb = covariance(sb)
+    @test Γb isa Matrix{Float64} && Γb ≈ transpose(Γb)
+    Ω4 = symplectic_form(8)                         # 8 模（16×16）的辛形式
     ν = abs.(eigvals(Ω4 * Γb))
-    @test maximum(abs.(ν .- 0.5)) < 1e-10                 # 纯态：辛本征值全 ½
-    @test osee(sb, collect(1:8)) ≈ 0.0 atol = 1e-10
+    @test maximum(abs.(ν .- 0.5)) < 1e-10           # 纯态：辛本征值全 ½
+    @test ispure(sb)
+    @test entropy(sb) ≈ 0.0 atol = 1e-10            # 纯态整态熵为 0（v7：entropy
+    @test entropy(sb, collect(1:8)) ≈ 0.0 atol = 1e-10  # 对任意 GaussianState 有定义）
     # site p ↔ 模式对 [p, n+p]；纯态互补对称
-    @test osee(sb, vcat([1, 2], 4 .+ [1, 2])) ≈
-          osee(sb, vcat(3:4, 7:8)) atol = 1e-10
+    @test entropy(sb, vcat([1, 2], 4 .+ [1, 2])) ≈
+          entropy(sb, vcat(3:4, 7:8)) atol = 1e-10
+    @test_throws BoundsError entropy(sb, [0])
+    @test_throws ArgumentError entropy(sb, [1, 1])
     # 复 Δ（实时 contour）报错
-    @test_throws ArgumentError bosonic_bdg_matrix(corrt)
+    @test_throws ArgumentError BosonicGaussianState(corrt)
 
-    # 玻色 TMSV 解析（矩阵级）：M = m·[[0,1],[1,0]] ⟹ 配对 (c₁,d₂)、(c₂,d₁)
-    # 跨 site ⟹ site 割（模式对 [p, n+p]）= 单模热熵（tanh r = m）
-    m = 0.45
-    M = m .* [0.0 1.0; 1.0 0.0]
-    Wm = [zeros(2, 2) M; transpose(M) zeros(2, 2)]
-    sm = BosonicGaussianState(Wm)
+    # 玻色解析（矩阵级）：Δ = diag(λ₁,λ₂) ⟹ M = diag(t₁,t₂)（t_k = e^{−λ_k}），
+    # 系数态 = 两个独立双模压缩对 (c₁d₁)、(c₂d₂)；单模割劈开一对 ⟹ 单模热熵
+    #（site 割 [p, n+p] 此时含完整配对对，熵为 0——交叉配对下的 site 割
+    # 解析由费米单配对锚与下方 d→∞ PT 夹逼覆盖）
+    λ1, λ2 = 1.1, 0.75
+    hd = BosonicHybridizationMatrix([BosonicContourIndex(j, :τ) for j in 1:2],
+                                    [λ1 0.0; 0.0 λ2])
+    sd = BosonicGaussianState(hd)
+    t1, t2 = exp(-λ1), exp(-λ2)
     n̄(x) = x^2 / (1 - x^2)
     SvN(x) = (n̄(x) + 1) * log(n̄(x) + 1) - n̄(x) * log(n̄(x))
-    # site 割 {c_p,d_p} 同时劈开两条配对（c₁–d₂ 与 c₂–d₁）⟹ 2 × 单模热熵
-    @test osee(sm, [1, 3]) ≈ 2SvN(m) atol = 1e-12        # site 1 = 模式 {1, 3}
-    @test osee(sm, [2, 4]) ≈ 2SvN(m) atol = 1e-12        # 互补割同熵
-    @test osee(sm, [1, 2, 3, 4]) ≈ 0.0 atol = 1e-12
-    @test osee(sm, [1, 3]; α=2) ≈ 2log(1 + 2n̄(m)) atol = 1e-12
+    @test entropy(sd, [1]) ≈ SvN(t1) atol = 1e-12
+    @test entropy(sd, [2]) ≈ SvN(t2) atol = 1e-12
+    @test entropy(sd, [1, 2]) ≈ SvN(t1) + SvN(t2) atol = 1e-12   # ket 半空间
+    @test entropy(sd, collect(1:4)) ≈ 0.0 atol = 1e-12
+    @test entropy(sd, [1]; α=2) ≈ log((1 + t1^2) / (1 - t1^2)) atol = 1e-12
+    # 旋转不变性：对称 Δ' = VΛVᵀ ⟹ M' = V diag(t) Vᵀ 奇异值不变，
+    # ket|bra 割的熵只依赖 M 的奇异值（每个奇异值一对跨割双模压缩）
+    θ = 0.37
+    V = [cos(θ) -sin(θ); sin(θ) cos(θ)]
+    hr = BosonicHybridizationMatrix([BosonicContourIndex(j, :τ) for j in 1:2],
+                                    V * [λ1 0.0; 0.0 λ2] * transpose(V))
+    sr = BosonicGaussianState(hr)
+    @test entropy(sr, [1, 2]) ≈ SvN(t1) + SvN(t2) atol = 1e-12
+    @test entropy(sr, collect(1:4)) ≈ 0.0 atol = 1e-12
+    @test ispure(sr)
 end
 
 # ---------------- 玻色 OSEE ↔ BosonicPT IF 的纠缠熵（d→∞ 收敛） ----------------
@@ -131,12 +159,11 @@ end
     n = length(h.basis)                                # contour 节点数
     site = h.basis[1].j                                # 虚时 Δ 行序 (:τ,1..n)，链首为 n
 
-    sb = BosonicGaussianState(bosonic_bdg_matrix(h))
-    @test !sb.isbdg
-    Γb = GaussianStates.covariance(sb)
+    sb = BosonicGaussianState(h)
+    Γb = covariance(sb)
     Ω = symplectic_form(2n)                            # Γ 为 4n×4n（2n 个 doubled 模）
     @test maximum(abs.(abs.(eigvals(Ω * Γb)) .- 0.5)) < 1e-6     # 纯态（λ_min 小 ⟹ 近奇异）
-    S_fast = osee(sb, [site, n + site])                    # d→∞ 高斯 OSEE
+    S_fast = entropy(sb, [site, n + site])             # d→∞ 高斯 OSEE
 
     # BosonicPT（PT 耦合 a†/a）：hyb = 截断湮灭算符；data 指标序
     # (k₁,b₁,k₂,b₂)。OSEE 取 vectorized operator 的 ket|bra 二分，
@@ -182,14 +209,14 @@ end
         append!(expected, [GrassmannContourIndex(j, b, 1, c) for (b, j) in chain
                                                          for c in (false, true)])
         @test T.basis == expected
-        s = FermionicGaussianState(fermionic_bdg_matrix(corr))
+        s = FermionicGaussianState(corr)
         v = T.data
         for k in 1:n-1                                # 链前缀 k 个节点块
             pref = unique([(bi.branch, bi.j) for bi in T.basis[1:2k]])  # 前 k 个节点
             @test length(pref) == k
             modes = [findfirst(==(bi), chain) for bi in pref]
             S_dense = svent(reshape(v, 2^(2k), 2^(2(n - k))))
-            @test osee(s, vcat(modes, n .+ modes)) ≈ S_dense atol = 1e-10
+            @test entropy(s, vcat(modes, n .+ modes)) ≈ S_dense atol = 1e-10
         end
         # 整割 = 0（纯系数向量）
         @test svent(reshape(v, 2^(2n), 1)) ≈ 0.0 atol = 1e-12

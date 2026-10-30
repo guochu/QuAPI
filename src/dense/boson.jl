@@ -37,7 +37,7 @@ contour 杂交矩阵 `Δ = M1 + M2` 的**等时算符次序拆分**（`Correlati
 块用 `ηⱼₖ`/`ηₖⱼ` 区分等时两种次序），仅供 [`BosonicIF`](@ref) 的 PT 构造。
 
 它与 BdG 的 `(h, g)` 块（粒子-空穴 / 配对）含义无关，故用独立类型包装：
-不会被误当作两个矩阵 splat 进 `bosonic_bdg_matrix(h, g)`。
+不会被误当作两个矩阵 splat 进二次型算子的 `(h, A)` 块。
 """
 struct BosonicSplitDelta{T<:Number}
     M1::Matrix{T}
