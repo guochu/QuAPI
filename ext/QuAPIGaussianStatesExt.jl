@@ -137,35 +137,23 @@ function GaussianStates.BosonicGaussianState(hm::BosonicHybridizationMatrix)
             "玻色 OSEE 只支持实 Δ（虚时 Matsubara contour）；当前 Δ 含非平凡" *
             "虚部（实时/混合 contour），系数态协方差会复化，快速算法失效"))
     end
-    M = exp(-real.(Δ))                                # 配对振幅（矩阵指数）
+    M = exp(-real.(Δ))                                # 配对振幅（谱半径 < 1 ⟹ 可归一）
     n = size(M, 1)
     W = zeros(2n, 2n)                                 # [[0, M], [Mᵀ, 0]]（实对称）
     W[1:n, n+1:2n] .= M
     W[n+1:2n, 1:n] .= transpose(M)
-    return BosonicGaussianState(_bosonic_pairing_covariance(W))
+    # 一般路径（无 pairing 特殊分支，与费米侧同款）：湮灭子 Nambu 矩阵
+    # V = [I, −W]（2n×4n，恒满行秩），Nambu 协方差 ⟨ββ†⟩ = V 的互补投影子
+    #   𝒞raw = I − V†(VV†)⁻¹V，
+    # to_xp 的约定 C = ½⟨{β,β†}⟩ = 𝒞raw − ½I，(x,p) 协方差 = to_xp(C)。
+    # 零耦合（W = 0）良定义：𝒞raw = I ⟹ Σ = ½I（真空）。
+    V = hcat(Matrix{Float64}(I, 2n, 2n), -W)
+    C_raw = Matrix{Float64}(I, 2n, 2n) - adjoint(V) * ((V * adjoint(V)) \ V)
+    C = C_raw .- Matrix{Float64}(I, 2n, 2n) ./ 2
+    return BosonicGaussianState(GaussianStates.to_xp(C))
 end
 
 GaussianStates.BosonicGaussianState(x::AbstractCorrelationFunction) =
     BosonicGaussianState(BosonicHybridizationMatrix(x))
-
-# 玻色配对系数向量 |Ψ⟩ = exp(½b†Wb†)|0⟩ 的 (x,p) 协方差（W 实对称、奇异值
-# < 1）。湮灭条件 (b_i − Σ_j W_ij b†_j)|Ψ⟩ = 0 给出
-#   G = (I − WWᵀ)⁻¹ = ⟨bb†⟩，K = W Gᵀ = ⟨bb⟩，⟨b†b⟩ = Gᵀ − I
-#   σ_xx = G + K − ½I，σ_pp = G − K − ½I，σ_xp = 0（实 W）
-#（GaussianStates v1 `_bosonic_gamma_pairing` 同式；n=1 与稠密 Fock Choi
-# 仲裁至机器精度，辛本征值全 ½）
-function _bosonic_pairing_covariance(W::AbstractMatrix{<:Real})
-    N = size(W, 1)
-    Id = Matrix{Float64}(I, N, N)
-    G = (Id - W * transpose(W)) \ Id
-    K = W * transpose(G)
-    Σ = zeros(Float64, 2N, 2N)                        # (x₁,p₁,…,x_N,p_N)
-    for i in 1:N, j in 1:N
-        δ = ifelse(i == j, 0.5, 0.0)
-        Σ[2i-1, 2j-1] = G[i,j] + K[i,j] - δ
-        Σ[2i, 2j]     = G[i,j] - K[i,j] - δ
-    end
-    return (Σ .+ transpose(Σ)) ./ 2
-end
 
 end # module
