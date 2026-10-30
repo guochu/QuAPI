@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="820" height="500" viewBox="0 0 820 500">
+<rect width="820" height="500" fill="#ffffff"/>
+<g font-family="system-ui, 'Segoe UI', 'PingFang SC', 'Helvetica Neue', Arial, sans-serif">
+<text x="410.0" y="32" font-size="17" font-weight="600" fill="#1F2328" text-anchor="middle">实时：G>、G< 相对误差 vs δt（T=2，β=4，ϵ_d=1，48 模玻色浴）</text>
+<line x1="86.0" y1="58" x2="86.0" y2="436" stroke="#EAEEF2" stroke-width="1"/>
+<text x="86.0" y="458" font-size="12" fill="#59666E" text-anchor="middle">10⁻³</text>
+<line x1="246.66666666666666" y1="58" x2="246.66666666666666" y2="436" stroke="#EAEEF2" stroke-width="1"/>
+<text x="246.66666666666666" y="458" font-size="12" fill="#59666E" text-anchor="middle">10⁻²</text>
+<line x1="407.3333333333333" y1="58" x2="407.3333333333333" y2="436" stroke="#EAEEF2" stroke-width="1"/>
+<text x="407.3333333333333" y="458" font-size="12" fill="#59666E" text-anchor="middle">10⁻¹</text>
+<line x1="568.0" y1="58" x2="568.0" y2="436" stroke="#EAEEF2" stroke-width="1"/>
+<text x="568.0" y="458" font-size="12" fill="#59666E" text-anchor="middle">10⁰</text>
+<line x1="86" y1="436.0" x2="568" y2="436.0" stroke="#EAEEF2" stroke-width="1"/>
+<text x="76" y="440.0" font-size="12" fill="#59666E" text-anchor="end">10⁻¹²</text>
+<line x1="86" y1="398.2" x2="568" y2="398.2" stroke="#EAEEF2" stroke-width="1"/>
+<text x="76" y="402.2" font-size="12" fill="#59666E" text-anchor="end">10⁻¹¹</text>
+<line x1="86" y1="360.40000000000003" x2="568" y2="360.40000000000003" stroke="#EAEEF2" stroke-width="1"/>
+<text x="76" y="364.40000000000003" font-size="12" fill="#59666E" text-anchor="end">10⁻¹⁰</text>
+<line x1="86" y1="322.59999999999997" x2="568" y2="322.59999999999997" stroke="#EAEEF2" stroke-width="1"/>
+<text x="76" y="326.59999999999997" font-size="12" fill="#59666E" text-anchor="end">10⁻⁹</text>
+<line x1="86" y1="284.79999999999995" x2="568" y2="284.79999999999995" stroke="#EAEEF2" stroke-width="1"/>
+<text x="76" y="288.79999999999995" font-size="12" fill="#59666E" text-anchor="end">10⁻⁸</text>
+<line x1="86" y1="247.0" x2="568" y2="247.0" stroke="#EAEEF2" stroke-width="1"/>
+<text x="76" y="251.0" font-size="12" fill="#59666E" text-anchor="end">10⁻⁷</text>
+<line x1="86" y1="209.20000000000002" x2="568" y2="209.20000000000002" stroke="#EAEEF2" stroke-width="1"/>
+<text x="76" y="213.20000000000002" font-size="12" fill="#59666E" text-anchor="end">10⁻⁶</text>
+<line x1="86" y1="171.39999999999998" x2="568" y2="171.39999999999998" stroke="#EAEEF2" stroke-width="1"/>
+<text x="76" y="175.39999999999998" font-size="12" fill="#59666E" text-anchor="end">10⁻⁵</text>
+<line x1="86" y1="133.60000000000002" x2="568" y2="133.60000000000002" stroke="#EAEEF2" stroke-width="1"/>
+<text x="76" y="137.60000000000002" font-size="12" fill="#59666E" text-anchor="end">10⁻⁴</text>
+<line x1="86" y1="95.80000000000001" x2="568" y2="95.80000000000001" stroke="#EAEEF2" stroke-width="1"/>
+<text x="76" y="99.80000000000001" font-size="12" fill="#59666E" text-anchor="end">10⁻³</text>
+<line x1="86" y1="58.0" x2="568" y2="58.0" stroke="#EAEEF2" stroke-width="1"/>
+<text x="76" y="62.0" font-size="12" fill="#59666E" text-anchor="end">10⁻²</text>
+<rect x="86" y="58" width="482" height="378" fill="none" stroke="#59666E" stroke-width="1.2"/>
+<text x="327.0" y="478" font-size="14" fill="#1F2328" text-anchor="middle">δt</text>
+<text transform="translate(26,247.0) rotate(-90)" font-size="14" fill="#1F2328" text-anchor="middle">max |G>,G< − G_exact| / max|G>_exact|</text>
+<text x="86" y="494" font-size="11" fill="#8A949C">平衡初态取严格 γ（等价于 Δm 虚时段充分收敛）；实时传播用单粒子链。</text>
+<polyline points="471.269028059974,59.483505484255865 422.90354208996104,74.76299719617649 374.53805611994807,88.37849482490351 326.1725701499351,100.94423535398397 277.8070841799222,112.9310488318886 229.44159820990916,124.61694110260035" fill="none" stroke="#1f77b4" stroke-width="2"/>
+<path transform="translate(471.269028059974,59.483505484255865)" d="M-3.4,0a3.4,3.4 0 1,0 6.8,0a3.4,3.4 0 1,0 -6.8,0" fill="#1f77b4" stroke="#1f77b4" stroke-width="1.4"/>
+<path transform="translate(422.90354208996104,74.76299719617649)" d="M-3.4,0a3.4,3.4 0 1,0 6.8,0a3.4,3.4 0 1,0 -6.8,0" fill="#1f77b4" stroke="#1f77b4" stroke-width="1.4"/>
+<path transform="translate(374.53805611994807,88.37849482490351)" d="M-3.4,0a3.4,3.4 0 1,0 6.8,0a3.4,3.4 0 1,0 -6.8,0" fill="#1f77b4" stroke="#1f77b4" stroke-width="1.4"/>
+<path transform="translate(326.1725701499351,100.94423535398397)" d="M-3.4,0a3.4,3.4 0 1,0 6.8,0a3.4,3.4 0 1,0 -6.8,0" fill="#1f77b4" stroke="#1f77b4" stroke-width="1.4"/>
+<path transform="translate(277.8070841799222,112.9310488318886)" d="M-3.4,0a3.4,3.4 0 1,0 6.8,0a3.4,3.4 0 1,0 -6.8,0" fill="#1f77b4" stroke="#1f77b4" stroke-width="1.4"/>
+<path transform="translate(229.44159820990916,124.61694110260035)" d="M-3.4,0a3.4,3.4 0 1,0 6.8,0a3.4,3.4 0 1,0 -6.8,0" fill="#1f77b4" stroke="#1f77b4" stroke-width="1.4"/>
+<line x1="229.44159820990916" y1="124.61694110260035" x2="471.269028059974" y2="66.18747974904157" stroke="#1f77b4" stroke-width="1" stroke-dasharray="5 5" opacity="0.75"/>
+<polyline points="471.269028059974,70.79456898303513 422.90354208996104,93.51880461183127 374.53805611994807,116.26832096072133 326.1725701499351,139.02410433860842 277.8070841799222,161.78145114880846 229.44159820990916,184.53918848740233" fill="none" stroke="#2ca02c" stroke-width="2"/>
+<path transform="translate(471.269028059974,70.79456898303513)" d="M-3.2,-3.2h6.4v6.4h-6.4z" fill="#2ca02c" stroke="#2ca02c" stroke-width="1.4"/>
+<path transform="translate(422.90354208996104,93.51880461183127)" d="M-3.2,-3.2h6.4v6.4h-6.4z" fill="#2ca02c" stroke="#2ca02c" stroke-width="1.4"/>
+<path transform="translate(374.53805611994807,116.26832096072133)" d="M-3.2,-3.2h6.4v6.4h-6.4z" fill="#2ca02c" stroke="#2ca02c" stroke-width="1.4"/>
+<path transform="translate(326.1725701499351,139.02410433860842)" d="M-3.2,-3.2h6.4v6.4h-6.4z" fill="#2ca02c" stroke="#2ca02c" stroke-width="1.4"/>
+<path transform="translate(277.8070841799222,161.78145114880846)" d="M-3.2,-3.2h6.4v6.4h-6.4z" fill="#2ca02c" stroke="#2ca02c" stroke-width="1.4"/>
+<path transform="translate(229.44159820990916,184.53918848740233)" d="M-3.2,-3.2h6.4v6.4h-6.4z" fill="#2ca02c" stroke="#2ca02c" stroke-width="1.4"/>
+<line x1="229.44159820990916" y1="184.53918848740233" x2="471.269028059974" y2="70.75050179443289" stroke="#2ca02c" stroke-width="1" stroke-dasharray="5 5" opacity="0.75"/>
+<polyline points="471.269028059974,190.23510303782993 422.90354208996104,235.73799579219667 374.53805611994807,281.2500613823755 326.1725701499351,326.76460092736176 277.8070841799222,372.2733819401561 229.44159820990916,417.7444388138104" fill="none" stroke="#d62728" stroke-width="2"/>
+<path transform="translate(471.269028059974,190.23510303782993)" d="M0,-3.8L3.6,3.0H-3.6z" fill="#d62728" stroke="#d62728" stroke-width="1.4"/>
+<path transform="translate(422.90354208996104,235.73799579219667)" d="M0,-3.8L3.6,3.0H-3.6z" fill="#d62728" stroke="#d62728" stroke-width="1.4"/>
+<path transform="translate(374.53805611994807,281.2500613823755)" d="M0,-3.8L3.6,3.0H-3.6z" fill="#d62728" stroke="#d62728" stroke-width="1.4"/>
+<path transform="translate(326.1725701499351,326.76460092736176)" d="M0,-3.8L3.6,3.0H-3.6z" fill="#d62728" stroke="#d62728" stroke-width="1.4"/>
+<path transform="translate(277.8070841799222,372.2733819401561)" d="M0,-3.8L3.6,3.0H-3.6z" fill="#d62728" stroke="#d62728" stroke-width="1.4"/>
+<path transform="translate(229.44159820990916,417.7444388138104)" d="M0,-3.8L3.6,3.0H-3.6z" fill="#d62728" stroke="#d62728" stroke-width="1.4"/>
+<line x1="229.44159820990916" y1="417.7444388138104" x2="471.269028059974" y2="190.38915444553882" stroke="#d62728" stroke-width="1" stroke-dasharray="5 5" opacity="0.75"/>
+<line x1="590" y1="70" x2="620" y2="70" stroke="#1f77b4" stroke-width="2.4"/>
+<path transform="translate(605,70)" d="M-3.4,0a3.4,3.4 0 1,0 6.8,0a3.4,3.4 0 1,0 -6.8,0" fill="#1f77b4" stroke="#1f77b4" stroke-width="1.2"/>
+<text x="630" y="74" font-size="12" fill="#1F2328">Trotter 1 阶 (Lie, 严格 cell)   (p≈1.03)</text>
+<line x1="590" y1="100" x2="620" y2="100" stroke="#2ca02c" stroke-width="2.4"/>
+<path transform="translate(605,100)" d="M-3.2,-3.2h6.4v6.4h-6.4z" fill="#2ca02c" stroke="#2ca02c" stroke-width="1.2"/>
+<text x="630" y="104" font-size="12" fill="#1F2328">Trotter 2 阶 (Strang, 严格 cell)   (p≈2.00)</text>
+<line x1="590" y1="130" x2="620" y2="130" stroke="#d62728" stroke-width="2.4"/>
+<path transform="translate(605,130)" d="M0,-3.8L3.6,3.0H-3.6z" fill="#d62728" stroke="#d62728" stroke-width="1.2"/>
+<text x="630" y="134" font-size="12" fill="#1F2328">Trotter 4 阶 (Suzuki, 严格 cell)   (p≈4.00)</text>
+<text x="590" y="172" font-size="11" fill="#8A949C">虚线：过最细网格点、斜率=实测阶</text>
+</g></svg>

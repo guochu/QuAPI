@@ -57,5 +57,6 @@ function bosonic_Δm_deprecated(f::AbstractBoundedFunction; β::Real, Nτ::Int, 
         ζⱼₖ[j,k] = quadgkwrapper(-lⱼₖ(j-1,k-1) * g₁)
         ζₖⱼ[k,j] = quadgkwrapper(-lₖⱼ(k-1,j-1) * g₂)
     end
-    MixedCorrelationFunction(ηⱼₖ,ηₖⱼ,ξⱼₖ,ξₖⱼ,ζⱼₖ,ζₖⱼ)
+    MixedCorrelationFunction(CorrelationMatrix(-conj.(ηₖⱼ), -ηₖⱼ), CorrelationMatrix(-ηⱼₖ, -conj.(ηⱼₖ)),
+                             -im .* ζₖⱼ, -im .* ζⱼₖ, CorrelationMatrix(-ξⱼₖ, -ξₖⱼ))
 end

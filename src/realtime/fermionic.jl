@@ -141,13 +141,14 @@ function fermionic_Δt(f::AbstractBoundedFunction, disperse::Function, β::Real,
     # secondary pair computed by its own quadrature with the spectrum
     # un-conjugated — complex-spectrum safe (BCS anomalous coherence weights),
     # and for real-valued spectra bit-identical to conj(b)/conj(a)
-    ηⱼₖ₂ = zeros(ComplexF64, N+1)
-    ηₖⱼ₂ = zeros(ComplexF64, N+1)
-    ηⱼₖ₂[1] = quadgkwrapper(fⱼⱼ * g₂)
-    ηₖⱼ₂[1] = quadgkwrapper(-fₖₖ * g₁)
+    c = zeros(ComplexF64, N+1)
+    d = zeros(ComplexF64, N+1)
+    c[1] = quadgkwrapper(fⱼⱼ * g₂)
+    d[1] = quadgkwrapper(-fₖₖ * g₁)
     for i = 1:N
-        ηⱼₖ₂[i+1] = quadgkwrapper(fⱼₖ(i) * g₂)
-        ηₖⱼ₂[i+1] = quadgkwrapper(-fⱼₖ(-i) * g₁)
+        c[i+1] = quadgkwrapper(fⱼₖ(i) * g₂)
+        d[i+1] = quadgkwrapper(-fⱼₖ(-i) * g₁)
     end
-    return RealCorrelationFunction(a, b, ηⱼₖ₂, ηₖⱼ₂)
+    # 统一约定：G₊₋ = CM(−c,−b)、G₋₊ = CM(−a,−d)（对角块由 branch 推导）
+    return RealCorrelationFunction(CorrelationMatrix(.-c, .-b), CorrelationMatrix(.-a, .-d))
 end

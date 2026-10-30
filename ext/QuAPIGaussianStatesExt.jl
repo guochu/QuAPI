@@ -15,12 +15,13 @@
 #   [a₁..aₙ; ā₁..āₙ]（模 1..n = ket contour 节点、n+1..2n = bra），
 #   **site p 的割 = 模式对 [p, n+p]**，即 entropy(s, vcat(sites, n .+ sites))。
 #
-# 配对 → 协方差：主路径直接用 GaussianStates 的 `purify`（Choi 态的 O(n³)
-# 湮灭子构造，见 src/purify_fermion.jl）；闭式 `SVD / 湮灭条件公式`（即
-# GaussianStates v1 pairing 分支的同款数学）保留为**奇异 Δ**（零耦合极限、
-# 无 log 可言）的 fallback。两条路径的熵已对稠密系数向量机器精度互证
-#（见 GTEMPO/osee/ 与 TEMPO/osee/ 的 osee_report.md）。
-#
+# 配对 → 协方差（一般路径，无 pairing 特殊分支）：系数态是一般配对高斯态
+# |Ψ⟩ = exp(Σ C_ab β†_a β†_b)|0⟩（β†_a 为各腿的产生算符；BCS 的 ξξ/ξ̄ξ̄ 反常
+# 块天然含内）。构造 = 湮灭条件 ξ = b − W b†（W = C − Cᵀ 一般反对称核）的
+# 闭式解：G − conj(W)·G·conj(W) = I、F = −W·Gᵀ（复线性 Kronecker，O(L³)）。
+# 对奇异 W（零耦合）良定义；单 flavor 情形与 GaussianStates 的 `purify`
+#（Choi 路线）熵逐位互证；BCS 情形以稠密 IF 张量的前缀割 SVD 熵为锚
+#（test/osee.jl）。
 # 两个重载按统计性质区分（CorrelationFunction 类型本身不分玻色/费米，
 # 由构造器名承担统计信息）：
 #   fermionic：Δ[ā_p, a_q] 直接配对（复 Δ、任意 contour 均可）。
@@ -36,14 +37,14 @@
 module QuAPIGaussianStatesExt
 
 using QuAPI
-using QuAPI: AbstractCorrelationFunction
+using QuAPI: AbstractCorrelationFunction, BCSCorrelationFunction
 using QuAPI.Dense: GrassmannHybridizationMatrix, BosonicHybridizationMatrix
 using GaussianStates
 using GaussianStates: FermionicGaussianState, BosonicGaussianState
 using LinearAlgebra
 
 # ------------------------------------------------------------------ #
-# fermionic：IF 系数态（实 Majorana 协方差）
+# fermionic：IF 系数态（实 Majorana 协方差；单 flavor 与 BCS 多 band 通用）
 # ------------------------------------------------------------------ #
 
 """
@@ -51,50 +52,52 @@ using LinearAlgebra
     FermionicGaussianState(h::GrassmannHybridizationMatrix) -> FermionicGaussianState
 
 费米 hybridization function `x` 的 IF 系数态
-`|Ψ⟩ = exp(Σ_pq Δ_pq ā†_p a†_q)|0⟩`（Grassmann 有限和，任意 contour——
-虚时/实时/混合、含复 Δ——恒良定义），以 v7「只存实协方差」的
-`FermionicGaussianState` 表示：`Γ = i⟨γγ⟩` 为 `4n×4n` 实反对称
-（`nmodes(s) = 2n`，n 为 contour 节点数）。
+`|Ψ⟩ = exp(Σ_ab C_ab β†_a β†_b)|0⟩`（Grassmann 有限和；任意 contour、
+任意 band 数——含 BCS 反常块——恒良定义），以 v7「只存实协方差」的
+`FermionicGaussianState` 表示：`Γ = i⟨γγ⟩` 实反对称，`nmodes(s) = L`
+（L = 腿数：单 flavor 2n、BCS 4n）。
 
-矩阵级入口 `h::GrassmannHybridizationMatrix`（单 flavor，腿序每节点
-`(a, ā)` 相邻）直接取腿矩阵的配对块 `Δ[p, q] = h.Δ[ā_p, a_q]`，确保与
-`GrassmannIF` 张量（顶点移位后的装配）的 OSEE 逐位一致；correlation 入口
-= `FermionicGaussianState(GrassmannHybridizationMatrix(x))`。
+一般构造 = 湮灭条件闭式（无 pairing 特殊分支）：反对称核 W = C − Cᵀ，
+ξ = b − W b† 湮灭态 ⟹ G − conj(W)·G·conj(W) = I、F = −W·Gᵀ（复线性
+Kronecker 解，O(L³)）；奇异 W（零耦合）良定义。单 flavor 情形与
+`purify`（Choi 路线）熵逐位互证；BCS 情形以稠密 IF 张量的前缀割 SVD
+熵为锚（test/osee.jl）。
 
-OSEE：
+OSEE 割约定：模式 = 腿重排为「全部 a 腿（contour 序），全部 ā 腿」；
+单 flavor n 节点即 site p ↔ [p, n+p]（同旧约定）：
 
 ```julia
 s = FermionicGaussianState(corr)
-n = nmodes(s) ÷ 2                              # contour 节点数
+n = nmodes(s) ÷ 2                              # a 腿（ket 半区）模式数
 entropy(s, vcat(sites, n .+ sites))            # site p ↔ 模式对 [p, n+p]
 ```
 """
 function GaussianStates.FermionicGaussianState(h::GrassmannHybridizationMatrix)
-    all(b -> b.band == 1, h.basis) || throw(ArgumentError(
-        "IF 系数态只支持单 flavor 腿矩阵（每节点一对 (a, ā)）；多 band（BCS）" *
-        "的一般反对称核矩阵需走一般 Bogoliubov 路线：bdg(h) = log(核矩阵) 后 " *
-        "purify 同样适用（矢量化恒等式对一般核成立），暂未接入"))
     C = Matrix(h.Δ)
     L = size(C, 1)
-    n = L ÷ 2
-    Δ = [C[2i, 2j-1] for i in 1:n, j in 1:n]   # Δ[p, q] = C[ā_p, a_q]
-    # 主路径：系数态 = Choi 态。|Ψ⟩ = exp(ΣΔ ā†a†)|0⟩ = (e^h ⊗ I)|I⟩_G，
-    # h = log Δ（单体、数守恒、打在 ket 模上；exp∘log = Δ 对任意可逆 Δ 精确，
-    # 复 log 的主值割不影响结果）——直接走 GaussianStates 的 O(n³) purify。
-    # 与下方闭式所得态只差 ā 模式反射（配对跨块符号差），熵/Schmidt 谱
-    # 逐位相同（随机割 + 全割 ≤3e-14 实测）。
-    sv = svdvals(Δ)
-    if minimum(sv) > 1e-14 * max(1.0, maximum(sv))
-        e = FermionicQuadraticOperatorExp(FermionicQuadraticOperator(
-            log(Δ), zeros(ComplexF64, n, n), zeros(ComplexF64, n, n)))
-        return purify(e)
-    end
-    # fallback：奇异 Δ（零耦合极限等）无 log——v1 配对闭式对任意 Δ 良定义
-    G, F = _pairing_correlations(Δ)
-    return FermionicGaussianState(_majorana_covariance(G, F))
+    # 一般路径（无 pairing 特殊分支；任意 band——BCS 反常块含内；任意奇异度）：
+    # 系数态 |Ψ⟩ = exp(Σ C_ab β†_a β†_b)|0⟩ 的湮灭子 ξ_a = β_a − Σ_b W_ab β†_b
+    # （W = C − Cᵀ）恒湮灭该态 ⟹ 湮灭子 Nambu 矩阵 V = [I, −W]（L×2L，恒满行秩，
+    # 零耦合 W = 0 亦然）。Nambu 协方差 = V 行空间投影子（purify 内部的同款
+    # 湮灭子→投影子数学，F_utilities/FermionicGaussianStates 讲义 §5），再经
+    # GaussianStates 的 to_majorana 变实 Majorana 协方差。
+    W = C .- transpose(C)
+    V = hcat(Matrix{ComplexF64}(I, L, L), -W)
+    B = Matrix(qr(adjoint(V)).Q)                   # 2L×L，B†B = I，列空间 = V 行空间
+    𝒞 = B * adjoint(B)                             # Nambu 投影子（2L×2L）
+    # 模式约定：前 L÷2 = 全部 a 腿（contour 序），后 L÷2 = 全部 ā 腿
+    # （单 flavor：site p ↔ [p, n+p]；BCS：L = 4n，2n 模/半区）
+    alpleg = findall(l -> l.conj == false, h.basis)
+    order = vcat(alpleg, setdiff(1:L, alpleg))     # 腿序 → 模式序
+    majorder = vcat([[2p-1, 2p] for p in order]...)# 模式序 → Majorana 序
+    Γ = GaussianStates.to_majorana(𝒞)
+    Γ = Γ[majorder, majorder]
+    return FermionicGaussianState(Γ)
 end
 
 GaussianStates.FermionicGaussianState(x::AbstractCorrelationFunction) =
+    FermionicGaussianState(GrassmannHybridizationMatrix(x))
+GaussianStates.FermionicGaussianState(x::BCSCorrelationFunction) =
     FermionicGaussianState(GrassmannHybridizationMatrix(x))
 
 # 纯 ā–a 配对系数态的二点函数（模式序 [a₁..aₙ; ā₁..āₙ]）。Δ = U·diag(s)·V†

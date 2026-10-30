@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="820" height="500" viewBox="0 0 820 500">
+<rect width="820" height="500" fill="#ffffff"/>
+<g font-family="system-ui, 'Segoe UI', 'PingFang SC', 'Helvetica Neue', Arial, sans-serif">
+<text x="410.0" y="32" font-size="17" font-weight="600" fill="#1F2328" text-anchor="middle">实时（实轴、直积初态 n_sys=0.3）：A(t) 相对误差 vs δt</text>
+<line x1="86.0" y1="58" x2="86.0" y2="436" stroke="#EAEEF2" stroke-width="1"/>
+<text x="86.0" y="458" font-size="12" fill="#59666E" text-anchor="middle">10⁻²</text>
+<line x1="327.0" y1="58" x2="327.0" y2="436" stroke="#EAEEF2" stroke-width="1"/>
+<text x="327.0" y="458" font-size="12" fill="#59666E" text-anchor="middle">10⁻¹</text>
+<line x1="568.0" y1="58" x2="568.0" y2="436" stroke="#EAEEF2" stroke-width="1"/>
+<text x="568.0" y="458" font-size="12" fill="#59666E" text-anchor="middle">10⁰</text>
+<line x1="86" y1="436.0" x2="568" y2="436.0" stroke="#EAEEF2" stroke-width="1"/>
+<text x="76" y="440.0" font-size="12" fill="#59666E" text-anchor="end">10⁻¹¹</text>
+<line x1="86" y1="398.2" x2="568" y2="398.2" stroke="#EAEEF2" stroke-width="1"/>
+<text x="76" y="402.2" font-size="12" fill="#59666E" text-anchor="end">10⁻¹⁰</text>
+<line x1="86" y1="360.40000000000003" x2="568" y2="360.40000000000003" stroke="#EAEEF2" stroke-width="1"/>
+<text x="76" y="364.40000000000003" font-size="12" fill="#59666E" text-anchor="end">10⁻⁹</text>
+<line x1="86" y1="322.59999999999997" x2="568" y2="322.59999999999997" stroke="#EAEEF2" stroke-width="1"/>
+<text x="76" y="326.59999999999997" font-size="12" fill="#59666E" text-anchor="end">10⁻⁸</text>
+<line x1="86" y1="284.79999999999995" x2="568" y2="284.79999999999995" stroke="#EAEEF2" stroke-width="1"/>
+<text x="76" y="288.79999999999995" font-size="12" fill="#59666E" text-anchor="end">10⁻⁷</text>
+<line x1="86" y1="247.0" x2="568" y2="247.0" stroke="#EAEEF2" stroke-width="1"/>
+<text x="76" y="251.0" font-size="12" fill="#59666E" text-anchor="end">10⁻⁶</text>
+<line x1="86" y1="209.20000000000002" x2="568" y2="209.20000000000002" stroke="#EAEEF2" stroke-width="1"/>
+<text x="76" y="213.20000000000002" font-size="12" fill="#59666E" text-anchor="end">10⁻⁵</text>
+<line x1="86" y1="171.39999999999998" x2="568" y2="171.39999999999998" stroke="#EAEEF2" stroke-width="1"/>
+<text x="76" y="175.39999999999998" font-size="12" fill="#59666E" text-anchor="end">10⁻⁴</text>
+<line x1="86" y1="133.60000000000002" x2="568" y2="133.60000000000002" stroke="#EAEEF2" stroke-width="1"/>
+<text x="76" y="137.60000000000002" font-size="12" fill="#59666E" text-anchor="end">10⁻³</text>
+<line x1="86" y1="95.80000000000001" x2="568" y2="95.80000000000001" stroke="#EAEEF2" stroke-width="1"/>
+<text x="76" y="99.80000000000001" font-size="12" fill="#59666E" text-anchor="end">10⁻²</text>
+<line x1="86" y1="58.0" x2="568" y2="58.0" stroke="#EAEEF2" stroke-width="1"/>
+<text x="76" y="62.0" font-size="12" fill="#59666E" text-anchor="end">10⁻¹</text>
+<rect x="86" y="58" width="482" height="378" fill="none" stroke="#59666E" stroke-width="1.2"/>
+<text x="327.0" y="478" font-size="14" fill="#1F2328" text-anchor="middle">δt</text>
+<text transform="translate(26,247.0) rotate(-90)" font-size="14" fill="#1F2328" text-anchor="middle">max |A−A_exact| / max|A_exact|</text>
+<text x="86" y="494" font-size="11" fill="#8A949C">初态为直积态，参考解 toulouse_neq_greater_lesser；冻结核为真 1 阶。</text>
+<polyline points="350.3553131349416,71.56607497353042 277.80708417992213,82.67425288843967 205.25885522490265,93.93095146879193 132.71062626988322,105.25224776393895" fill="none" stroke="#9467bd" stroke-width="2"/>
+<path transform="translate(350.3553131349416,71.56607497353042)" d="M0,-3.8L3.8,0L0,3.8L-3.8,0z" fill="#9467bd" stroke="#9467bd" stroke-width="1.4"/>
+<path transform="translate(277.80708417992213,82.67425288843967)" d="M0,-3.8L3.8,0L0,3.8L-3.8,0z" fill="#9467bd" stroke="#9467bd" stroke-width="1.4"/>
+<path transform="translate(205.25885522490265,93.93095146879193)" d="M0,-3.8L3.8,0L0,3.8L-3.8,0z" fill="#9467bd" stroke="#9467bd" stroke-width="1.4"/>
+<path transform="translate(132.71062626988322,105.25224776393895)" d="M0,-3.8L3.8,0L0,3.8L-3.8,0z" fill="#9467bd" stroke="#9467bd" stroke-width="1.4"/>
+<line x1="132.71062626988322" y1="105.25224776393895" x2="350.3553131349416" y2="71.28835887849785" stroke="#9467bd" stroke-width="1" stroke-dasharray="5 5" opacity="0.75"/>
+<polyline points="350.3553131349416,130.8964619419204 277.80708417992213,153.64670678777762 205.25885522490265,176.40267209235017 132.71062626988322,199.1600643956277" fill="none" stroke="#1f77b4" stroke-width="2"/>
+<path transform="translate(350.3553131349416,130.8964619419204)" d="M-3.4,0a3.4,3.4 0 1,0 6.8,0a3.4,3.4 0 1,0 -6.8,0" fill="#1f77b4" stroke="#1f77b4" stroke-width="1.4"/>
+<path transform="translate(277.80708417992213,153.64670678777762)" d="M-3.4,0a3.4,3.4 0 1,0 6.8,0a3.4,3.4 0 1,0 -6.8,0" fill="#1f77b4" stroke="#1f77b4" stroke-width="1.4"/>
+<path transform="translate(205.25885522490265,176.40267209235017)" d="M-3.4,0a3.4,3.4 0 1,0 6.8,0a3.4,3.4 0 1,0 -6.8,0" fill="#1f77b4" stroke="#1f77b4" stroke-width="1.4"/>
+<path transform="translate(132.71062626988322,199.1600643956277)" d="M-3.4,0a3.4,3.4 0 1,0 6.8,0a3.4,3.4 0 1,0 -6.8,0" fill="#1f77b4" stroke="#1f77b4" stroke-width="1.4"/>
+<line x1="132.71062626988322" y1="199.1600643956277" x2="350.3553131349416" y2="130.8878874857951" stroke="#1f77b4" stroke-width="1" stroke-dasharray="5 5" opacity="0.75"/>
+<polyline points="350.3553131349416,130.89646194189652 277.80708417992213,153.64670678758426 205.25885522490265,176.40267209918187 132.71062626988322,199.16006438179645" fill="none" stroke="#2ca02c" stroke-width="2"/>
+<path transform="translate(350.3553131349416,130.89646194189652)" d="M-3.2,-3.2h6.4v6.4h-6.4z" fill="#2ca02c" stroke="#2ca02c" stroke-width="1.4"/>
+<path transform="translate(277.80708417992213,153.64670678758426)" d="M-3.2,-3.2h6.4v6.4h-6.4z" fill="#2ca02c" stroke="#2ca02c" stroke-width="1.4"/>
+<path transform="translate(205.25885522490265,176.40267209918187)" d="M-3.2,-3.2h6.4v6.4h-6.4z" fill="#2ca02c" stroke="#2ca02c" stroke-width="1.4"/>
+<path transform="translate(132.71062626988322,199.16006438179645)" d="M-3.2,-3.2h6.4v6.4h-6.4z" fill="#2ca02c" stroke="#2ca02c" stroke-width="1.4"/>
+<line x1="132.71062626988322" y1="199.16006438179645" x2="350.3553131349416" y2="130.88788753395283" stroke="#2ca02c" stroke-width="1" stroke-dasharray="5 5" opacity="0.75"/>
+<polyline points="350.3553131349416,273.4323215278546 277.80708417992213,318.94552281176766 205.25885522490265,364.4603506584822 132.71062626988322,409.9693043565918" fill="none" stroke="#d62728" stroke-width="2"/>
+<path transform="translate(350.3553131349416,273.4323215278546)" d="M0,-3.8L3.6,3.0H-3.6z" fill="#d62728" stroke="#d62728" stroke-width="1.4"/>
+<path transform="translate(277.80708417992213,318.94552281176766)" d="M0,-3.8L3.6,3.0H-3.6z" fill="#d62728" stroke="#d62728" stroke-width="1.4"/>
+<path transform="translate(205.25885522490265,364.4603506584822)" d="M0,-3.8L3.6,3.0H-3.6z" fill="#d62728" stroke="#d62728" stroke-width="1.4"/>
+<path transform="translate(132.71062626988322,409.9693043565918)" d="M0,-3.8L3.6,3.0H-3.6z" fill="#d62728" stroke="#d62728" stroke-width="1.4"/>
+<line x1="132.71062626988322" y1="409.9693043565918" x2="350.3553131349416" y2="273.44244326226294" stroke="#d62728" stroke-width="1" stroke-dasharray="5 5" opacity="0.75"/>
+<line x1="590" y1="70" x2="620" y2="70" stroke="#9467bd" stroke-width="2.4"/>
+<path transform="translate(605,70)" d="M0,-3.8L3.8,0L0,3.8L-3.8,0z" fill="#9467bd" stroke="#9467bd" stroke-width="1.2"/>
+<text x="630" y="74" font-size="12" fill="#1F2328">冻结核 (bosonic_Δt, −Δ⁺⁺−Δ⁺₋)   (p≈0.99)</text>
+<line x1="590" y1="100" x2="620" y2="100" stroke="#1f77b4" stroke-width="2.4"/>
+<path transform="translate(605,100)" d="M-3.4,0a3.4,3.4 0 1,0 6.8,0a3.4,3.4 0 1,0 -6.8,0" fill="#1f77b4" stroke="#1f77b4" stroke-width="1.2"/>
+<text x="630" y="104" font-size="12" fill="#1F2328">Trotter 1 阶 (严格 cell)   (p≈2.00)</text>
+<line x1="590" y1="130" x2="620" y2="130" stroke="#2ca02c" stroke-width="2.4"/>
+<path transform="translate(605,130)" d="M-3.2,-3.2h6.4v6.4h-6.4z" fill="#2ca02c" stroke="#2ca02c" stroke-width="1.2"/>
+<text x="630" y="134" font-size="12" fill="#1F2328">Trotter 2 阶 (严格 cell)   (p≈2.00)</text>
+<line x1="590" y1="160" x2="620" y2="160" stroke="#d62728" stroke-width="2.4"/>
+<path transform="translate(605,160)" d="M0,-3.8L3.6,3.0H-3.6z" fill="#d62728" stroke="#d62728" stroke-width="1.2"/>
+<text x="630" y="164" font-size="12" fill="#1F2328">Trotter 4 阶 (严格 cell)   (p≈4.00)</text>
+<text x="590" y="202" font-size="11" fill="#8A949C">虚线：过最细网格点、斜率=实测阶</text>
+</g></svg>

@@ -319,8 +319,22 @@ end
 
 # IF 指数中的 Δ 项：((band₁, conj₁), (band₂, conj₂), Δ 块)
 # 普通费米高斯 bath：ā Δ a
+_delta_terms(x::RealCorrelationFunction) =
+    [((1, true), (1, false), _contour_delta_realtime(x))]
+# 混合轮廓与虚时轮廓：直接消费原块（历史约定，ED 校准）
 _delta_terms(x::AbstractCorrelationFunction) =
     [((1, true), (1, false), _contour_delta(x))]
+# 实时轮廓（RealCorrelationFunction）：Grassmann IF 指数使用 Keldysh 方位
+# 未吸收的交叉块（历史存储约定；统一约定把 σ_uσ_v 放进了块内，指数侧需
+# 翻回）——混合轮廓（AbstractMixed）的 dense 装配经 ED 校准直接消费原块。
+function _contour_delta_realtime(x::RealCorrelationFunction)
+    blocks = Dict((b1, b2) => begin
+            m = Matrix(branch(x; b1=b1, b2=b2))
+            (b1 == b2) || (m .*= -1)
+            m
+        end for b1 in (:+, :-), b2 in (:+, :-))
+    return _assemble_ordered(contour_ordering(x), blocks)
+end
 # BCS：正常 ↑↑ (ā↑Δa↑)、正常 ↓↓ (ā↓Δa↓，自旋对称下与 ↑↑ 同块)、
 # 反常 ↑↓ (ā↑Δā↓)、反常 ↓↑ (a↓Δa↑)
 _delta_terms(x::BCSCorrelationFunction) =

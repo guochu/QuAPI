@@ -22,8 +22,8 @@ using Test, LinearAlgebra
 #   measure:     -āᵢaᵢ on every node (both branches)
 #   forward:     e^{-im·δt·ϵ_d}·ā_{i+1}a_i        (i = 0..N-1)
 #   backward:    e^{+im·δt·ϵ_d}·ā_i a_{i+1}       (i = 0..N-1)
-#   influence:   exp[Σ_{uv} Σ_{ij} σ_u σ_v āᵢᵘ Δᵢⱼᵘᵛ aⱼᵛ] with σ₊=+1, σ₋=-1,
-#                i.e. the cross-branch blocks Δ⁺⁻, Δ⁻⁺ enter with -1
+#   influence:   exp[Σ_{uv} Σ_{ij} āᵢᵘ Δᵢⱼᵘᵛ aⱼᵛ] with the unified convention
+#                (Keldysh relative signs absorbed INTO the cross blocks)
 #   BCS normal blocks: BOTH spin flavors use `corr.uu` (Δ_uu - Δ_vvᵀ).
 #                G_↓↓ = G_↑↑ by spin symmetry of the singlet-paired bath,
 #                whereas `corr.dd` = -Δ_uuᵀ at Δ=0 is the hole (Nambu 22)
@@ -36,51 +36,8 @@ using Test, LinearAlgebra
 # (BdG) Hamiltonian from ImpurityModelBase.exactdiagonalizations.
 # =====================================================================
 
-# =====================================================================
-# Pfaffian of an antisymmetric matrix (Parlett–Reid, O(n³))
-# =====================================================================
-function pfaffian(A::AbstractMatrix)
-    n = size(A, 1)
-    (iseven(n)) || throw(ArgumentError("Pfaffian requires even dimension"))
-    n == 0 && return one(eltype(A))
-    B = Matrix{ComplexF64}(A)
-    p = 1.0 + 0.0im
-    for k in 1:2:n-1
-        if iszero(B[k, k+1])
-            found = false
-            for i in k+2:n
-                if !iszero(B[k, i])
-                    # swap rows/columns i <-> k+1 (each swap flips Pf by -1)
-                    B[:, [k+1, i]] .= B[:, [i, k+1]]
-                    B[[k+1, i], :] .= B[[i, k+1], :]
-                    p = -p
-                    found = true
-                    break
-                end
-            end
-            found || return zero(ComplexF64)
-        end
-        p *= B[k, k+1]
-        for i in k+2:n, j in i:n
-            B[i, j] = (B[i, j] * B[k, k+1] - B[i, k] * B[j, k+1] + B[i, k+1] * B[j, k]) / B[k, k+1]
-            B[j, i] = -B[i, j]
-        end
-    end
-    return p
-end
+include(joinpath(@__DIR__, "_pfaffian_utils.jl"))
 
-# Gaussian Grassmann integral with monomial insertions:
-#   ∫ exp(½ξᵀBξ) ξ_{i₁}···ξ_{i_{2k}} = Pf(B) · Pf(C),  C_{rs} = (B⁻¹)_{iᵣ,iₛ}
-function gauss_integral(B::AbstractMatrix, monomial::Vector{Int})
-    m = length(monomial)
-    iseven(m) || return 0.0 + 0.0im
-    m == 0 && return pfaffian(B)
-    Binv = inv(B)
-    C = Binv[monomial, monomial]
-    return pfaffian(B) * pfaffian(C)
-end
-
-# =====================================================================
 # Variable indexing
 # =====================================================================
 # single flavor: M = 4(N+1) variables.
@@ -127,13 +84,13 @@ function build_B_single(N, β, ϵ_d, t, spec, μ)
         addterm!(ā(:-, i), a(:-, i + 1), conj(x))  # conj(x)·ā⁻_i a⁻_{i+1}
     end
 
-    # influence functional: cross branches enter with -1 (Keldysh relative sign)
+    # influence functional — unified convention: the Keldysh relative signs
+    # live INSIDE the cross blocks, no extra σ_u σ_v on top
     corr = fermionic_Δt(spec, β=β, N=N, t=t, μ=μ)
     for u in (:+, :-), v in (:+, :-)
         G = Matrix(branch(corr, u, v))
-        s = (u === v) ? 1.0 : -1.0
         for i in 0:N, j in 0:N
-            c = s * G[i + 1, j + 1]
+            c = G[i + 1, j + 1]
             iszero(c) && continue
             addterm!(ā(u, i), a(v, j), c)
         end
@@ -171,16 +128,16 @@ function build_B_bcs(N, β, ϵ_d, t, spec, Δ, μ)
     # BCS influence functional (normal + anomalous blocks)
     corr = bcs_Δt(spec, β=β, N=N, t=t, Δ=Δ, μ=μ)
     for u in (:+, :-), v in (:+, :-)
-        s = (u === v) ? 1.0 : -1.0
+        # unified convention: Keldysh relative signs inside the cross blocks
         Gnn_up = Matrix(branch(corr.uu, u, v))   # ā↑ Δ↑↑ a↑
         Gnn_dn = Matrix(branch(corr.uu, u, v))   # ā↓ Δ↓↓ a↓ (spin symmetry: G↓↓ = G↑↑)
         Gan_ud  = Matrix(branch(corr.ud, u, v))  # ā↑ Δ↑↓ ā↓
         Gan_du  = Matrix(branch(corr.du, u, v))  # a↓ Δ↓↑ a↑
         for i in 0:N, j in 0:N
-            for (c, p1, p2) in ((s * Gnn_up[i+1, j+1], ā1(u, i), a1(v, j)),
-                                (s * Gnn_dn[i+1, j+1], ā2(u, i), a2(v, j)),
-                                (s * Gan_ud[i+1, j+1], ā1(u, i), ā2(v, j)),
-                                (s * Gan_du[i+1, j+1], a2(u, i), a1(v, j)))
+            for (c, p1, p2) in ((Gnn_up[i+1, j+1], ā1(u, i), a1(v, j)),
+                                (Gnn_dn[i+1, j+1], ā2(u, i), a2(v, j)),
+                                (Gan_ud[i+1, j+1], ā1(u, i), ā2(v, j)),
+                                (Gan_du[i+1, j+1], a2(u, i), a1(v, j)))
                 iszero(c) && continue
                 addterm!(p1, p2, c)
             end

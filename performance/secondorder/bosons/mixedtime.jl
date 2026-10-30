@@ -35,7 +35,8 @@ function weyl_k_mixed(mdl, Nτ, Nt, T)
     d0 = -(P[1, 1] + Xr[1, 1])
     # ① τ 支环（ξ 块 = bosonic_Δτ 同数据，逐位验证；四要素：梯形 φ、半步相位
     #    fτ、接触对角、跳变 G₀ = G_N+1 完整代入——自由项 b += u 与 φ₁ 左半 b += fτ·w/2）
-    ηjk, ηkj = -mix.ξⱼₖ, -mix.ξₖⱼ              # branch(:τ,:τ) = (−ξⱼₖ, −ξₖⱼ) = Δτ 条目
+    ξ = branch(mix; b1=:τ, b2=:τ)                # branch(:τ,:τ) = CM(−ξⱼₖ,−ξₖⱼ) = Δτ 条目
+    ηjk, ηkj = ξ.ηⱼₖ, ξ.ηₖⱼ
     d0τ = ηjk[1] + ηkj[1]
     M = zeros(Float64, Nτ, Nτ)
     b = zeros(Float64, Nτ)

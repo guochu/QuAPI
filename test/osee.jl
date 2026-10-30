@@ -233,6 +233,49 @@ end
     @test_throws ArgumentError GrassmannIF(GrassmannHybridizationMatrix(big))
 end
 
+# ---------------- 稠密 IF 张量 vs 快速 OSEE（BCS：一般核） ----------------
+@testset "稠密 IF 张量 vs 快速 OSEE（BCS 一般核）" begin
+    # 一般配对核（含 ξξ/ξ̄ξ̄ 反常块）的系数态：湮灭子投影子一般路线 vs
+    # 张量前缀割 SVD 熵（ground truth）。BCS bath：Δ ≠ 0，核四块全非零。
+    svent(M) = (sv = svdvals(M); p = abs2.(sv); p ./= sum(p);
+                -sum(x * log(x) for x in p if x > 1e-15; init=0.0))
+    spec = DiscreteSpectrum([1.0], [0.25])
+    corr = bcs_Δτ(spec, β=2.0, N=3, μ=0.0, Δ=0.5)
+    T = GrassmannIF(GrassmannHybridizationMatrix(corr))
+    L = length(T.basis)                            # 4n = 12 腿（2 band）
+    @test T isa GrassmannADT && length(T.data) == 2^L
+    s = FermionicGaussianState(corr)
+    @test nmodes(s) == L
+    # 模式映射：a 腿（c=false）在前半区（基序），ā 腿在后半区
+    alp = findall(l -> l.conj == false, T.basis)
+    pos_alp = Dict(p => i for (i, p) in enumerate(alp))
+    pos_bar = Dict(p => i for (i, p) in enumerate(setdiff(1:L, alp)))
+    modeof(p) = haskey(pos_alp, p) ? pos_alp[p] : length(alp) + pos_bar[p]
+    for k in 1:2                                   # 前缀割：前 k 个节点（4k 条腿）
+        S_dense = svent(reshape(T.data, 2^(4k), 2^(L - 4k)))
+        cutmodes = [modeof(p) for p in 1:4k]
+        @test entropy(s, cutmodes) ≈ S_dense atol = 1e-10
+    end
+    @test entropy(s, collect(1:L)) ≈ 0.0 atol = 1e-10   # 全割（纯系数态）
+    # 复 Δ 的 BCS：同锚
+    corrc = bcs_Δτ(spec, β=2.0, N=3, μ=0.0, Δ=0.2+0.45im)
+    Tc = GrassmannIF(GrassmannHybridizationMatrix(corrc))
+    sc = FermionicGaussianState(corrc)
+    for k in 1:2
+        S_dense = svent(reshape(Tc.data, 2^(4k), 2^(L - 4k)))
+        cutmodes = [modeof(p) for p in 1:4k]
+        @test entropy(sc, cutmodes) ≈ S_dense atol = 1e-10
+    end
+    # 纯度
+    @test ispure(s) && ispure(sc)
+end
+
+# ---------------- 稠密 IF 张量 vs 快速 OSEE（BCS：一般核） ----------------
+# 待实现：BCS 一般核（含 ξξ/ξ̄ξ̄ 反常块）的矢量化态是一般配对高斯态，
+# 需要复 skew-Schur（Youla）分解下的一般配对协方差。锚已定义：BCS 稠密
+# IF 张量（GrassmannIF 2-band，N ≤ 3 因 2^{4n} 上限）的前缀割 SVD 熵；
+# 实现后按单 flavor 的同款模式对照（张量 SVD vs entropy）。
+
 # ---------------- 稠密费米 IF：BCS bath（2 band） ----------------
 @testset "稠密费米 IF（BCS：2 band）" begin
     β, N = 2.0, 3

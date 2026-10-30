@@ -186,7 +186,9 @@ function bosonic_Δm(f::AbstractBoundedFunction, disperse::Function; β::Real, N
         ζⱼₖ[j,k] = quadgkwrapper(lⱼₖ(j-1,k-1))
         ζₖⱼ[k,j] = quadgkwrapper(lₖⱼ(k-1,j-1))
     end
-    MixedCorrelationFunction(ηⱼₖ,ηₖⱼ,ηⱼₖ₂,ηₖⱼ₂,ξⱼₖ,ξₖⱼ,ζⱼₖ,ζₖⱼ)
+    # 统一约定：G₊₋ = CM(−ηⱼₖ₂, −ηₖⱼ)、G₋₊ = CM(−ηⱼₖ, −ηₖⱼ₂)（对角块由 branch 推导）
+    MixedCorrelationFunction(CorrelationMatrix(-ηⱼₖ₂, -ηₖⱼ), CorrelationMatrix(-ηⱼₖ, -ηₖⱼ₂),
+                             -im .* ζₖⱼ, -im .* ζⱼₖ, CorrelationMatrix(-ξⱼₖ, -ξₖⱼ))
 end
 
 # function _bosonic_lⱼₖ(f::AbstractBoundedFunction, β, μ, j::Int, k::Int, δt, δτ)

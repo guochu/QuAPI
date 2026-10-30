@@ -150,36 +150,11 @@ end
 # branch 值是满矩阵（±im·ζ），按 [i, j] 直接索引。
 @inline function _mixed_branch_elem(x::AbstractMixedCorrelationFunction,
                                     b1::Symbol, b2::Symbol, i::Int, j::Int)
-    d = i - j
-    if b1 === :+
-        if b2 === :+
-            d > 0 ? x.ηⱼₖ[d+1] : d < 0 ? x.ηₖⱼ[1-d] : x.ηⱼₖ[1] + x.ηₖⱼ[1]
-        elseif b2 === :-
-            # ηⱼₖ = -conj(ηₖⱼ)、ηₖⱼ = -ηₖⱼ
-            d > 0 ? -conj(x.ηₖⱼ[d+1]) : d < 0 ? -x.ηₖⱼ[1-d] : -conj(x.ηₖⱼ[1]) - x.ηₖⱼ[1]
-        else
-            -im * x.ζₖⱼ[i, j]
-        end
-    elseif b1 === :-
-        if b2 === :+
-            # ηⱼₖ = -ηⱼₖ、ηₖⱼ = -conj(ηⱼₖ)
-            d > 0 ? -x.ηⱼₖ[d+1] : d < 0 ? -conj(x.ηⱼₖ[1-d]) : -x.ηⱼₖ[1] - conj(x.ηⱼₖ[1])
-        elseif b2 === :-
-            # ηⱼₖ = conj(ηₖⱼ)、ηₖⱼ = conj(ηⱼₖ)
-            d > 0 ? conj(x.ηₖⱼ[d+1]) : d < 0 ? conj(x.ηⱼₖ[1-d]) : conj(x.ηₖⱼ[1]) + conj(x.ηⱼₖ[1])
-        else
-            im * x.ζₖⱼ[i, j]
-        end
-    else
-        if b2 === :+
-            -im * x.ζⱼₖ[i, j]
-        elseif b2 === :-
-            im * x.ζⱼₖ[i, j]
-        else
-            # ηⱼₖ = -ξⱼₖ、ηₖⱼ = -ξₖⱼ
-            d > 0 ? -x.ξⱼₖ[d+1] : d < 0 ? -x.ξₖⱼ[1-d] : -x.ξⱼₖ[1] - x.ξₖⱼ[1]
-        end
-    end
+    # 2026-10-30: delegate to the restructured branch derivation (the struct
+    # now stores only the two diagonal real-time blocks; cross blocks are
+    # sign combinations). Allocates the block per call — restore an
+    # allocation-free element reader if this becomes hot.
+    return branch(x; b1=b1, b2=b2)[i, j]
 end
 
 # 混合轮廓专用：无分配（不走 branch 构造分支矩阵）

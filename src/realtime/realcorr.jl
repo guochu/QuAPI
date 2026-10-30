@@ -1,45 +1,49 @@
 """
     abstract type AbstractRealCorrelationFunction <: AbstractCorrelationFunction
 
-Abstract supertype of the real-time hybridization representations: the compact
-two-vector `RealCorrelationFunction` and the full four-block
-`GenericRealCorrelationFunction`.  `branch`, `branches`, `contour_ordering`,
-`transpose`, arithmetic and comparisons are defined uniformly on this level.
-
-Both representations follow ONE unified branch convention (the same as
-`MixedCorrelationFunction` on the Kadanoff contour; see `changes.md`): with
-`a = ηⱼₖ` (forward lags) and `b = ηₖⱼ` (backward lags), the four Keldysh
-blocks are
-
-    (+,+): (a, b)                (+,−): (−c, −b)
-    (−,+): (−a, −d)              (−,−): (c, d)
-
-with c = ηⱼₖ₂, d = ηₖⱼ₂ (for real-valued spectra c = conj(b), d = conj(a)),
-i.e. the CROSS branches carry the Keldysh relative minus signs inside the
-blocks and the derivation uses only negation.  This is statistics
-independent — fermionic and bosonic hybridizations store the same data and
-derive the blocks identically.
-
-`branch(x; b1, b2)` with `b1, b2 ∈ (:+, :-)` selects the block; `i, j` run
-over the `N+1` nodes tᵢ = i·δt of each branch.
+Abstract supertype of real-time hybridization representations.  `branch`,
+`branches`, `contour_ordering` are defined uniformly on this level; the
+concrete `RealCorrelationFunction` stores the two diagonal Keldysh blocks
+(see its docstring for the unified branch convention).
 """
 abstract type AbstractRealCorrelationFunction <: AbstractCorrelationFunction end
 
 branches(::AbstractRealCorrelationFunction) = (:+, :-)
 
 """
-    struct GenericRealCorrelationFunction{...} <: AbstractRealCorrelationFunction
+    struct RealCorrelationFunction{A} <: AbstractRealCorrelationFunction
 
-Full four-block real-time hybridization function on the closed Keldysh
-contour, storing the four branch sub-blocks `G₊₊`, `G₊₋`, `G₋₊`, `G₋₋`
-(usually `CorrelationMatrix` instances) explicitly.  The blocks follow the
-unified branch convention documented on `AbstractRealCorrelationFunction`
-(cross branches carry the Keldysh minus signs).  This representation carries
-the four independent Toeplitz vectors of a general (possibly complex-valued)
-spectrum and is the form to use whenever the cross-branch vectors cannot be
-derived by conjugation of the primary pair (e.g. the BCS anomalous components
-with a complex gap phase: there `conj` would conjugate the spectral weight
-itself, which breaks the derivation by a factor `e^{2iφ}`).
+Real-time hybridization function on the closed Keldysh contour, storing only
+the two CROSS branch blocks — `G₊₋` (the (+,−) block, the lesser-type
+correlator Δ^<) and `G₋₊` (the (−,+) block, the greater-type Δ^>) — the two
+physically fundamental Keldysh functions — both of the SAME parametric
+matrix type `A < AbstractMatrix{ComplexF64}`.  With `A =
+CorrelationMatrix` (Toeplitz-vector storage) the pair carries the four
+independent Toeplitz vectors (a, b, c, d) of a general complex-valued
+spectrum; the DIAGONAL blocks are recovered by `_G₊₊(G₊₋, G₋₊)` /
+`_G₋₋(G₊₋, G₋₊)`.
+
+Unified branch convention (statistics independent; identical to
+`MixedCorrelationFunction` on the Kadanoff contour — the CROSS blocks carry
+the Keldysh relative minus signs inside the blocks):
+
+    (+,+): (a, b)                (+,−): (−c, −b)
+    (−,+): (−a, −d)              (−,−): (c, d)
+
+For `CorrelationMatrix` storage the diagonal blocks are derived by `branch`
+exactly — pure sign combinations of the stored halves, no conjugation, hence
+valid for arbitrarily complex-valued spectra.  The sharing was audited at
+μ ≠ 0 (real and complex spectra) against the historical four-block formulas:
+it is exact (structural identity of the construction, not a thermal one; see
+the `cross-block sharing at μ ≠ 0` testset in test/realtime.jl).
+
+For a general (non-Toeplitz) matrix type `A` the cross branches return the
+stored blocks directly; the diagonal branches are derived by the sector rule
+(triangles from the partner blocks, diagonal by convention — see `_G₊₊` /
+`_G₋₋`), mirroring the general-matrix handling of the previous
+diagonal-pair storage.
+
+`i, j` run over the `N+1` nodes tᵢ = i·δt of each branch.
 
 The exponent of the discretized Feynman-Vernon influence functional built
 from these blocks depends on the statistics of the bath (the minus sign is
@@ -60,30 +64,124 @@ respective branch,
   where `s^{b}` is the system field on branch `b`.  For Hermitian `s`
   (`s† = s`) the exponent degenerates to the single-operator (ADT) form.
 """
-struct GenericRealCorrelationFunction{A<:AbstractMatrix{ComplexF64}, B<:AbstractMatrix{ComplexF64}, C<:AbstractMatrix{ComplexF64}, D<:AbstractMatrix{ComplexF64}} <: AbstractRealCorrelationFunction
-    G₊₊::A
-    G₊₋::B
-    G₋₊::C
-    G₋₋::D
+struct RealCorrelationFunction{A<:AbstractMatrix{ComplexF64}} <: AbstractRealCorrelationFunction
+    G₊₋::A
+    G₋₊::A
 end
 
-Base.transpose(x::GenericRealCorrelationFunction) = GenericRealCorrelationFunction(transpose(x.G₊₊), transpose(x.G₋₊), transpose(x.G₊₋), transpose(x.G₋₋))
-Base.iszero(x::GenericRealCorrelationFunction) = iszero(x.G₊₊) && iszero(x.G₊₋) && iszero(x.G₋₊) && iszero(x.G₋₋)
+"""
+    RealCorrelationFunction(G₊₊, G₋₋)
 
-Base.size(x::GenericRealCorrelationFunction, i::Int...) = size(x.G₊₊, i...)
+Two-matrix constructor (auto-generated): stores the diagonal pair directly;
+both arguments must be of the same matrix type (single type parameter).
 
-function Base.show(io::IO, ::MIME"text/plain", A::GenericRealCorrelationFunction)
-    print(io, "Real Correlation Function [$(size(A.G₊₊, 1))] (generic)")
+    RealCorrelationFunction(G₊₊, G₊₋, G₋₊, G₋₋) -> RealCorrelationFunction
+
+Legacy four-block constructor (any matrix type): validates the unified
+convention — for `CorrelationMatrix` inputs at the vector level (exact), for
+general matrices at the sector level (strict triangles pairwise + the
+Keldysh diagonal identity) — and keeps only the independent CROSS pair.
+"""
+function RealCorrelationFunction(G₊₊::CorrelationMatrix{ComplexF64},
+                                 G₊₋::CorrelationMatrix{ComplexF64},
+                                 G₋₊::CorrelationMatrix{ComplexF64},
+                                 G₋₋::CorrelationMatrix{ComplexF64})
+    ok = isapprox(G₊₋.ηⱼₖ, -G₋₋.ηⱼₖ; atol=1.0e-12) &&
+         isapprox(G₊₋.ηₖⱼ, -G₊₊.ηₖⱼ; atol=1.0e-12) &&
+         isapprox(G₋₊.ηⱼₖ, -G₊₊.ηⱼₖ; atol=1.0e-12) &&
+         isapprox(G₋₊.ηₖⱼ, -G₋₋.ηₖⱼ; atol=1.0e-12)
+    ok || throw(ArgumentError("cross blocks do not follow the unified convention " *
+                              "(G₊₋ = CM(−G₋₋.ηⱼₖ, −G₊₊.ηₖⱼ), G₋₊ = CM(−G₊₊.ηⱼₖ, −G₋₋.ηₖⱼ))"))
+    return RealCorrelationFunction(G₊₋, G₋₊)
 end
-Base.:-(x::GenericRealCorrelationFunction) = GenericRealCorrelationFunction(-x.G₊₊, -x.G₊₋, -x.G₋₊, -x.G₋₋)
-Base.:+(A::GenericRealCorrelationFunction, B::GenericRealCorrelationFunction) = GenericRealCorrelationFunction(A.G₊₊ + B.G₊₊, A.G₊₋ + B.G₊₋, A.G₋₊ + B.G₋₊, A.G₋₋ + B.G₋₋)
-branch(x::GenericRealCorrelationFunction, f1::Bool, f2::Bool) = ifelse(f1, ifelse(f2, x.G₊₊, x.G₊₋), ifelse(f2, x.G₋₊, x.G₋₋))
-function branch(x::GenericRealCorrelationFunction, b1::Symbol, b2::Symbol)
+
+function RealCorrelationFunction(G₊₊::AbstractMatrix{ComplexF64},
+                                 G₊₋::AbstractMatrix{ComplexF64},
+                                 G₋₊::AbstractMatrix{ComplexF64},
+                                 G₋₋::AbstractMatrix{ComplexF64})
+    # sector self-consistency: the four blocks must share their strict
+    # triangles pairwise (and the diagonals must satisfy the Keldysh
+    # identity).  The cross-diagonal contact split itself is fixed by the
+    # convention of `_G₊₊` / `_G₋₋`.
+    n = size(G₊₊, 1)
+    (size(G₊₋, 1) == n && size(G₋₊, 1) == n && size(G₋₋, 1) == n) ||
+        throw(DimensionMismatch("all four blocks must be $n×$n"))
+    ok = all(G₊₋[i, j] ≈ -G₋₋[i, j] for i in 1:n, j in 1:n if i > j) &&
+         all(G₊₋[i, j] ≈ -G₊₊[i, j] for i in 1:n, j in 1:n if i < j) &&
+         all(G₋₊[i, j] ≈ -G₊₊[i, j] for i in 1:n, j in 1:n if i > j) &&
+         all(G₋₊[i, j] ≈ -G₋₋[i, j] for i in 1:n, j in 1:n if i < j) &&
+         all((G₊₊[i, i] + G₋₋[i, i] + G₊₋[i, i] + G₋₊[i, i]) ≈ 0 for i in 1:n)
+    ok || throw(ArgumentError("blocks are not sector-consistent (unified " *
+                              "convention): strict triangles must pairwise coincide " *
+                              "up to sign and the diagonals must satisfy " *
+                              "G₊₊ + G₋₋ + G₊₋ + G₋₊ = 0"))
+    return RealCorrelationFunction(G₊₋, G₋₊)
+end
+
+# —— 从交叉对推导对角块的两个函数（branch 与 Mixed 共用） ——————————
+# 统一约定下 G₊₋ = CM(−c, −b)、G₋₊ = CM(−a, −d)，故
+#   G₊₊ = CM(a, b) = CM(−G₋₊.ηⱼₖ, −G₊₋.ηₖⱼ)
+#   G₋₋ = CM(c, d) = CM(−G₊₋.ηⱼₖ, −G₋₊.ηₖⱼ)
+# —— 纯符号组合、无共轭，对任意复值谱精确。
+
+"""
+    _G₊₊(G₊₋, G₋₊) -> G₊₊ block
+
+Time-ordered (+,+) block from the stored cross pair.  Exact (pure sign
+combinations) for `CorrelationMatrix` inputs; for general matrices the
+sector rule applies: lower triangle from −G₋₊, upper triangle and diagonal
+from −G₊₋ (the diagonal convention mirrors the general-matrix cross
+derivation of the previous diagonal-pair storage).
+"""
+_G₊₊(G₊₋::CorrelationMatrix{ComplexF64}, G₋₊::CorrelationMatrix{ComplexF64}) =
+    CorrelationMatrix(.-G₋₊.ηⱼₖ, .-G₊₋.ηₖⱼ)
+function _G₊₊(G₊₋::AbstractMatrix{ComplexF64}, G₋₊::AbstractMatrix{ComplexF64})
+    n = size(G₊₋, 1)
+    M = zeros(ComplexF64, n, n)
+    for i in 1:n, j in 1:n
+        M[i, j] = i > j ? -G₋₊[i, j] : -G₊₋[i, j]
+    end
+    return M
+end
+
+"""
+    _G₋₋(G₊₋, G₋₊) -> G₋₋ block
+
+Anti-time-ordered (−,−) block from the stored cross pair; same exactness
+and sector-rule conventions as `_G₊₊`.
+"""
+_G₋₋(G₊₋::CorrelationMatrix{ComplexF64}, G₋₊::CorrelationMatrix{ComplexF64}) =
+    CorrelationMatrix(.-G₊₋.ηⱼₖ, .-G₋₊.ηₖⱼ)
+function _G₋₋(G₊₋::AbstractMatrix{ComplexF64}, G₋₊::AbstractMatrix{ComplexF64})
+    n = size(G₊₋, 1)
+    M = zeros(ComplexF64, n, n)
+    for i in 1:n, j in 1:n
+        M[i, j] = i > j ? -G₊₋[i, j] : -G₋₊[i, j]
+    end
+    return M
+end
+
+# transpose 交换两交叉块（[xᵀ]^{+−} = (x^{−+})ᵀ）
+Base.transpose(x::RealCorrelationFunction) = RealCorrelationFunction(transpose(x.G₋₊), transpose(x.G₊₋))
+Base.iszero(x::RealCorrelationFunction) = iszero(x.G₊₋) && iszero(x.G₋₊)
+
+Base.size(x::RealCorrelationFunction, i::Int...) = size(x.G₊₋, i...)
+
+function Base.show(io::IO, ::MIME"text/plain", A::RealCorrelationFunction)
+    print(io, "Real Correlation Function [$(size(A.G₊₋, 1))] (2-block cross)")
+end
+Base.:-(x::RealCorrelationFunction) = RealCorrelationFunction(-x.G₊₋, -x.G₋₊)
+Base.:+(A::RealCorrelationFunction, B::RealCorrelationFunction) = RealCorrelationFunction(A.G₊₋ + B.G₊₋, A.G₋₊ + B.G₋₊)
+
+# branch for Toeplitz-vector (CorrelationMatrix) storage: cross blocks derived
+# exactly by pure sign combinations of the stored halves (no conjugation —
+# valid for arbitrarily complex-valued spectra)
+function branch(x::RealCorrelationFunction{CorrelationMatrix{ComplexF64}}, b1::Symbol, b2::Symbol)
     (b1 in (:+, :-)) || throw(ArgumentError("branch must be :+ or :-"))
     (b2 in (:+, :-)) || throw(ArgumentError("branch must be :+ or :-"))
     if b1 == :+
         if b2 == :+
-            return x.G₊₊
+            return _G₊₊(x.G₊₋, x.G₋₊)
         else
             return x.G₊₋
         end
@@ -91,131 +189,34 @@ function branch(x::GenericRealCorrelationFunction, b1::Symbol, b2::Symbol)
         if b2 == :+
             return x.G₋₊
         else
-            return x.G₋₋
+            return _G₋₋(x.G₊₋, x.G₋₊)
         end
     end
 end
-branch(x::GenericRealCorrelationFunction; b1::Symbol, b2::Symbol) = branch(x, b1, b2)
 
-# =============================================================================
-# Compact two-vector representation
-# =============================================================================
-"""
-    struct RealCorrelationFunction <: AbstractRealCorrelationFunction
-
-Compact real-time hybridization function storing the four independent
-Toeplitz vectors as plain `Vector{ComplexF64}` (mirroring the storage of
-`MixedCorrelationFunction` on the Kadanoff contour):
-
-- `ηⱼₖ`  — (+,+) forward lags,  thermal weight g₁,
-- `ηₖⱼ`  — (+,+) backward lags, thermal weight g₂,
-- `ηⱼₖ₂` — (+,−) forward lags,  thermal weight g₂,
-- `ηₖⱼ₂` — (−,+) backward lags, thermal weight g₁.
-
-The four branch blocks are derived in `branch` following the unified
-(statistics-independent) convention — using only negation, **no conjugation**:
-
-    (+,+): (a, b)                (+,−): (−c, −b)
-    (−,+): (−a, −d)              (−,−): (c, d)
-
-with `a = ηⱼₖ`, `b = ηₖⱼ`, `c = ηⱼₖ₂`, `d = ηₖⱼ₂`.  For real-valued spectra
-`c = conj(b)` and `d = conj(a)` hold exactly (cell-kernel conjugation
-symmetry with real thermal weights), so the two-vector constructor derives
-them by conjugation; for complex-valued spectra — the BCS anomalous coherence
-weights — conjugation would conjugate the spectral weight itself (breaking
-the blocks by a factor `e^{2iφ}`, the very same trap as in `bcs_Δm`), and
-the four-vector constructor must be used with `ηⱼₖ₂`/`ηₖⱼ₂` computed by
-their own quadrature (`fermionic_Δt` does this unconditionally).
-
-`fermionic_Δt` / `bosonic_Δt` return this compact form.
-"""
-struct RealCorrelationFunction <: AbstractRealCorrelationFunction
-    ηⱼₖ::Vector{ComplexF64}
-    ηₖⱼ::Vector{ComplexF64}
-    ηⱼₖ₂::Vector{ComplexF64}
-    ηₖⱼ₂::Vector{ComplexF64}
-end
-
-"""
-    RealCorrelationFunction(ηⱼₖ, ηₖⱼ) -> RealCorrelationFunction
-
-Two-vector constructor for **real-valued spectra**: derives the secondary
-pair by conjugation (`ηⱼₖ₂ = conj(ηₖⱼ)`, `ηₖⱼ₂ = conj(ηⱼₖ)`), which is exact
-when the spectral weights are real.
-"""
-function RealCorrelationFunction(ηⱼₖ::AbstractVector{<:Number}, ηₖⱼ::AbstractVector{<:Number})
-    a = collect(ComplexF64, ηⱼₖ)
-    b = collect(ComplexF64, ηₖⱼ)
-    return RealCorrelationFunction(a, b, conj.(b), conj.(a))
-end
-
-"""
-    RealCorrelationFunction(ηⱼₖ, ηₖⱼ, ηⱼₖ₂, ηₖⱼ₂) -> RealCorrelationFunction
-
-Four-vector constructor (complex-spectrum safe): takes the secondary pair
-explicitly, computed with the spectral weight un-conjugated.
-"""
-RealCorrelationFunction(ηⱼₖ::AbstractVector{<:Number}, ηₖⱼ::AbstractVector{<:Number},
-                        ηⱼₖ₂::AbstractVector{<:Number}, ηₖⱼ₂::AbstractVector{<:Number}) =
-    RealCorrelationFunction(collect(ComplexF64, ηⱼₖ), collect(ComplexF64, ηₖⱼ),
-                            collect(ComplexF64, ηⱼₖ₂), collect(ComplexF64, ηₖⱼ₂))
-
-Base.transpose(x::RealCorrelationFunction) = RealCorrelationFunction(x.ηₖⱼ, x.ηⱼₖ, x.ηₖⱼ₂, x.ηⱼₖ₂)
-Base.iszero(x::RealCorrelationFunction) = iszero(x.ηⱼₖ) && iszero(x.ηₖⱼ) && iszero(x.ηⱼₖ₂) && iszero(x.ηₖⱼ₂)
-
-Base.size(x::RealCorrelationFunction) = (length(x.ηⱼₖ), length(x.ηⱼₖ))
-Base.size(x::RealCorrelationFunction, i::Int) = size(x)[i]
-
-function Base.show(io::IO, ::MIME"text/plain", A::RealCorrelationFunction)
-    print(io, "Real Correlation Function [$(length(A.ηⱼₖ))] (compact)")
-end
-Base.:-(x::RealCorrelationFunction) = RealCorrelationFunction(-x.ηⱼₖ, -x.ηₖⱼ, -x.ηⱼₖ₂, -x.ηₖⱼ₂)
-Base.:+(A::RealCorrelationFunction, B::RealCorrelationFunction) =
-    RealCorrelationFunction(A.ηⱼₖ + B.ηⱼₖ, A.ηₖⱼ + B.ηₖⱼ, A.ηⱼₖ₂ + B.ηⱼₖ₂, A.ηₖⱼ₂ + B.ηₖⱼ₂)
-
-# unified branch derivation (statistics independent; cross branches carry the
-# Keldysh minus signs — same convention as MixedCorrelationFunction).  Only
-# negation is used, so the derivation is exact for complex-valued spectra as
-# long as ηⱼₖ₂/ηₖⱼ₂ were supplied un-conjugated.
+# fallback for general (non-Toeplitz) matrix storage: the cross branches
+# return the stored blocks; the diagonal branches are derived by the sector
+# rule through _G₊₊ / _G₋₋ (triangles from the partner cross blocks,
+# diagonal by convention).  The four Keldysh blocks of any correlator share
+# their strict triangles pairwise, so the cross pair determines all four
+# triangles; only the per-node CONTACT SPLIT of the two diagonal diagonals
+# (n extra degrees of freedom) is not carried, fixed by the convention
+# exactly as in the previous diagonal-pair storage.  CorrelationMatrix
+# storage carries the contacts exactly — for Toeplitz data prefer it.
 function branch(x::RealCorrelationFunction, b1::Symbol, b2::Symbol)
     (b1 in (:+, :-)) || throw(ArgumentError("branch must be :+ or :-"))
     (b2 in (:+, :-)) || throw(ArgumentError("branch must be :+ or :-"))
-    a, b, c, d = x.ηⱼₖ, x.ηₖⱼ, x.ηⱼₖ₂, x.ηₖⱼ₂
     if b1 == :+
-        if b2 == :+
-            return CorrelationMatrix(a, b)
-        else
-            return CorrelationMatrix(.-c, .-b)
-        end
+        return b2 == :+ ? _G₊₊(x.G₊₋, x.G₋₊) : x.G₊₋
     else
-        if b2 == :+
-            return CorrelationMatrix(.-a, .-d)
-        else
-            return CorrelationMatrix(c, d)
-        end
+        return b2 == :+ ? x.G₋₊ : _G₋₋(x.G₊₋, x.G₋₊)
     end
 end
 
 branch(x::RealCorrelationFunction; b1::Symbol, b2::Symbol) = branch(x, b1, b2)
-function branch(x::RealCorrelationFunction, f1::Bool, f2::Bool)
-    return branch(x, f1 ? :+ : :-, f2 ? :+ : :-)
-end
 
-# uniform block-wise equality / comparison across real representations
-function Base.:(==)(x::AbstractRealCorrelationFunction, y::AbstractRealCorrelationFunction)
-    return all(branch(x, b1, b2) == branch(y, b1, b2) for b1 in (:+, :-) for b2 in (:+, :-))
-end
-function Base.isapprox(x::AbstractRealCorrelationFunction, y::AbstractRealCorrelationFunction; kwargs...)
-    return all(isapprox(branch(x, b1, b2), branch(y, b1, b2); kwargs...)
-               for b1 in (:+, :-) for b2 in (:+, :-))
-end
-
-"""
-    RealCorrelationFunction(G₊₊, G₊₋, G₋₊, G₋₋) -> GenericRealCorrelationFunction
-
-Legacy four-block constructor: builds a `GenericRealCorrelationFunction`
-from the four branch matrices (unified convention — cross branches carry the
-Keldysh minus signs).
-"""
-RealCorrelationFunction(G₊₊::AbstractMatrix{ComplexF64}, G₊₋::AbstractMatrix{ComplexF64}, G₋₊::AbstractMatrix{ComplexF64}, G₋₋::AbstractMatrix{ComplexF64}) =
-    GenericRealCorrelationFunction(G₊₊, G₊₋, G₋₊, G₋₋)
+# equality/comparison on the stored diagonal pair (equivalent to block-wise
+# comparison: the cross blocks are functions of the pair)
+Base.:(==)(x::RealCorrelationFunction, y::RealCorrelationFunction) = (x.G₊₋ == y.G₊₋) && (x.G₋₊ == y.G₋₊)
+Base.isapprox(x::RealCorrelationFunction, y::RealCorrelationFunction; kwargs...) =
+    isapprox(x.G₊₋, y.G₊₋; kwargs...) && isapprox(x.G₋₊, y.G₋₊; kwargs...)

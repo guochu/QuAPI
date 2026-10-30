@@ -6,7 +6,7 @@ export AbstractCorrelationFunction, branch, branches
 # imaginary time
 export ImagCorrelationFunction, Δτ, fermionic_Δτ, bosonic_Δτ, Δiw_to_Δτ
 # real time
-export AbstractRealCorrelationFunction, RealCorrelationFunction, GenericRealCorrelationFunction, Δt, fermionic_Δt, bosonic_Δt
+export AbstractRealCorrelationFunction, RealCorrelationFunction, Δt, fermionic_Δt, bosonic_Δt
 # mixed time (L-shaped Kadanoff-Byam contour)
 export AbstractMixedCorrelationFunction, MixedCorrelationFunction, Δm, fermionic_Δm, bosonic_Δm
 

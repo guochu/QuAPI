@@ -123,7 +123,11 @@ function bosonic_Δt(f::AbstractBoundedFunction, disperse::Function, β::Real, N
         ηⱼₖ[i+1] = quadgkwrapper(-fⱼₖ(i))
         ηₖⱼ[i+1] = quadgkwrapper(-fₖⱼ(-i))
     end
-    return RealCorrelationFunction(ηⱼₖ, ηₖⱼ)
+    # secondary pair by conjugation — exact for the real-valued bosonic
+    # spectral densities; stored as the unified cross pair
+    #   G₊₋ = CM(−conj(b), −b)、G₋₊ = CM(−a, −conj(a))
+    return RealCorrelationFunction(CorrelationMatrix(.-conj.(ηₖⱼ), .-ηₖⱼ),
+                                   CorrelationMatrix(.-ηⱼₖ, .-conj.(ηⱼₖ)))
 end
 
 function _bosonic_fⱼₖ_r_disperse(f::AbstractBoundedFunction, disperse, β, μ, Δk::Int, δt)
