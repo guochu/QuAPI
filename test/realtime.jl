@@ -88,6 +88,53 @@ end
 end
 
 
+@testset "infinite fermionic Δt ↔ Δt alignment" begin
+	β = 2
+	δt = 0.25
+	for f in (semicircular(),)
+		bath = fermionicbath(f, β=β, μ=0)
+		x = infinite_Δt(bath, δt=δt, atol=1.0e-12, t=50)
+		N = QuAPI.current_size(x) - 1
+		dt = fermionic_Δt(f, β=β, N=N, t=N*δt, μ=0)
+		# primary Toeplitz vectors ≡ G₊₊
+		@test x.ηⱼₖ ≈ branch(dt, :+, :+).ηⱼₖ atol=1.0e-12
+		@test x.ηₖⱼ ≈ branch(dt, :+, :+).ηₖⱼ atol=1.0e-12
+		# all four branch blocks ≡ the Δt blocks directly (no relative signs)
+		@test branch(x, :+, :+).ηⱼₖ ≈ branch(dt, :+, :+).ηⱼₖ atol=1.0e-12
+		@test branch(x, :+, :+).ηₖⱼ ≈ branch(dt, :+, :+).ηₖⱼ atol=1.0e-12
+		@test branch(x, :+, :-).ηⱼₖ ≈ branch(dt, :+, :-).ηⱼₖ atol=1.0e-12
+		@test branch(x, :+, :-).ηₖⱼ ≈ branch(dt, :+, :-).ηₖⱼ atol=1.0e-12
+		@test branch(x, :-, :+).ηⱼₖ ≈ branch(dt, :-, :+).ηⱼₖ atol=1.0e-12
+		@test branch(x, :-, :+).ηₖⱼ ≈ branch(dt, :-, :+).ηₖⱼ atol=1.0e-12
+		@test branch(x, :-, :-).ηⱼₖ ≈ branch(dt, :-, :-).ηⱼₖ atol=1.0e-12
+		@test branch(x, :-, :-).ηₖⱼ ≈ branch(dt, :-, :-).ηₖⱼ atol=1.0e-12
+	end
+end
+
+@testset "infinite bosonic Δt ↔ Δt alignment" begin
+	β = 2
+	δt = 0.25
+	for f in (Leggett(),)
+		bath = bosonicbath(f, β=β, μ=0)
+		x = infinite_Δt(bath, δt=δt, atol=1.0e-12, t=50)
+		N = QuAPI.current_size(x) - 1
+		dt = bosonic_Δt(f, β=β, N=N, t=N*δt, μ=0)
+		@test x.ηⱼₖ ≈ branch(dt, :+, :+).ηⱼₖ atol=1.0e-12
+		@test x.ηₖⱼ ≈ branch(dt, :+, :+).ηₖⱼ atol=1.0e-12
+		# bosonic cross-branch equal-time entries are derived by conjugation
+		# from the stored contacts (−conj(b[1]) / −conj(a[1])) and coincide
+		# with the Δt block contacts to machine precision
+		@test branch(x, :+, :+).ηⱼₖ ≈ branch(dt, :+, :+).ηⱼₖ atol=1.0e-12
+		@test branch(x, :+, :+).ηₖⱼ ≈ branch(dt, :+, :+).ηₖⱼ atol=1.0e-12
+		@test branch(x, :+, :-).ηⱼₖ ≈ branch(dt, :+, :-).ηⱼₖ atol=1.0e-12
+		@test branch(x, :+, :-).ηₖⱼ ≈ branch(dt, :+, :-).ηₖⱼ atol=1.0e-12
+		@test branch(x, :-, :+).ηⱼₖ ≈ branch(dt, :-, :+).ηⱼₖ atol=1.0e-12
+		@test branch(x, :-, :+).ηₖⱼ ≈ branch(dt, :-, :+).ηₖⱼ atol=1.0e-12
+		@test branch(x, :-, :-).ηⱼₖ ≈ branch(dt, :-, :-).ηⱼₖ atol=1.0e-12
+		@test branch(x, :-, :-).ηₖⱼ ≈ branch(dt, :-, :-).ηₖⱼ atol=1.0e-12
+	end
+end
+
 @testset "infinite bosonic Δt" begin
 	tol = 2.0e-2
 	β = 1
@@ -100,7 +147,10 @@ end
 			bath = bosonicbath(f, β=β, μ=μ)
 			corr1 = Δt(bath, N=Nt, t=t)
 			x = infinite_Δt(bath, δt=δt, t=100.)
-			corr2 = RealCorrelationFunction(branch(x, :+, :+), -branch(x, :+, :-), -branch(x, :-, :+), branch(x, :-, :-))
+			# the infinite-cache branch blocks coincide with the finite-grid
+			# bosonic_Δt blocks directly (no relative signs; verified to
+			# quadrature determinism in the alignment testsets below)
+			corr2 = RealCorrelationFunction(branch(x, :+, :+), branch(x, :+, :-), branch(x, :-, :+), branch(x, :-, :-))
 			for b1 in (:+, :-), b2 in (:+, :-)
 				# println("b1=", b1, " b2=", b2)
 				m1 = branch(corr1, b1, b2)[1:Nt, 1:Nt]

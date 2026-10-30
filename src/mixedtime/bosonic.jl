@@ -140,6 +140,8 @@ function bosonic_Δm(f::AbstractBoundedFunction, disperse::Function; β::Real, N
     # real time
     ηⱼₖ = zeros(ComplexF64, Nt+1)
     ηₖⱼ = zeros(ComplexF64, Nt+1)
+    ηⱼₖ₂ = zeros(ComplexF64, Nt+1)
+    ηₖⱼ₂ = zeros(ComplexF64, Nt+1)
 
     ηⱼₖ[1] = quadgkwrapper(-fⱼⱼ)
     for i = 1:Nt
@@ -149,6 +151,18 @@ function bosonic_Δm(f::AbstractBoundedFunction, disperse::Function; β::Real, N
     for i = 1:Nt
         ηₖⱼ[i+1] = quadgkwrapper(-fₖⱼ(-i))
     end
+    # secondary pair (lags: un-conjugated negative-lag route; contacts: the
+    # bosonic contact kernels fⱼⱼ/fₖₖ are not a conjugate-symmetric pair, so
+    # the contacts are the conjugates of the primary contacts — exact for the
+    # real-valued bosonic spectral densities)
+    for i = 1:Nt
+        ηⱼₖ₂[i+1] = quadgkwrapper(-fₖⱼ(i))
+    end
+    for i = 1:Nt
+        ηₖⱼ₂[i+1] = quadgkwrapper(-fⱼₖ(-i))
+    end
+    ηⱼₖ₂[1] = conj(ηₖⱼ[1])
+    ηₖⱼ₂[1] = conj(ηⱼₖ[1])
 
     # imag time
     ξⱼₖ = zeros(ComplexF64, M) # j >= k
@@ -172,7 +186,7 @@ function bosonic_Δm(f::AbstractBoundedFunction, disperse::Function; β::Real, N
         ζⱼₖ[j,k] = quadgkwrapper(lⱼₖ(j-1,k-1))
         ζₖⱼ[k,j] = quadgkwrapper(lₖⱼ(k-1,j-1))
     end
-    MixedCorrelationFunction(ηⱼₖ,ηₖⱼ,ξⱼₖ,ξₖⱼ,ζⱼₖ,ζₖⱼ)
+    MixedCorrelationFunction(ηⱼₖ,ηₖⱼ,ηⱼₖ₂,ηₖⱼ₂,ξⱼₖ,ξₖⱼ,ζⱼₖ,ζₖⱼ)
 end
 
 # function _bosonic_lⱼₖ(f::AbstractBoundedFunction, β, μ, j::Int, k::Int, δt, δτ)

@@ -14,13 +14,6 @@ sub-block as a `CorrelationMatrix`.
 mutable struct InfiniteRealCorrelationCache{B <: AbstractBath}
 	ηⱼₖ::Vector{ComplexF64}
 	ηₖⱼ::Vector{ComplexF64}
-	# 跨支等时的两个专属 Bose 加权积分（玻色；平移不变只消节点指标、不消分支
-	# 指标——它们与 ++ 支的 J[1]=∫−fⱼⱼ/K[1]=∫−fₖₖ 是不同权重×不同三角原语的
-	# 新函数，必须单独积分存储）：
-	#   eqⱼₖ_pm = ∫ fⱼⱼ·g₂   （G₊₋ 等时 ηⱼₖ[1]，g₂ = boseeinstein）
-	#   eqₖₖ_mp = ∫ fₖₖ·g₁   （G₋₊ 等时 ηₖⱼ[1]，g₁ = 1 + boseeinstein）
-	eqⱼₖ_pm::ComplexF64
-	eqₖₖ_mp::ComplexF64
 	bath::B
 	δt::Float64
 end
@@ -39,18 +32,17 @@ Covered real-time window, `current_size(x) * x.δt`.
 """
 current_time(x::InfiniteRealCorrelationCache) = current_size(x) * x.δt
 
-InfiniteRealCorrelationCache(bath::AbstractBath, δt::Real) = InfiniteRealCorrelationCache(ComplexF64[], ComplexF64[], ComplexF64(NaN, NaN), ComplexF64(NaN, NaN), bath, convert(Float64, δt))
+InfiniteRealCorrelationCache(bath::AbstractBath, δt::Real) = InfiniteRealCorrelationCache(ComplexF64[], ComplexF64[], bath, convert(Float64, δt))
 
 # 四支 Keldysh 块：与有限格 bosonic_Δt / fermionic_Δt 逐项同构（返回副本，
-# 不与 cache 共享存储）。语义（J₁ = ηⱼₖ⁺⁺[1]、K₁ = ηₖⱼ⁺⁺[1]）：
-#   费米（单一三角原语对 fⱼₖ/fⱼₖ′，权重 g₁/g₂ 按支挂）：
-#     (+,+): (a, b)                    (+,−): (conj(b), b)
-#     (−,+): (a, conj(a))              (−,−): (conj(b), conj(a))
-#   玻色（跨支等时为专属积分，见 eqⱼₖ_pm/eqₖₖ_mp）：
+# 不与 cache 共享存储）。语义（a = ηⱼₖ、b = ηₖⱼ；J₁ = a[1]、K₁ = b[1]）：
+#   统一约定（费米 = 玻色，与 AbstractRealCorrelationFunction / Δm 一致）：
 #     (+,+): (a, b)
-#     (+,−): (eqⱼₖ_pm, −b)             （间隔 = conj(b[2:end]) / −b[2:end]）
-#     (−,+): (−a, eqₖₖ_mp)             （间隔 = −a[2:end] / −conj(a[2:end])）
+#     (+,−): (−conj(b), −b)            (−,+): (−a, −conj(a))
 #     (−,−): (conj(b), conj(a))
+# 交叉支等时接触不需要额外存储：统一约定下两统计的 (+,−) 接触均为
+# −conj(b[1])（conj 保热权重、翻核方向；玻色侧恒等机器精度验证含 μ≠0）。
+# 旧版为玻色另存 eqⱼₖ_pm/eqₖₖ_mp 两个专属积分，即漏看了这条共轭恒等。
 function branch(x::InfiniteRealCorrelationCache, b1::Symbol, b2::Symbol)
     (b1 in (:+, :-)) || throw(ArgumentError("branch must be :+ or :-"))
     (b2 in (:+, :-)) || throw(ArgumentError("branch must be :+ or :-"))
@@ -59,13 +51,15 @@ end
 
 function _branch(x::InfiniteRealCorrelationCache{<:AbstractFermionicNormalBath},
                  ::Val{b1}, ::Val{b2}) where {b1, b2}
+    # unified convention (see AbstractRealCorrelationFunction): cross branches
+    # carry the Keldysh minus signs, identical to the bosonic derivation
     a, b = x.ηⱼₖ, x.ηₖⱼ
     if (b1, b2) == (:+, :+)
         return CorrelationMatrix(copy(a), copy(b))
     elseif (b1, b2) == (:+, :-)
-        return CorrelationMatrix(conj.(b), copy(b))
+        return CorrelationMatrix(.-conj.(b), .-b)
     elseif (b1, b2) == (:-, :+)
-        return CorrelationMatrix(copy(a), conj.(a))
+        return CorrelationMatrix(.-a, .-conj.(a))
     else
         return CorrelationMatrix(conj.(b), conj.(a))
     end
@@ -73,24 +67,16 @@ end
 
 function _branch(x::InfiniteRealCorrelationCache{<:AbstractBosonicNormalBath},
                  ::Val{b1}, ::Val{b2}) where {b1, b2}
-    (isnan(real(x.eqⱼₖ_pm)) || isnan(real(x.eqₖₖ_mp))) &&
-        error("跨支等时积分未计算：先调用 compute_next!/compute!")
     a, b = x.ηⱼₖ, x.ηₖⱼ
-    ηⱼₖ = Vector{ComplexF64}(undef, length(a))
-    ηₖⱼ = Vector{ComplexF64}(undef, length(a))
     if (b1, b2) == (:+, :+)
-        ηⱼₖ .= a; ηₖⱼ .= b
+        return CorrelationMatrix(copy(a), copy(b))
     elseif (b1, b2) == (:+, :-)
-        ηⱼₖ[1] = x.eqⱼₖ_pm;          ηⱼₖ[2:end] .= .-conj.(b[2:end])
-        ηₖⱼ .= .-b
+        return CorrelationMatrix(.-conj.(b), .-b)
     elseif (b1, b2) == (:-, :+)
-        ηⱼₖ .= .-a
-        ηₖⱼ[1] = x.eqₖₖ_mp;          ηₖⱼ[2:end] .= .-conj.(a[2:end])
+        return CorrelationMatrix(.-a, .-conj.(a))
     else
-        ηⱼₖ[1] = conj(b[1]);         ηⱼₖ[2:end] .= conj.(b[2:end])
-        ηₖⱼ[1] = conj(a[1]);         ηₖⱼ[2:end] .= conj.(a[2:end])
+        return CorrelationMatrix(conj.(b), conj.(a))
     end
-    return CorrelationMatrix(ηⱼₖ, ηₖⱼ)
 end
 
 """
@@ -213,10 +199,6 @@ function compute_next!(x::InfiniteRealCorrelationCache{<:AbstractBosonicNormalBa
     if N == 0
     	ηⱼₖ_new = quadgkwrapper(-fⱼⱼ)
     	ηₖⱼ_new = quadgkwrapper(-fₖₖ)
-    	# 跨支等时的两个专属积分（只依赖 δt，N==0 时算一次；与有限格
-    	# bosonic_Δt 第 116–117 行的 fⱼⱼg₂/fₖₖg₁ 同定义）
-    	x.eqⱼₖ_pm = quadgkwrapper(f * (ε -> boseeinstein(β, μ, ε) * _gⱼⱼ_r(δt)(ε)))
-    	x.eqₖₖ_mp = quadgkwrapper(f * (ε -> (1 + boseeinstein(β, μ, ε)) * _gₖₖ_r(δt)(ε)))
     else
     	ηⱼₖ_new = quadgkwrapper(-fⱼₖ(N))
     	ηₖⱼ_new = quadgkwrapper(-fₖⱼ(-N))

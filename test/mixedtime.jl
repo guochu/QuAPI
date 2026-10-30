@@ -95,3 +95,67 @@ end
 	bb = bosonicbath(Leggett(), β=β, μ=0)
 	@test Δm(bb, Nt=2, Nτ=5, t=1) ≈ bosonic_Δm(Leggett(), β=β, Nt=2, Nτ=5, t=1, μ=0) atol=1.0e-8
 end
+println("------------------------------------")
+println("|   Δm ↔ Δτ/Δt branch alignment    |")
+println("------------------------------------")
+
+# Cross-contour consistency of the frozen kernels: the imaginary branch of the
+# mixed (Kadanoff-Baym) contour correlation must reproduce the pure
+# imaginary-time kernel, and the four real-time branch combinations must
+# reproduce the pure real-time kernel blocks (up to the documented Keldysh
+# relative signs, which differ between statistics).  All equalities hold to
+# quadrature determinism — the same cell weights are evaluated on both sides.
+# μ = 0 only: at μ ≠ 0 the τ sector uses different (but individually
+# consistent) μ conventions in fermionic_Δτ (spectrumshift) and the Δm τ
+# branch (direct μ in the kernel), so the two are not expected to coincide.
+@testset "fermionic Δm ↔ Δτ/Δt alignment" begin
+	β = 2
+	for f in (semicircular(), DiracDelta(ω=0.5))
+		begin
+			μ = 0
+			dm = fermionic_Δm(f, β=β, t=2, Nt=4, Nτ=5, μ=μ)
+			dτ = fermionic_Δτ(f, β=β, N=5, μ=μ)
+			dt = fermionic_Δt(f, β=β, t=2, N=4, μ=μ)
+			# τ branch ≡ imaginary-time kernel
+			ξ = branch(dm, b1=:τ, b2=:τ)
+			@test ξ.ηⱼₖ ≈ dτ.data.ηⱼₖ atol=1.0e-12
+			@test ξ.ηₖⱼ ≈ dτ.data.ηₖⱼ atol=1.0e-12
+			# real branches ≡ real-time kernel blocks — unified convention on
+			# both sides, all four branches match directly (the historical
+			# relative minus of the fermionic cross branches is now inside
+			# the Δt blocks themselves)
+			@test branch(dm, b1=:+, b2=:+).ηⱼₖ ≈ branch(dt, :+, :+).ηⱼₖ atol=1.0e-12
+			@test branch(dm, b1=:+, b2=:+).ηₖⱼ ≈ branch(dt, :+, :+).ηₖⱼ atol=1.0e-12
+			@test branch(dm, b1=:+, b2=:-).ηⱼₖ ≈ branch(dt, :+, :-).ηⱼₖ atol=1.0e-12
+			@test branch(dm, b1=:+, b2=:-).ηₖⱼ ≈ branch(dt, :+, :-).ηₖⱼ atol=1.0e-12
+			@test branch(dm, b1=:-, b2=:+).ηⱼₖ ≈ branch(dt, :-, :+).ηⱼₖ atol=1.0e-12
+			@test branch(dm, b1=:-, b2=:+).ηₖⱼ ≈ branch(dt, :-, :+).ηₖⱼ atol=1.0e-12
+			@test branch(dm, b1=:-, b2=:-).ηⱼₖ ≈ branch(dt, :-, :-).ηⱼₖ atol=1.0e-12
+			@test branch(dm, b1=:-, b2=:-).ηₖⱼ ≈ branch(dt, :-, :-).ηₖⱼ atol=1.0e-12
+		end
+	end
+end
+
+@testset "bosonic Δm ↔ Δτ/Δt alignment" begin
+	β = 2
+	for f in (Leggett(), DiracDelta(ω=0.5))
+		begin
+			μ = 0
+			dm = bosonic_Δm(f, β=β, t=2, Nt=4, Nτ=5, μ=μ)
+			dτ = bosonic_Δτ(f, β=β, N=5, μ=μ)
+			dt = bosonic_Δt(f, β=β, t=2, N=4, μ=μ)
+			ξ = branch(dm, b1=:τ, b2=:τ)
+			@test ξ.ηⱼₖ ≈ dτ.data.ηⱼₖ atol=1.0e-12
+			@test ξ.ηₖⱼ ≈ dτ.data.ηₖⱼ atol=1.0e-12
+			# unified convention on both sides: all four branches match
+			@test branch(dm, b1=:+, b2=:+).ηⱼₖ ≈ branch(dt, :+, :+).ηⱼₖ atol=1.0e-12
+			@test branch(dm, b1=:+, b2=:+).ηₖⱼ ≈ branch(dt, :+, :+).ηₖⱼ atol=1.0e-12
+			@test branch(dm, b1=:+, b2=:-).ηⱼₖ ≈ branch(dt, :+, :-).ηⱼₖ atol=1.0e-12
+			@test branch(dm, b1=:+, b2=:-).ηₖⱼ ≈ branch(dt, :+, :-).ηₖⱼ atol=1.0e-12
+			@test branch(dm, b1=:-, b2=:+).ηⱼₖ ≈ branch(dt, :-, :+).ηⱼₖ atol=1.0e-12
+			@test branch(dm, b1=:-, b2=:+).ηₖⱼ ≈ branch(dt, :-, :+).ηₖⱼ atol=1.0e-12
+			@test branch(dm, b1=:-, b2=:-).ηⱼₖ ≈ branch(dt, :-, :-).ηⱼₖ atol=1.0e-12
+			@test branch(dm, b1=:-, b2=:-).ηₖⱼ ≈ branch(dt, :-, :-).ηₖⱼ atol=1.0e-12
+		end
+	end
+end

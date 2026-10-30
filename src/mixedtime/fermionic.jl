@@ -142,6 +142,8 @@ function fermionic_Δm(f::AbstractBoundedFunction, disperse::Function; β::Real,
     # real time
     ηⱼₖ = zeros(ComplexF64, Nt+1)
     ηₖⱼ = zeros(ComplexF64, Nt+1)
+    ηⱼₖ₂ = zeros(ComplexF64, Nt+1)
+    ηₖⱼ₂ = zeros(ComplexF64, Nt+1)
 
     ηⱼₖ[1] = quadgkwrapper(-fⱼⱼ * g₁)
     for i = 1:Nt
@@ -150,6 +152,16 @@ function fermionic_Δm(f::AbstractBoundedFunction, disperse::Function; β::Real,
     ηₖⱼ[1] = quadgkwrapper(fₖₖ * g₂)
     for i = 1:Nt
         ηₖⱼ[i+1] = quadgkwrapper(fⱼₖ(-i) * g₂)
+    end
+    # secondary pair (un-conjugated spectrum; equals conj of the primary pair
+    # for real-valued spectra)
+    ηⱼₖ₂[1] = quadgkwrapper(fⱼⱼ * g₂)
+    for i = 1:Nt
+        ηⱼₖ₂[i+1] = quadgkwrapper(fⱼₖ(i) * g₂)
+    end
+    ηₖⱼ₂[1] = quadgkwrapper(-fₖₖ * g₁)
+    for i = 1:Nt
+        ηₖⱼ₂[i+1] = quadgkwrapper(-fⱼₖ(-i) * g₁)
     end
 
     # imag time
@@ -174,7 +186,7 @@ function fermionic_Δm(f::AbstractBoundedFunction, disperse::Function; β::Real,
         ζⱼₖ[j,k] = quadgkwrapper(lⱼₖ(j-1,k-1))
         ζₖⱼ[k,j] = quadgkwrapper(lₖⱼ(k-1,j-1))
     end
-    MixedCorrelationFunction(ηⱼₖ,ηₖⱼ,ξⱼₖ,ξₖⱼ,ζⱼₖ,ζₖⱼ)
+    MixedCorrelationFunction(ηⱼₖ,ηₖⱼ,ηⱼₖ₂,ηₖⱼ₂,ξⱼₖ,ξₖⱼ,ζⱼₖ,ζₖⱼ)
 end
 
 # function _fermionic_lⱼₖ(f::AbstractBoundedFunction, β, μ, j::Int, k::Int, δt, δτ)

@@ -2,5 +2,4 @@
 *.pdf
 docs/build/
 Manifest.toml
-performance/
 bugrepots/

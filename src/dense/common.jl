@@ -88,7 +88,7 @@ MX : (:τ,1) .. (:τ,Nτ)  ++  (+,1) (-,1) ..       （虚时升序接实时升�
 """
 contour_ordering(x::ImagCorrelationFunction) =
     [(:τ, i) for i in 1:size(x, 1)]
-contour_ordering(x::RealCorrelationFunction) =
+contour_ordering(x::AbstractRealCorrelationFunction) =
     [(b, i) for i in 1:size(x, 1) for b in (:+, :-)]
 function contour_ordering(x::AbstractMixedCorrelationFunction)
     kt, Nτ = rsize(x), isize(x)

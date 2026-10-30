@@ -84,3 +84,41 @@ end
 		@test x.dd ≈ y.dd atol=atol
 	end
 end
+println("------------------------------------")
+println("|   BCS Δm ↔ Δτ/Δt alignment       |"
+)
+println("------------------------------------")
+
+# Cross-contour consistency for the superconducting bath: per flavor block, the
+# imaginary branch of bcs_Δm must reproduce bcs_Δτ and the real branch
+# combinations must reproduce bcs_Δt (fermionic Keldysh relative signs).  The
+# complex-Δ case guards the un-conjugated backward-sector storage: with a
+# conjugated backward route the anomalous (ud/du) components of the (+,−),
+# (−,+) and (−,−) combinations would pick up conj(weight) and fail here.
+@testset "bcs Δm ↔ Δτ/Δt alignment" begin
+	atol = 1.0e-12
+	β, μ = 2, 0
+	for Δ in (0.5, 0.2 + 0.45im)
+		for f in (semicircular(), DiracDelta(ω=0.5))
+			dm = bcs_Δm(f, β=β, Nτ=5, t=2, Nt=4, μ=μ, Δ=Δ)
+			dτ = bcs_Δτ(f, β=β, N=5, μ=μ, Δ=Δ)
+			dt = bcs_Δt(f, β=β, N=4, t=2, μ=μ, Δ=Δ)
+			for nm in (:uu, :ud, :du, :dd)
+				mblk, τblk, tblk = getproperty(dm, nm), getproperty(dτ, nm), getproperty(dt, nm)
+				# τ branch ≡ imaginary-time kernel
+				ξ = branch(mblk, b1=:τ, b2=:τ)
+				@test ξ.ηⱼₖ ≈ τblk.data.ηⱼₖ atol=atol
+				@test ξ.ηₖⱼ ≈ τblk.data.ηₖⱼ atol=atol
+				# real branches ≡ real-time kernel blocks (fermionic Keldysh signs)
+				@test branch(mblk, b1=:+, b2=:+).ηⱼₖ ≈ branch(tblk, :+, :+).ηⱼₖ atol=atol
+				@test branch(mblk, b1=:+, b2=:+).ηₖⱼ ≈ branch(tblk, :+, :+).ηₖⱼ atol=atol
+				@test branch(mblk, b1=:+, b2=:-).ηⱼₖ ≈ branch(tblk, :+, :-).ηⱼₖ atol=atol
+				@test branch(mblk, b1=:+, b2=:-).ηₖⱼ ≈ branch(tblk, :+, :-).ηₖⱼ atol=atol
+				@test branch(mblk, b1=:-, b2=:+).ηⱼₖ ≈ branch(tblk, :-, :+).ηⱼₖ atol=atol
+				@test branch(mblk, b1=:-, b2=:+).ηₖⱼ ≈ branch(tblk, :-, :+).ηₖⱼ atol=atol
+				@test branch(mblk, b1=:-, b2=:-).ηⱼₖ ≈ branch(tblk, :-, :-).ηⱼₖ atol=atol
+				@test branch(mblk, b1=:-, b2=:-).ηₖⱼ ≈ branch(tblk, :-, :-).ηₖⱼ atol=atol
+			end
+		end
+	end
+end

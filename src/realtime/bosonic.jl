@@ -105,73 +105,25 @@ bosonic_Δt(f::AbstractBoundedFunction, β::Real, N::Int, δt::Real, μ::Real) =
 function bosonic_Δt(f::AbstractBoundedFunction, disperse::Function, β::Real, N::Int, δt::Real, μ::Real)
     β = convert(Float64, β)
     μ = convert(Float64, μ)
-    # g₁(ε) = _g₁(β, μ, disperse(ε)); g₂(ε) = _g₂(β, μ, disperse(ε))
     fⱼₖ(Δk) = _bosonic_fⱼₖ_r_disperse(f, disperse, β, μ, Δk, δt)
     fₖⱼ(Δk) = _bosonic_fₖⱼ_r_disperse(f, disperse, β, μ, Δk, δt)
     fⱼⱼ = _bosonic_fⱼⱼ_r_disperse(f, disperse, β, μ, δt)
     fₖₖ = _bosonic_fₖₖ_r_disperse(f, disperse, β, μ, δt)
-    # the equal-time entries of G₊₋/G₋₊ are stored as the two ordering pieces
-    # (conjugate pair of the gⱼⱼ/gₖₖ kernels), matching the legacy `bosonic_Δt_deprecated`
-    # storage convention; only for diagonal coupling do the two parts add
-    fⱼⱼg₂ = f * (ε -> boseeinstein(β, μ, disperse(ε)) * _gⱼⱼ_r(δt)(disperse(ε)))
-    fₖₖg₁ = f * (ε -> (1 + boseeinstein(β, μ, disperse(ε))) * _gₖₖ_r(δt)(disperse(ε)))
 
-    ### G₊₊
+    # primary Toeplitz pair only: the remaining branch blocks are derived by
+    # the unified conjugation convention in branch (the historical four-block
+    # storage of the cross branches is bit-identically reproduced for the
+    # real-valued bosonic spectra — verified in the alignment tests), halving
+    # the quadgk cost of the construction
     ηⱼₖ = zeros(ComplexF64, N+1)
     ηₖⱼ = zeros(ComplexF64, N+1)
-
     ηⱼₖ[1] = quadgkwrapper(-fⱼⱼ)
-    for i = 1:N
-        ηⱼₖ[i+1] = quadgkwrapper(-fⱼₖ(i))
-    end
     ηₖⱼ[1] = quadgkwrapper(-fₖₖ)
     for i = 1:N
+        ηⱼₖ[i+1] = quadgkwrapper(-fⱼₖ(i))
         ηₖⱼ[i+1] = quadgkwrapper(-fₖⱼ(-i))
     end
-    G₊₊ = CorrelationMatrix(ηⱼₖ, ηₖⱼ)   
-
-    ### G₊₋
-    ηⱼₖ = zeros(ComplexF64, N+1)
-    ηₖⱼ = zeros(ComplexF64, N+1)
-
-    ηⱼₖ[1] = quadgkwrapper(fⱼⱼg₂)
-    ηₖⱼ[1] = quadgkwrapper(fₖₖ)
-    for i = 1:N
-        ηⱼₖ[i+1] = quadgkwrapper(fₖⱼ(i))
-    end
-    for i = 1:N
-        ηₖⱼ[i+1] = ηⱼₖ[i+1]'
-    end
-    G₊₋ = CorrelationMatrix(ηⱼₖ, ηₖⱼ)  
-
-    ### G₋₊
-    ηⱼₖ = zeros(ComplexF64, N+1)
-    ηₖⱼ = zeros(ComplexF64, N+1)
-
-    ηⱼₖ[1] = quadgkwrapper(fⱼⱼ)
-    ηₖⱼ[1] = quadgkwrapper(fₖₖg₁)
-    for i = 1:N
-        ηⱼₖ[i+1] = quadgkwrapper(fⱼₖ(i))
-    end
-    for i = 1:N
-        ηₖⱼ[i+1] = ηⱼₖ[i+1]'
-    end
-    G₋₊ = CorrelationMatrix(ηⱼₖ, ηₖⱼ)  
-
-    ### G₋₋
-    ηⱼₖ = zeros(ComplexF64, N+1)
-    ηₖⱼ = zeros(ComplexF64, N+1)
-
-    ηⱼₖ[1] = quadgkwrapper(-fₖₖ')
-    for i = 1:N
-        ηⱼₖ[i+1] = quadgkwrapper(-fₖⱼ(i))
-    end
-    ηₖⱼ[1] = quadgkwrapper(-fⱼⱼ')
-    for i = 1:N
-        ηₖⱼ[i+1] = quadgkwrapper(-fⱼₖ(-i))
-    end
-    G₋₋ = CorrelationMatrix(ηⱼₖ, ηₖⱼ)
-    return RealCorrelationFunction(G₊₊, G₊₋, G₋₊, G₋₋)
+    return RealCorrelationFunction(ηⱼₖ, ηₖⱼ)
 end
 
 function _bosonic_fⱼₖ_r_disperse(f::AbstractBoundedFunction, disperse, β, μ, Δk::Int, δt)

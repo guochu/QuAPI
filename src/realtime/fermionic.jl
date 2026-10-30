@@ -121,61 +121,33 @@ function fermionic_Δt(f::AbstractBoundedFunction, disperse::Function, β::Real,
     g₁(ε) = fermidirac(β, μ - disperse(ε)); g₂(ε) = fermidirac(β, disperse(ε) - μ)
     fⱼₖ(Δk) = _fⱼₖ_r_disperse(f, disperse, Δk, δt)
     fⱼⱼ = _fⱼⱼ_r_disperse(f, disperse, δt)
+    fₖₖ = _fₖₖ_r_disperse(f, disperse, δt)
 
-    ### G₊₊
-    ηⱼₖ = zeros(ComplexF64, N+1)
-    ηₖⱼ = zeros(ComplexF64, N+1)
-
-    ηⱼₖ[1] = quadgkwrapper(-fⱼⱼ * g₁)
+    # The four branch blocks share four distinct Toeplitz vectors:
+    #   G₊₊ = CM(a, b)   G₊₋ = CM(c, b)   G₋₊ = CM(a, d)   G₋₋ = CM(c, d)
+    # computed once here (previously each was quadruplicated, doubling the
+    # quadgk cost).  Backward-sector entries use the negative-lag cell kernel
+    # fⱼₖ(-i) with the spectrum un-conjugated — the physical correlator carries
+    # the same weight at forward and backward lags; conjugation is only used
+    # for the branch DERIVATION, which is exact for real-valued spectra.
+    a = zeros(ComplexF64, N+1)
+    b = zeros(ComplexF64, N+1)
+    a[1] = quadgkwrapper(-fⱼⱼ * g₁)
+    b[1] = quadgkwrapper(fₖₖ * g₂)
     for i = 1:N
-        ηⱼₖ[i+1] = quadgkwrapper(-fⱼₖ(i) * g₁)
+        a[i+1] = quadgkwrapper(-fⱼₖ(i) * g₁)
+        b[i+1] = quadgkwrapper(fⱼₖ(-i) * g₂)
     end
-    ηₖⱼ[1] = quadgkwrapper(fⱼⱼ' * g₂)
+    # secondary pair computed by its own quadrature with the spectrum
+    # un-conjugated — complex-spectrum safe (BCS anomalous coherence weights),
+    # and for real-valued spectra bit-identical to conj(b)/conj(a)
+    ηⱼₖ₂ = zeros(ComplexF64, N+1)
+    ηₖⱼ₂ = zeros(ComplexF64, N+1)
+    ηⱼₖ₂[1] = quadgkwrapper(fⱼⱼ * g₂)
+    ηₖⱼ₂[1] = quadgkwrapper(-fₖₖ * g₁)
     for i = 1:N
-        ηₖⱼ[i+1] = quadgkwrapper(fⱼₖ(i)' * g₂)
+        ηⱼₖ₂[i+1] = quadgkwrapper(fⱼₖ(i) * g₂)
+        ηₖⱼ₂[i+1] = quadgkwrapper(-fⱼₖ(-i) * g₁)
     end
-    G₊₊ = CorrelationMatrix(ηⱼₖ, ηₖⱼ)   
-
-    ### G₊₋
-    ηⱼₖ = zeros(ComplexF64, N+1)
-    ηₖⱼ = zeros(ComplexF64, N+1)
-
-    ηⱼₖ[1] = quadgkwrapper(fⱼⱼ * g₂)
-    for i = 1:N
-        ηⱼₖ[i+1] = quadgkwrapper(fⱼₖ(i) * g₂)
-    end
-    ηₖⱼ[1] = quadgkwrapper(fⱼⱼ' * g₂)
-    for i = 1:N
-        ηₖⱼ[i+1] = ηⱼₖ[i+1]'
-    end
-    G₊₋ = CorrelationMatrix(ηⱼₖ, ηₖⱼ)  
-
-    ### G₋₊
-    ηⱼₖ = zeros(ComplexF64, N+1)
-    ηₖⱼ = zeros(ComplexF64, N+1)
-
-    ηⱼₖ[1] = quadgkwrapper(-fⱼⱼ * g₁)
-    for i = 1:N
-        ηⱼₖ[i+1] = quadgkwrapper(-fⱼₖ(i)*g₁)
-    end
-    ηₖⱼ[1] = quadgkwrapper(-fⱼⱼ' * g₁)
-    for i = 1:N
-        ηₖⱼ[i+1] = ηⱼₖ[i+1]'
-    end
-    G₋₊ = CorrelationMatrix(ηⱼₖ, ηₖⱼ)  
-
-    ### G₋₋
-    ηⱼₖ = zeros(ComplexF64, N+1)
-    ηₖⱼ = zeros(ComplexF64, N+1)
-
-    ηⱼₖ[1] = quadgkwrapper(fⱼⱼ * g₂)
-    for i = 1:N
-        ηⱼₖ[i+1] = quadgkwrapper(fⱼₖ(i) * g₂)
-    end
-    ηₖⱼ[1] = quadgkwrapper(-fⱼⱼ' * g₁)
-    for i = 1:N
-        ηₖⱼ[i+1] = quadgkwrapper(-fⱼₖ(i)' * g₁)
-    end
-    G₋₋ = CorrelationMatrix(ηⱼₖ, ηₖⱼ)
-    return RealCorrelationFunction(G₊₊, G₊₋, G₋₊, G₋₋)
+    return RealCorrelationFunction(a, b, ηⱼₖ₂, ηₖⱼ₂)
 end

@@ -4,7 +4,8 @@
 
 module Dense
 
-using ..QuAPI: AbstractCorrelationFunction, BCSCorrelationFunction,
+using ..QuAPI: AbstractCorrelationFunction, AbstractRealCorrelationFunction,
+               BCSCorrelationFunction,
                ImagCorrelationFunction, RealCorrelationFunction,
                AbstractMixedCorrelationFunction, CorrelationMatrix,
                AbstractContourIndex, GrassmannContourIndex, BosonicContourIndex,
