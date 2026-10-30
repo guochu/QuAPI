@@ -18,7 +18,7 @@ using ImpurityModelBase
             (fermionic_Δt(spec, β=1.0, N=2, t=0.8, μ=0.2), true),  # RT 位移保留
             (fermionic_Δm(spec, β=1.2, Nτ=2, t=0.6, Nt=2, μ=0.1), false),  # mixed raw
             (bcs_Δτ(specb, β=2.0, N=3, μ=0.0, Δ=0.5), false),  # BCS τ raw
-            (bcs_Δm(specb, β=1.2, Nτ=2, t=0.6, Nt=2, μ=0.0, Δ=0.5), true))  # BCS mixed 位移
+            (bcs_Δm(specb, β=1.2, Nτ=2, t=0.6, Nt=2, μ=0.0, Δ=0.5), false))  # BCS mixed raw
         h = GrassmannHybridizationMatrix(corr)
         for p in 1:length(h.basis)        # 同 conj：a-a 与 ā-ā 槽恒零
             @test iszero(h.Δ[p, p])

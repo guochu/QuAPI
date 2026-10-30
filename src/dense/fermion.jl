@@ -150,12 +150,13 @@ function _vertex_shifted_IF(C::AbstractMatrix, bs::Vector{GrassmannContourIndex}
         return _vertex_shifted_rt(C, length(bs) ÷ 4 - 1)  # RT 单 flavor：位移保留（ED ✓）
     elseif !mixed
         return C                                     # BCS RT：暂沿用旧装配
-    elseif !all(b -> b.band == 1, bs)
-        Nτ = count(b -> b.branch === :τ && b.band == 1, bs) ÷ 2
-        Nt = (length(bs) - count(==(:τ), brs)) ÷ 8 - 1
-        return _vertex_shifted_bcs_mixed(C, Nτ, Nt)  # BCS mixed：与访问器一致（严格链验证待补）
-    end
-    return C                                         # mixed 单 flavor：raw（ED 矛盾，回退）
+    return C
+    # BCS mixed/RT：cell 读取（与 BCS 访问器一致——其 τ/混合/RT 三分支均为
+    # raw 直读；此前 Dense 的 _vertex_shifted_bcs_mixed 移位未经验证，已随
+    # mixed/τ 一并回退；严格 BCS 链验证后再定最终约定）
+    return C                     # mixed 单 flavor / BCS mixed：raw（与访问器一致）
+end
+    return C                     # mixed 单 flavor / BCS mixed：raw（兜底）
 end
 
 GrassmannHybridizationMatrix(x::IFSource) =
