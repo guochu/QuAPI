@@ -142,9 +142,9 @@ function GaussianStates.BosonicGaussianState(hm::BosonicHybridizationMatrix)
     W = zeros(2n, 2n)                                 # [[0, M], [Mᵀ, 0]]（实对称）
     W[1:n, n+1:2n] .= M
     W[n+1:2n, 1:n] .= transpose(M)
-    # 湮灭条件闭式：G = ⟨b b†⟩ = (I − WWᵀ)⁻¹、K = ⟨b b⟩ = W Gᵀ；Σ 块装配见
-    # _bosonic_pairing_covariance（GaussianStates v1 `_bosonic_gamma_pairing`
-    # 同式；n=1 与稠密 Fock Choi 仲裁至机器精度，辛本征值全 ½）。
+    # 湮灭条件闭式：G = ⟨b b†⟩ = (I − WWᵀ)⁻¹、K = ⟨b b⟩ = W Gᵀ；Σ 块装配
+    # （GaussianStates v1 `_bosonic_gamma_pairing` 同式；n=1 与稠密 Fock Choi
+    # 仲裁至机器精度，辛本征值全 ½）。
     Id = Matrix{Float64}(I, 2n, 2n)
     G = (Id - W * transpose(W)) \ Id
     K = W * transpose(G)
@@ -160,25 +160,5 @@ end
 
 GaussianStates.BosonicGaussianState(x::AbstractCorrelationFunction) =
     BosonicGaussianState(BosonicHybridizationMatrix(x))
-
-# 玻色配对系数向量 |Ψ⟩ = exp(½b†Wb†)|0⟩ 的 (x,p) 协方差（W 实对称、奇异值
-# < 1）。湮灭条件 (b_i − Σ_j W_ij b†_j)|Ψ⟩ = 0 给出
-#   G = (I − WWᵀ)⁻¹ = ⟨bb†⟩，K = W Gᵀ = ⟨bb⟩，⟨b†b⟩ = Gᵀ − I
-#   σ_xx = G + K − ½I，σ_pp = G − K − ½I，σ_xp = 0（实 W）
-#（GaussianStates v1 `_bosonic_gamma_pairing` 同式；n=1 与稠密 Fock Choi
-# 仲裁至机器精度，辛本征值全 ½）
-function _bosonic_pairing_covariance(W::AbstractMatrix{<:Real})
-    N = size(W, 1)
-    Id = Matrix{Float64}(I, N, N)
-    G = (Id - W * transpose(W)) \ Id
-    K = W * transpose(G)
-    Σ = zeros(Float64, 2N, 2N)                        # (x₁,p₁,…,x_N,p_N)
-    for i in 1:N, j in 1:N
-        δ = ifelse(i == j, 0.5, 0.0)
-        Σ[2i-1, 2j-1] = G[i,j] + K[i,j] - δ
-        Σ[2i, 2j]     = G[i,j] - K[i,j] - δ
-    end
-    return (Σ .+ transpose(Σ)) ./ 2
-end
 
 end # module
