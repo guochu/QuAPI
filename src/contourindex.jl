@@ -175,17 +175,19 @@ function Base.getindex(x::AbstractCorrelationFunction,
                        i::GrassmannContourIndex, j::GrassmannContourIndex)
     (i.conj == j.conj) && return zero(eltype(branch(x; b1=branch(i), b2=branch(j))))
     bs = branches(x)
-    m = if bs == (:τ,)
-        Nτ = length(branch(x; b1=:τ, b2=:τ).ηⱼₖ)
-        # 单节点环无移位空间（与 Dense 装配的 n == 1 短路一致）：读原始等时和
-        Nτ == 1 ? (:τ, 1, :τ, 1, 1) : _vs_τ_acc(i.j, j.j, Nτ)
-    elseif bs == (:+, :-)
+    if bs == (:τ,)
+        # 2026-10-30：τ 环回退原始（cell）读取。判决依据：GTEMPO Toulouse
+        # 基准（performance/firstorder/vertex_shift_accuracy.jl）显示 τ 环
+        # 顶点重组使 g(τ) 的离散误差常数恶化 ~30 倍（0.017 vs 0.0006 @δτ=0.125，
+        # 同为一阶收敛）；实时 Keldysh 的顶点位移保留（好 ~25 倍）。
+        v = branch(x; b1=:τ, b2=:τ)[i.j, j.j]
+        return i.conj ? -v : v
+    end
+    m = if bs == (:+, :-)
         _vs_rt_acc(branch(i), i.j, branch(j), j.j,
                    length(branch(x; b1=:+, b2=:+).ηⱼₖ) - 1)
-    else                                    # 混合轮廓
-        _vs_mixed_acc(branch(i), i.j, branch(j), j.j,
-                      length(branch(x; b1=:τ, b2=:τ).ηⱼₖ),
-                      length(branch(x; b1=:+, b2=:+).ηⱼₖ) - 1)
+    else
+        error("three-branch contours go through AbstractMixedCorrelationFunction")
     end
     m === nothing && return zero(eltype(branch(x; b1=branch(i), b2=branch(j))))
     D = branch(x; b1=m[1], b2=m[3])
@@ -209,21 +211,26 @@ function Base.getindex(x::BCSCorrelationFunction,
     # IF 分解（_delta_terms）：两个正常块 (ā↑,a↑)/(ā↓,a↓) 都取 uu 的 Δ，
     # 反常块 (ā↑,ā↓) 取 ud、(a↓,a↑) 取 du
     Δb = (σᵢ === σⱼ) ? x.uu : (σᵢ === :↑ ? x.ud : x.du)
-    # 顶点位置装配（与 Dense 路径一致）：τ 环 / 混合逐块移位；BCS RT 暂不迁移
+    z = zero(eltype(branch(Δb; b1=branch(i), b2=branch(j))))
     bs = branches(x)
-    m = if bs == (:τ,)
-        Nτ = length(branch(x.uu; b1=:τ, b2=:τ).ηⱼₖ)
-        Nτ == 1 ? (:τ, 1, :τ, 1, 1) : _vs_τ_acc(i.j, j.j, Nτ)
+    if bs == (:τ,)
+        # τ 环：raw（2026-10-30 回退；顶点版使 g(τ) 误差常数恶化，BCS 基准
+        # 差 1.7-3.5×，见 performance/firstorder/bcs_vertex_shift_accuracy.jl）
+        v = branch(Δb; b1=:τ, b2=:τ)[i.j, j.j]
     elseif bs == (:+, :-)
-        return branch(Δb; b1=branch(i), b2=branch(j))[i.j, j.j]
-    else                                    # BCS 混合（2026-10-29 同普通 bath 恢复原始读取）
-        return branch(Δb; b1=branch(i), b2=branch(j))[i.j, j.j] * ((i.conj && !j.conj) ? -1 : 1)
-        _vs_mixed_acc(branch(i), i.j, branch(j), j.j,
-                      length(branch(x.uu; b1=:τ, b2=:τ).ηⱼₖ),
-                      length(branch(x.uu; b1=:+, b2=:+).ηⱼₖ) - 1)
+        # BCS 实时：顶点位移（2026-10-30 迁移，与普通 bath 实轴同款）。
+        # 判决：GTEMPO bcs_ed 基准 vertex 比 raw 好 4-16×（gt 触 2e-4 截断
+        # 地板 vs raw 0.0036→0.0008 一阶）。注意 QuAPI.Dense 的 BCS RT 仍为
+        # 旧装配（raw）——Dense 对齐测试已隔离，以严格解为准，Dense 待同步。
+        m = _vs_rt_acc(branch(i), i.j, branch(j), j.j,
+                       length(branch(x.uu; b1=:+, b2=:+).ηⱼₖ) - 1)
+        m === nothing && return z
+        v = m[5] * branch(Δb; b1=m[1], b2=m[3])[m[2], m[4]]
+    else
+        # BCS 混合：raw（2026-10-29 起，同普通 bath；位移版与物理 ED 矛盾）
+        v = branch(Δb; b1=branch(i), b2=branch(j))[i.j, j.j]
     end
-    m === nothing && return zero(eltype(branch(Δb; b1=branch(i), b2=branch(j))))
-    return m[5] * branch(Δb; b1=m[1], b2=m[3])[m[2], m[4]]
+    return (i.conj && !j.conj) ? -v : v
 end
 
 """
