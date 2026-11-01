@@ -151,4 +151,55 @@ end
 	Δiw = [2ω0/(ω0^2 + ω^2) for ω in ifrequencies(β, nmax)]
 	c3 = Δiw_to_Δτ(Δiw, β=β, N=N)
 	@test transpose(c3) == c3
+
+	# raw-vector benchmark (Dirac): point-mass spectra are reproduced exactly,
+	# equal time included, for either sign of μ.  The diagonal is split 50/50
+	# between ηⱼₖ[1] and ηₖⱼ[1] by construction, while fermionic_Δτ splits it
+	# into the two triangle integrals, so only lags ≥ 2 and the diagonal sum
+	# agree at the raw-vector level (the materialized matrices above already
+	# pin the sum).  NOTE the pole position ω0+μ: `spectrumshift` moves a
+	# DiracDelta as ω → ω+μ.
+	for μ in (-0.3, 0.0, 0.3)
+		Δiw = [1/(im*ω - (ω0+μ)) for ω in ifrequencies(β, nmax)]
+		c1 = Δiw_to_Δτ(Δiw, β=β, N=N)
+		c2 = fermionic_Δτ(DiracDelta(ω=ω0), β=β, N=N, μ=μ)
+		@test c1.data.ηⱼₖ[2:end] ≈ c2.data.ηⱼₖ[2:end] atol=1.0e-8
+		@test c1.data.ηₖⱼ[2:end] ≈ c2.data.ηₖⱼ[2:end] atol=1.0e-8
+		@test c1.data.ηⱼₖ[1] + c1.data.ηₖⱼ[1] ≈ c2.data.ηⱼₖ[1] + c2.data.ηₖⱼ[1] atol=1.0e-8
+	end
+
+	# generic (bounded) spectra: `spectrumshift` moves them the opposite way,
+	# f(ε+μ), so the physical Matsubara pole sits at ε−μ and the values are
+	# the Hilbert transform at z = iω+μ.  Δ(iωₙ) below is the closed form for
+	# the semicircular density (2/π)√(1−ε²) on [−1,1], branch fixed by
+	# Im√z = Im z.  With it, the full kernel — equal time included — matches
+	# fermionic_Δτ to truncation accuracy for either sign of μ.
+	sc_mw(ω, μ) = begin
+		z = im*ω + μ
+		s = sqrt(complex(z)^2 - 1)
+		sign(imag(s)) == sign(ω) || (s = -s)
+		2*(z - s)
+	end
+	fsc = semicircular()
+	for μ in (-0.3, 0.0, 0.3)
+		Δiw = [sc_mw(ω, μ) for ω in ifrequencies(β, nmax)]
+		c1 = Δiw_to_Δτ(Δiw, β=β, N=N)
+		c2 = fermionic_Δτ(fsc, β=β, N=N, μ=μ)
+		@test c1.data.ηⱼₖ[2:end] ≈ c2.data.ηⱼₖ[2:end] atol=1.0e-8
+		@test c1.data.ηₖⱼ[2:end] ≈ c2.data.ηₖⱼ[2:end] atol=1.0e-8
+		@test c1.data.ηⱼₖ[1] + c1.data.ηₖⱼ[1] ≈ c2.data.ηⱼₖ[1] + c2.data.ηₖⱼ[1] atol=1.0e-8
+	end
+
+	# a hybridization that is not conjugate-symmetric, Δ(−iω) ≠ conj(Δ(iω)),
+	# cannot give a real Δτ kernel and is rejected
+	ωs = ifrequencies(β, div(nmax, 10))
+	Δiw = zeros(ComplexF64, length(ωs))
+	Δiw[length(ωs)÷2+1:end] .= [1/(im*ω - ω0) for ω in ωs[length(ωs)÷2+1:end]]
+	@test_throws ErrorException Δiw_to_Δτ(Δiw, β=β, N=N)
+
+	# a single time slice keeps only the equal-time element
+	Δiw = [1/(im*ω - (ω0+0.3)) for ω in ifrequencies(β, nmax)]
+	c1 = Δiw_to_Δτ(Δiw, β=β, N=1)
+	c2 = fermionic_Δτ(DiracDelta(ω=ω0), β=β, N=1, μ=0.3)
+	@test (c1.data.ηⱼₖ[1] + c1.data.ηₖⱼ[1]) ≈ (c2.data.ηⱼₖ[1] + c2.data.ηₖⱼ[1]) atol=1.0e-8
 end
