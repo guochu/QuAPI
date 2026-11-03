@@ -198,39 +198,58 @@ end
 """
     x[i::GrassmannContourIndex, j::GrassmannContourIndex]   (BCS bath)
 
-BCS bath 的 `band` 按 flavor 解释：奇数 = 上自旋（`band = 1`），偶数 =
-下自旋（`band = 2`），允许带间（反常）块。行为等价于
-`branch(x[σᵢ, σⱼ]; b1=branch(i), b2=branch(j))[i.j, j.j]`。
+BCS bath 的 **IF 指数系数**：返回影响泛函指数里单项式 ξᵢξⱼ 的系数，与 Dense
+侧的 `_delta_terms` 同一分解、全部 + 号——
+
+- `(ā↑,a↑)`、`(ā↓,a↓)` → +uu（正常通道，canonical 的 ā 在前）；
+- `(ā↑,ā↓)` → +ud、`(a↓,a↑)` → +du（反常通道）；
+
+其余腿对不是指数项，返回 0：同 conj 配对（(a↑,a↑)/(ā↑,ā↑) 的 uu 误配等）与
+跨 flavor 反向对（(ā↑,a↓)/(ā↓,a↑)/(a↑,ā↓)/(a↓,ā↑) 的 ud/du 误配）。
+band 按 flavor 解释：奇数 = 上自旋（band 1），偶数 = 下自旋（band 2）。
+块值的分支/顶点位移约定与普通 bath 一致（τ 环 raw、实时顶点位移、混合 raw）。
+
+注意与普通 bath 的收缩语义（x[a,ā] = +Δ、x[ā,a] = −Δ）不同：BCS 是**有向的**
+指数系数——装配处直接 `corr[i, j]` 读取，无需 conj 翻转。这是 2026-11-03 修正：
+旧定义按 (a-ā 约定) 加符号且不区分指数项与误配对，迫使装配侧把 ↓↓ 正常项写成
+`(a↓,ā↓)·(−Δ)`（Grassmann 单项式意义上 = ↓↓ 核转置），U≠0 时产生 δt 无关的
+系统偏差（U=0 因 band-2 只贡献标量、Z 归约相消而不可见）。
 """
 function Base.getindex(x::BCSCorrelationFunction,
                        i::GrassmannContourIndex, j::GrassmannContourIndex)
-    (i.band ≥ 1) || throw(ArgumentError("band 必须 ≥ 1（当前 $(i.band)）"))
-    (j.band ≥ 1) || throw(ArgumentError("band 必须 ≥ 1（当前 $(j.band)）"))
-    σᵢ = isodd(i.band) ? :↑ : :↓
-    σⱼ = isodd(j.band) ? :↑ : :↓
-    # IF 分解（_delta_terms）：两个正常块 (ā↑,a↑)/(ā↓,a↓) 都取 uu 的 Δ，
-    # 反常块 (ā↑,ā↓) 取 ud、(a↓,a↑) 取 du
-    Δb = (σᵢ === σⱼ) ? x.uu : (σᵢ === :↑ ? x.ud : x.du)
-    z = zero(eltype(branch(Δb; b1=branch(i), b2=branch(j))))
-    bs = branches(x)
-    if bs == (:τ,)
-        # τ 环：raw（2026-10-30 回退；顶点版使 g(τ) 误差常数恶化，BCS 基准
-        # 差 1.7-3.5×，见 performance/firstorder/bcs_vertex_shift_accuracy.jl）
-        v = branch(Δb; b1=:τ, b2=:τ)[i.j, j.j]
-    elseif bs == (:+, :-)
-        # BCS 实时：顶点位移（2026-10-30 迁移，与普通 bath 实轴同款）。
-        # 判决：GTEMPO bcs_ed 基准 vertex 比 raw 好 4-16×（gt 触 2e-4 截断
-        # 地板 vs raw 0.0036→0.0008 一阶）。注意 QuAPI.Dense 的 BCS RT 仍为
-        # 旧装配（raw）——Dense 对齐测试已隔离，以严格解为准，Dense 待同步。
-        m = _vs_rt_acc(branch(i), i.j, branch(j), j.j,
-                       length(branch(x.uu; b1=:+, b2=:+).ηⱼₖ) - 1)
-        m === nothing && return z
-        v = m[5] * branch(Δb; b1=m[1], b2=m[3])[m[2], m[4]]
-    else
-        # BCS 混合：raw（2026-10-29 起，同普通 bath；位移版与物理 ED 矛盾）
-        v = branch(Δb; b1=branch(i), b2=branch(j))[i.j, j.j]
-    end
-    return (i.conj && !j.conj) ? -v : v
+	(i.band ≥ 1) || throw(ArgumentError("band 必须 ≥ 1（当前 $(i.band)）"))
+	(j.band ≥ 1) || throw(ArgumentError("band 必须 ≥ 1（当前 $(j.band)）"))
+	# 四类指数单项式 → Δ 块；其余腿对不是指数项（零元素按实际腿的分支取，
+	# 兼容三种轮廓：ImagCorrelationFunction 只有 :τ 块）
+	Δb = if i.conj && !j.conj && isodd(i.band) == isodd(j.band)
+		x.uu                                             # (āσ, aσ) 正常
+	elseif i.conj && j.conj && isodd(i.band) && !isodd(j.band)
+		x.ud                                             # (ā↑, ā↓) 反常
+	elseif !i.conj && !j.conj && !isodd(i.band) && isodd(j.band)
+		x.du                                             # (a↓, a↑) 反常
+	else
+		return zero(eltype(branch(x.uu; b1=branch(i), b2=branch(j))))
+	end
+	z = zero(eltype(branch(Δb; b1=branch(i), b2=branch(j))))
+	bs = branches(x)
+	if bs == (:τ,)
+		# τ 环：raw（2026-10-30 回退；顶点版使 g(τ) 误差常数恶化，BCS 基准
+		# 差 1.7-3.5×，见 performance/firstorder/bcs_vertex_shift_accuracy.jl）
+		v = branch(Δb; b1=:τ, b2=:τ)[i.j, j.j]
+	elseif bs == (:+, :-)
+		# BCS 实时：顶点位移（2026-10-30 迁移，与普通 bath 实轴同款）。
+		# 判决：GTEMPO bcs_ed 基准 vertex 比 raw 好 4-16×（gt 触 2e-4 截断
+		# 地板 vs raw 0.0036→0.0008 一阶）。注意 QuAPI.Dense 的 BCS RT 仍为
+		# 旧装配（raw）——Dense 对齐测试已隔离，以严格解为准，Dense 待同步。
+		m = _vs_rt_acc(branch(i), i.j, branch(j), j.j,
+		               length(branch(x.uu; b1=:+, b2=:+).ηⱼₖ) - 1)
+		m === nothing && return z
+		v = m[5] * branch(Δb; b1=m[1], b2=m[3])[m[2], m[4]]
+	else
+		# BCS 混合：raw（2026-10-29 起，同普通 bath；位移版与物理 ED 矛盾）
+		v = branch(Δb; b1=branch(i), b2=branch(j))[i.j, j.j]
+	end
+	return v
 end
 
 """

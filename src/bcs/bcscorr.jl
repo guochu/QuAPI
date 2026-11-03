@@ -38,9 +38,14 @@ end
 Bath correlation function of a BCS (superconducting) environment, stored as
 four blocks labeled by the (pseudo-)spin/flavor pair.
 
-The exponent of the Feynman-Vernon influence functional reads
+The exponent of the Feynman-Vernon influence functional reads (canonical
+directed form of the Wick expansion — the same decomposition as Dense's
+`_delta_terms` and `getindex(::GrassmannContourIndex, ::GrassmannContourIndex)`;
+note the ↓↓ normal term pairs ā↓ first, NOT `a↓ Δ↓↓ ā↓` — the latter differs
+by a Grassmann anticommutation plus a matrix transpose and is NOT the Wick
+expansion, cf. the 2026-11-03 assembly fix):
 
-    ā↑ Δ↑↑ a↑ + ā↑ Δ↑↓ ā↓ + a↓ Δ↓↑ a↑ + a↓ Δ↓↓ ā↓
+    ā↑ Δ↑↑ a↑ + ā↑ Δ↑↓ ā↓ + a↓ Δ↓↑ a↑ + ā↓ Δ↓↓ a↓
 
 with the normal blocks Δ↑↑, Δ↓↓ and the anomalous blocks Δ↑↓, Δ↓↑ built from
 the Bogoliubov coherence factors (u, v).  Internally the four blocks are
