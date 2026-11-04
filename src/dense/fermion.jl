@@ -43,31 +43,22 @@ end
 # 但旧装配把顶点放在 cell 边界（滞后偏一格），对严格方案的残差因此停在 O(V²)
 # （V 减半残差比值 4，performance/fermionicG4.jl 实测）。此处把顶点移到节点
 # ——与玻色 non-diagonal PT 在 BosonicIF 里做的分支规则修复属同一层级的
-# 装配修正，核数值完全复用：
+# 装配修正，核数值完全复用。
 #
-#   虚时 τ 环（生成值重组为 skew-circulant，N 为节点数）：
-#     c₀ = ηₖⱼ[2]，c₁ = ηⱼₖ[1]+ηₖⱼ[1]（等时和），c_k = ηⱼₖ[k]（k ≥ 2）
-#     C[āᵢ, aⱼ] = i > j ? c_{i−j} : i < j ? −c_{N+i−j} : c₀
-#   实时 Keldysh（节点 0..N，腿位 pos(j,br,ā) = 4j + (br==:+ ? 0:2) + (ā?2:1)）：
-#     (ā⁺,a⁻)/(ā⁻,a⁺) 交叉块：值不变，仅开窗（ā⁺₀ 行、a⁻₀ 列 / a⁺_N 列、
-#       ā⁻_N 行置零——顶点窗口 = cell 1..N）
-#     (ā⁺,a⁺) 块：列移一位（aⱼ→aⱼ₊₁）；动能位 (j, j−1) 取 (ā⁻,a⁻) 块对角
-#     (ā⁻,a⁻) 块：镜像（列移 aⱼ→aⱼ₋₁；动能位 (j−1, j) 取 (ā⁺,a⁺) 块对角）
-#
-# 精度：核内容对严格方案（exact_fermionic_Δτ/Δt 参照）的残差按 V⁴ 标度
-# （比值≈16）——与玻色 non-diagonal PT 同级（O(V²) 系数精确 + V⁴ 截断）。
-# 整体 Z/ρ 另带一个 O(V²) 归一化常数（"跳去又跳回"泄漏 = exact_fermionic_*
-# 的 prefactor；迹归一化的观测量中自动消去）。
-#
-# 2026-10-30 生效范围收缩（与 contourindex.jl 访问器逐轮廓对齐）：仅
-# 实时 Keldysh（单 flavor）保留顶点位移（ED 验证通过、误差常数好 ~25×）。
+# 生效范围（2026-10-30 判决、2026-11-04 与 contourindex.jl 访问器同构收口）：
+# 仅实时 Keldysh 保留顶点位移（单 flavor ED ✓、误差常数好 ~25×；BCS RT
+# 与访问器同规则迁移，gt/lt 4-16× 改善见 bcs_vertex_shift_accuracy.jl）。
 # τ 环位移使 g(τ) 离散误差常数恶化 ~30×（GTEMPO Toulouse 基准）、mixed
 # 位移与物理 ED 矛盾 6–7% 且不随 δt 收敛（GTEMPO 全部 mixed ED 套件）——
-# 两者连同 BCS τ 均回退 cell（节点值）读取（证据与复现：
-# bugrepots/dense_mixed_vertexshift_convention.md）；BCS mixed 的位移与
-# 访问器互一致（严格 BCS 链验证待补）；BCS RT 暂沿用旧装配。
+# τ 环与混合轮廓一律 raw（cell 值）直读，移位映射本体已删除（证据与复现：
+# bugrepots/dense_mixed_vertexshift_convention.md；
+# GTEMPO/test/api/quapi_crosscheck.jl 为 Dense↔访问器逐位对齐测试）。
 
-
+# 实时 Keldysh 单 flavor（节点 0..N，腿位 pos(j,br,ā) = 4j + (br==:+ ? 0:2) + (ā?2:1)）：
+#   (ā⁺,a⁻)/(ā⁻,a⁺) 交叉块：值不变，仅开窗（ā⁺₀ 行、a⁻₀ 列 / a⁺_N 列、
+#     ā⁻_N 行置零——顶点窗口 = cell 1..N）
+#   (ā⁺,a⁺) 块：列移一位（aⱼ→aⱼ₊₁）；动能位 (j, j−1) 取 (ā⁻,a⁻) 块对角
+#   (ā⁻,a⁻) 块：镜像（列移 aⱼ→aⱼ₋₁；动能位 (j−1, j) 取 (ā⁺,a⁺) 块对角）
 function _vertex_shifted_rt(C::AbstractMatrix{T}, N::Int) where {T}
     pos(j0, br, ā) = 4 * j0 + (br === :+ ? 0 : 2) + (ā ? 2 : 1)
     diag₊₊ = C[pos(0, :+, true), pos(0, :+, false)]   # (+,+) 块对角（Toeplitz 常值）
@@ -90,73 +81,38 @@ function _vertex_shifted_rt(C::AbstractMatrix{T}, N::Int) where {T}
     return D
 end
 
-
-# 混合轮廓链位：τ_j（j=1..Nτ）在前，随后按时间 jj=1..Nt+1 的 (+,−) 对
-function _mxnode(b::Symbol, j::Int, Nτ::Int)
-	b === :τ && return j
-	return Nτ + 2 * (j - 1) + (b === :+ ? 1 : 2)
-end
-_mjran(b::Symbol, Nτ::Int, Nt::Int) = b === :τ ? (1:Nτ) : (1:Nt+1)
-
-# 行/列源与符号（单 flavor 混合轮廓；BCS 混合逐 band 同构复用）
-function _mx_maps(b1::Symbol, j1::Int, b2::Symbol, j2::Int, Nτ::Int, Nt::Int)
-	r = b1 === :τ ? (j1 ≥ 2 ? (:τ, j1 - 1) : nothing) :
-		b1 === :+ ? (j1 == 1 ? (:τ, Nτ) : (:+, j1 - 1)) :
-		(j1 ≤ Nt ? (:-, j1) : nothing)
-	c = b2 === :τ ? (:τ, j2) :
-		b2 === :+ ? (:+, j2) : (j2 ≥ 2 ? (:-, j2 - 1) : nothing)
-	s = ((b1 === :+ && j1 ≥ 2) ⊻ (b2 === :+)) ? -1 : 1
-	return r, c, s
-end
-
-function _vertex_shifted_bcs_mixed(C::AbstractMatrix, Nτ::Int, Nt::Int)
-	# BCS 混合（每节点 a↑,ā↑,a↓,ā↓ 四腿）：正常块 (ā↑,a↑)/(ā↓,a↓) 与反常块
-	# (ā↑,ā↓)/(a↓,a↑) 按单 flavor 规则逐块同构移位（严格 BCS 链验证待补）
-	ipos(b, j, band, ā) = 4 * (_mxnode(b, j, Nτ) - 1) + (band - 1) * 2 + (ā ? 2 : 1)
-	D = zero(C)
-	blocks = (((1, true, 1, false), (1, true, 1, false)),   # (ā↑,a↑)=uu
-			  ((2, true, 2, false), (2, true, 2, false)),   # (ā↓,a↓)=dd
-			  ((1, true, 2, true), (1, true, 2, true)),     # (ā↑,ā↓)=ud
-			  ((2, false, 1, false), (2, false, 1, false))) # (a↓,a↑)=du
-	for b1 in (:τ, :+, :-), j1 in _mjran(b1, Nτ, Nt),
-		b2 in (:τ, :+, :-), j2 in _mjran(b2, Nτ, Nt)
-		r, c, s = _mx_maps(b1, j1, b2, j2, Nτ, Nt)
-		(r === nothing || c === nothing) && continue
-		for (dst, src) in blocks
-			D[ipos(b1, j1, dst[1], dst[2]), ipos(b2, j2, dst[3], dst[4])] =
-				s * C[ipos(r[1], r[2], src[1], src[2]), ipos(c[1], c[2], src[3], src[4])]
-		end
-	end
-	return Matrix(D)
+# BCS 实时：每节点 8 腿（每支 a↑,ā↑,a↓,ā↓，+ 支在前），四个指数块
+# （uu↑/uu↓/ud/du）按与访问器完全相同的 `_vs_rt_acc` 规则逐腿对移位——
+# 动能位由映射落回 (:+,1,:+,1)/( :-,1,:,1) 的块对角，与单 flavor 的
+# "取本支对角"逐位一致。
+function _vertex_shifted_bcs_rt(C::AbstractMatrix{T}, N::Int) where {T}
+    ipos(br, j, band, ā) = 8 * j + (br === :+ ? 0 : 4) + (band - 1) * 2 + (ā ? 2 : 1)
+    D = zero(C)
+    blocks = (((1, true), (1, false)),   # (ā↑,a↑) = uu 正常 ↑
+              ((2, true), (2, false)),   # (ā↓,a↓) = uu 正常 ↓
+              ((1, true), (2, true)),    # (ā↑,ā↓) = ud 反常
+              ((2, false), (1, false)))  # (a↓,a↑) = du 反常
+    for b1 in (:+, :-), j1 in 0:N, b2 in (:+, :-), j2 in 0:N
+        m = _vs_rt_acc(b1, j1 + 1, b2, j2 + 1, N)   # N = cell 数（访问器约定）
+        m === nothing && continue
+        for (rb, cb) in blocks
+            D[ipos(b1, j1, rb...), ipos(b2, j2, cb...)] =
+                m[5] * C[ipos(m[1], m[2] - 1, rb...), ipos(m[3], m[4] - 1, cb...)]
+        end
+    end
+    return Matrix(D)
 end
 
 function _vertex_shifted_IF(C::AbstractMatrix, bs::Vector{GrassmannContourIndex})
     brs = branch.(bs)
-    single = all(b -> b.band == 1, bs)
     mixed = any(==(:τ), brs) && any(b -> b === :+ || b === :-, brs)
-    # 2026-10-30 与访问器（contourindex.jl）逐轮廓对齐——只有实时 Keldysh
-    # （单 flavor）保留顶点位移，其余轮廓回退 cell（节点值）读取：
-    #   · 实时 Keldysh（单 flavor）：位移保留——ED 验证通过，误差常数好 ~25×；
-    #   · τ 环：回退——顶点重组使 g(τ) 离散误差常数恶化 ~30×（0.017 vs
-    #     0.0006 @δτ=0.125，同为一阶；GTEMPO Toulouse 基准
-    #     performance/firstorder/vertex_shift_accuracy.jl）；
-    #   · mixed：回退——顶点位移与物理 ED 矛盾（GTEMPO 全部 mixed ED 套件
-    #     偏差 6–7% 且不随 δt 收敛；cell 读取全部通过；证据与复现见
-    #     bugrepots/dense_mixed_vertexshift_convention.md）；
-    #   · BCS τ：随访问器回退 cell 读取；BCS mixed：访问器与 Dense 均为
-    #     位移版（互一致，严格 BCS 链验证待补）；BCS RT：暂沿用旧装配。
-    if single && !mixed
-        all(b -> b === :τ, brs) && return C          # τ 环：raw（g(τ) 常数恶化 30×）
-        return _vertex_shifted_rt(C, length(bs) ÷ 4 - 1)  # RT 单 flavor：位移保留（ED ✓）
-    elseif !mixed
-        return C                                     # BCS RT：暂沿用旧装配
-    return C
-    # BCS mixed/RT：cell 读取（与 BCS 访问器一致——其 τ/混合/RT 三分支均为
-    # raw 直读；此前 Dense 的 _vertex_shifted_bcs_mixed 移位未经验证，已随
-    # mixed/τ 一并回退；严格 BCS 链验证后再定最终约定）
-    return C                     # mixed 单 flavor / BCS mixed：raw（与访问器一致）
-end
-    return C                     # mixed 单 flavor / BCS mixed：raw（兜底）
+    single = all(b -> b.band == 1, bs)
+    # 与访问器（contourindex.jl）逐轮廓一致：仅实时 Keldysh 位移，τ 环与混合
+    # raw（cell 值）直读——判决依据见上方范围注释。
+    mixed && return C                                  # 混合（单 flavor / BCS）：raw
+    all(b -> b === :τ, brs) && return C                # τ 环（单 flavor / BCS）：raw
+    single && return _vertex_shifted_rt(C, length(bs) ÷ 4 - 1)
+    return _vertex_shifted_bcs_rt(C, length(bs) ÷ 8 - 1)
 end
 
 GrassmannHybridizationMatrix(x::IFSource) =

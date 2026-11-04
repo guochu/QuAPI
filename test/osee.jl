@@ -341,14 +341,19 @@ end
     bj = BosonicContourIndex(2, :τ)
     @test corrb[bi, bj] == branch(corrb; b1=:τ, b2=:τ)[1, 2]
     @test corrb[bj, bi] == branch(corrb; b1=:τ, b2=:τ)[2, 1]
-    # BCS：band 奇数 = 上自旋，偶数 = 下自旋（允许带间块；τ 环同移位规则）
+    # BCS：band 奇数 = 上自旋，偶数 = 下自旋（2026-11-03 访问器改为**有向
+    # 指数系数**语义：(ā↑,a↑)/(ā↓,a↓) → +uu、(ā↑,ā↓) → +ud、(a↓,a↑) → +du，
+    # 误配位型（含旧 a-ā 收缩方向）为零——与 Dense._delta_terms 同一分解）
     bcs = bcs_Δτ(DiscreteSpectrum([1.0], [0.25]), β=2.0, N=3, μ=0.0, Δ=0.5)
-    kup = GrassmannContourIndex(1, :τ, 1, false)
-    kdn = GrassmannContourIndex(2, :τ, 2, true)
-    @test bcs[kup, kdn] == branch(bcs[:↑, :↓]; b1=:τ, b2=:τ)[1, 2]
-    @test bcs[kdn, kup] == -branch(bcs[:↓, :↑]; b1=:τ, b2=:τ)[2, 1]
-    @test bcs[kup, GrassmannContourIndex(3, :τ, 3, true)] ==
-          branch(bcs[:↑, :↑]; b1=:τ, b2=:τ)[1, 3]      # band 3 = 上自旋；k = 1 环回
+    aup = GrassmannContourIndex(1, :τ, 1, false)      # a↑ @1
+    abarup = GrassmannContourIndex(3, :τ, 3, true)    # ā↑ @3（band 3 = 上自旋）
+    adn = GrassmannContourIndex(2, :τ, 2, false)      # a↓ @2
+    abardn = GrassmannContourIndex(2, :τ, 2, true)    # ā↓ @2
+    @test bcs[abarup, aup] == branch(bcs[:↑, :↑]; b1=:τ, b2=:τ)[3, 1]   # (ā↑,a↑) → +uu
+    @test bcs[abardn, adn] == branch(bcs[:↑, :↑]; b1=:τ, b2=:τ)[2, 2]   # (ā↓,a↓) → +uu
+    @test iszero(bcs[aup, abarup])                                       # 误配位型为零
+    @test bcs[abarup, abardn] == branch(bcs[:↑, :↓]; b1=:τ, b2=:τ)[3, 2]  # (ā↑,ā↓) → +ud
+    @test bcs[adn, aup] == branch(bcs[:↓, :↑]; b1=:τ, b2=:τ)[2, 1]        # (a↓,a↑) → +du
 
     # contour 次序：分支 :+ < :- < :τ；:+ / :τ 内 j 升序，:- 内 j 降序
     @test GrassmannContourIndex(1, :+, 1, false) < GrassmannContourIndex(2, :+, 1, false)

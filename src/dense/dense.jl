@@ -9,7 +9,7 @@ using ..QuAPI: AbstractCorrelationFunction, AbstractRealCorrelationFunction,
                ImagCorrelationFunction, RealCorrelationFunction,
                AbstractMixedCorrelationFunction, CorrelationMatrix,
                AbstractContourIndex, GrassmannContourIndex, BosonicContourIndex,
-               branch, branches, isize, rsize
+               branch, branches, isize, rsize, _vs_rt_acc
 using LinearAlgebra: I, kron, triu, tril
 
 export GrassmannADT, BosonicADT, BosonicPT,

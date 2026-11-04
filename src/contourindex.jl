@@ -97,22 +97,16 @@ different bands (no band matching is required).
 # nothing 表示该腿对的 IF 内容为零。玻色 bath 不受影响（PT 已精确）。
 # ------------------------------------------------------------------ #
 
-# τ 环（N 节点）：skew-circulant 生成值（c₀ = D[1,2]；c₁ = D[1,1]（等时和）；
-# c_k = D[k,1]；负滞后 = −c_{N+i−j}）
-function _vs_τ_acc(i::Int, j::Int, N::Int)
-    if i == j
-        return (:τ, 1, :τ, 2, 1)
-    elseif i > j
-        d = i - j
-        return d == 1 ? (:τ, 1, :τ, 1, 1) : (:τ, d, :τ, 1, 1)
-    else
-        k = N + i - j
-        return k == 1 ? (:τ, 1, :τ, 1, -1) : (:τ, k, :τ, 1, -1)
-    end
-end
-
 # 实时 Keldysh（节点 j = 1..N+1，N cells）：同支块列移 + 动能位取本支对角；
-# 交叉块开窗不变
+# 交叉块开窗不变。
+# 范围判决（2026-10-30 回退，2026-11-04 删除移位映射本体）：顶点位移仅保留在
+# 实时 Keldysh（误差常数好 ~25×）。τ 环位移使 g(τ) 离散误差常数恶化 ~30×
+# （GTEMPO Toulouse 基准），混合位移与物理 ED 矛盾（正支杂化反号，收敛到
+# H_S+H_b−H_hyb 错误轮廓、误差平台不随 δt 收敛）——两者的移位映射
+# （_vs_τ_acc / _vs_mixed_acc）已随回退删除；历史三轴标定脚本各自内联了
+# 移位映射副本（原 GTEMPO/performance/firstorder/ 下的三轴标定脚本，
+# 已随 2026-11-04 的 performance 清理删除；标定结论见各注释与 GTEMPO
+# docs/tutorials/firstorderif）。
 function _vs_rt_acc(b1::Symbol, j1::Int, b2::Symbol, j2::Int, N::Int)
     if b1 === :+ && b2 === :+
         (j1 ≥ 2 && j2 ≤ N) || return nothing
@@ -127,21 +121,6 @@ function _vs_rt_acc(b1::Symbol, j1::Int, b2::Symbol, j2::Int, N::Int)
         (j1 ≤ N && j2 ≤ N) || return nothing
         return (:-, j1, :+, j2, 1)
     end
-end
-
-# 混合轮廓：行 τ_j→τ_{j−1}、+₁→τ_Nτ、+_j→+_{j−1}、− 不动（−_{Nt+1} 无源）；
-# 列 τ 不动、+ 不动（+_{Nt+1} 无源）、−_k→−_{k−1}（−₁ 无源）；
-# 符号恰一支为 + 时 −1（+₁ 行例外，其源为 τ_Nτ）
-function _vs_mixed_acc(b1::Symbol, j1::Int, b2::Symbol, j2::Int, Nτ::Int, Nt::Int)
-    r = b1 === :τ ? (j1 ≥ 2 ? (:τ, j1 - 1) : nothing) :
-        b1 === :+ ? (j1 == 1 ? (:τ, Nτ) : (:+, j1 - 1)) :
-        (j1 ≤ Nt ? (:-, j1) : nothing)
-    c = b2 === :τ ? (:τ, j2) :
-        b2 === :+ ? (j2 ≤ Nt ? (:+, j2) : nothing) :
-        (j2 ≥ 2 ? (:-, j2 - 1) : nothing)
-    (r === nothing || c === nothing) && return nothing
-    s = ((b1 === :+ && j1 ≥ 2) ⊻ (b2 === :+)) ? -1 : 1
-    return (r[1], r[2], c[1], c[2], s)
 end
 
 # 混合轮廓的无分配元素读取：按 `branch()` 的分支公式直接取单元素，
@@ -161,12 +140,12 @@ end
 function Base.getindex(x::AbstractMixedCorrelationFunction,
                        i::GrassmannContourIndex, j::GrassmannContourIndex)
     (i.conj == j.conj) && return zero(eltype(x.ηⱼₖ))
-    # 2026-10-29：恢复原始（cell）读取，不走 _vs_mixed_acc 顶点位移。判决依据
-    # 是物理 ED：位移版使 GTEMPO 全部 mixed ED 测试偏差 ~6-7%（normalbath
-    # mixedtime 6 项、continuousbath 3 项、multiorbital mixed 3 项全挂，且不随
-    # δt 收敛）；原始读取下全部通过。τ 环与实时 Keldysh 的顶点位移保留（其 ED
-    # 验证通过）。Dense 侧的 mixed 装配若仍带位移则与本访问器不一致——待 Dense
-    # mixed 对齐后可恢复（GTEMPO crosscheck mixed 项已暂时隔离并留 TODO(bug)）。
+    # 混合轮廓维持原始（cell）读取（2026-10-29 判决，移位映射已删除）：位移版
+    # 使 GTEMPO 全部 mixed ED 测试偏差 ~6-7%（normalbath mixedtime 6 项、
+    # continuousbath 3 项、multiorbital mixed 3 项全挂，且不随 δt 收敛）；
+    # 原始读取下全部通过。独立复核把根因定位到旧移位规则的附加符号只翻转了
+    # 正支杂化（收敛到 H_S+H_b−H_hyb 错误轮廓）。实时 Keldysh 的顶点位移保留。
+    # Dense 侧 mixed 装配同为 raw，与本访问器一致（crosscheck 已恢复）。
     v = _mixed_branch_elem(x, branch(i), branch(j), i.j, j.j)
     return i.conj ? -v : v                  # ā-a 取 −（原约定保留）
 end
@@ -177,7 +156,8 @@ function Base.getindex(x::AbstractCorrelationFunction,
     bs = branches(x)
     if bs == (:τ,)
         # 2026-10-30：τ 环回退原始（cell）读取。判决依据：GTEMPO Toulouse
-        # 基准（performance/firstorder/vertex_shift_accuracy.jl）显示 τ 环
+        # 顶点位移标定（原 performance/firstorder/vertex_shift_accuracy.jl，
+        # 2026-11-04 随 performance 清理删除）显示 τ 环
         # 顶点重组使 g(τ) 的离散误差常数恶化 ~30 倍（0.017 vs 0.0006 @δτ=0.125，
         # 同为一阶收敛）；实时 Keldysh 的顶点位移保留（好 ~25 倍）。
         v = branch(x; b1=:τ, b2=:τ)[i.j, j.j]
@@ -234,7 +214,7 @@ function Base.getindex(x::BCSCorrelationFunction,
 	bs = branches(x)
 	if bs == (:τ,)
 		# τ 环：raw（2026-10-30 回退；顶点版使 g(τ) 误差常数恶化，BCS 基准
-		# 差 1.7-3.5×，见 performance/firstorder/bcs_vertex_shift_accuracy.jl）
+		# 差 1.7-3.5×，见 docs/tutorials/firstorderif/singlemodebath）
 		v = branch(Δb; b1=:τ, b2=:τ)[i.j, j.j]
 	elseif bs == (:+, :-)
 		# BCS 实时：顶点位移（2026-10-30 迁移，与普通 bath 实轴同款）。
