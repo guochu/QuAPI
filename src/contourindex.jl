@@ -139,7 +139,7 @@ end
 # 混合轮廓专用：无分配（不走 branch 构造分支矩阵）
 function Base.getindex(x::AbstractMixedCorrelationFunction,
                        i::GrassmannContourIndex, j::GrassmannContourIndex)
-    (i.conj == j.conj) && return zero(eltype(x.ηⱼₖ))
+    (i.conj == j.conj) && return zero(ComplexF64)
     # 混合轮廓维持原始（cell）读取（2026-10-29 判决，移位映射已删除）：位移版
     # 使 GTEMPO 全部 mixed ED 测试偏差 ~6-7%（normalbath mixedtime 6 项、
     # continuousbath 3 项、multiorbital mixed 3 项全挂，且不随 δt 收敛）；
